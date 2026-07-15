@@ -3,7 +3,7 @@ description: >
   In-app Flutter network inspector. Facade over ketok_core + ketok_ui with
   zero-config initialize, production-safe defaults, and a draggable overlay.
 version: 0.1.0
-repository: https://github.com/ketok/ketok
+repository: https://github.com/setilanaji/ketok
 
 environment:
   sdk: ^3.11.0

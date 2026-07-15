@@ -1,6 +1,6 @@
 # ketok_core
 
-Pure-Dart core for [Ketok](https://github.com/ketok/ketok), the in-app
+Pure-Dart core for [Ketok](https://github.com/setilanaji/ketok), the in-app
 Flutter network inspector: the captured-call model, event bus, ring-buffer
 store, capture-time redaction, DevTools-style filter grammar, and exporters
 (cURL, Dart/Dio snippet, HAR 1.2).
