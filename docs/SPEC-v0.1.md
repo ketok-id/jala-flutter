@@ -1,12 +1,12 @@
-# Ketok v0.1 — Network Inspector Specification (BINDING)
+# Jala v0.1 — Network Inspector Specification (BINDING)
 
-This document is the implementation contract for Ketok v0.1. Implementor agents MUST
+This document is the implementation contract for Jala v0.1. Implementor agents MUST
 follow the APIs, names, and behaviors here. If something is ambiguous, choose the
 simplest option consistent with the Principles and leave a `// SPEC-NOTE:` comment.
 
 ## Positioning (from competitive research, 2026-07)
 
-Ketok v0.1 must beat Alice/Chucker on these verified gaps:
+Jala v0.1 must beat Alice/Chucker on these verified gaps:
 
 1. **Structured filter query bar** (Chrome-DevTools style) — absent in Alice (issue #255) and Chucker (#286).
 2. **Copy as cURL AND copy as Dart Dio snippet** — Alice has neither (#232); the Dart snippet is unique in the ecosystem.
@@ -32,16 +32,16 @@ notifications, shake-to-open.
 
 ```
 ketok_dev_flutter/
-├── pubspec.yaml                 # workspace root (name: ketok_workspace)
+├── pubspec.yaml                 # workspace root (name: jala_workspace)
 ├── analysis_options.yaml
 ├── docs/SPEC-v0.1.md            # this file
 ├── packages/
-│   ├── ketok_core/              # pure Dart, NO Flutter dependency
-│   ├── ketok_dio/               # depends: ketok_core, dio
-│   ├── ketok_ui/                # depends: ketok_core, flutter
-│   └── ketok/                   # facade; depends: ketok_core, ketok_ui, flutter
+│   ├── jala_core/              # pure Dart, NO Flutter dependency
+│   ├── jala_dio/               # depends: jala_core, dio
+│   ├── jala_ui/                # depends: jala_core, flutter
+│   └── jala/                   # facade; depends: jala_core, jala_ui, flutter
 └── examples/
-    └── ketok_example/           # flutter app; depends: ketok, ketok_dio, dio
+    └── jala_example/           # flutter app; depends: jala, jala_dio, dio
 ```
 
 Path dependencies between packages (publish_to: none is NOT set — these will be
@@ -50,9 +50,9 @@ All package versions: `0.1.0`. Dart SDK constraint `^3.11.0`.
 
 ---
 
-## Package: ketok_core (pure Dart)
+## Package: jala_core (pure Dart)
 
-`lib/ketok_core.dart` exports everything below from `lib/src/...`.
+`lib/jala_core.dart` exports everything below from `lib/src/...`.
 
 ### Models (`src/model/`)
 
@@ -72,14 +72,14 @@ class NetworkCallEntry {
   final Duration? duration;            // null while pending
   final int? requestSize;              // bytes, best-effort
   final int? responseSize;
-  final KetokCallStatus status;        // pending | success | error | cancelled
+  final JalaCallStatus status;        // pending | success | error | cancelled
   final String? errorMessage;
   final String? replayOf;              // id of original call if this is a replay
   final String client;                 // e.g. 'dio'
   // copyWith(...)
 }
 
-enum KetokCallStatus { pending, success, error, cancelled }
+enum JalaCallStatus { pending, success, error, cancelled }
 
 /// Body capture with hard size cap. Never throws on binary data.
 class CapturedBody {
@@ -102,22 +102,22 @@ class CapturedBody {
 ### Events (`src/event/`)
 
 ```dart
-sealed class KetokEvent { final String callId; final DateTime timestamp; }
-class NetworkRequestEvent extends KetokEvent { /* method, uri, headers, body, size, client */ }
-class NetworkResponseEvent extends KetokEvent { /* statusCode, statusMessage, headers, body, size, duration */ }
-class NetworkErrorEvent extends KetokEvent { /* errorMessage, statusCode?, headers?, body?, duration */ }
-class NetworkCancelEvent extends KetokEvent { }
+sealed class JalaEvent { final String callId; final DateTime timestamp; }
+class NetworkRequestEvent extends JalaEvent { /* method, uri, headers, body, size, client */ }
+class NetworkResponseEvent extends JalaEvent { /* statusCode, statusMessage, headers, body, size, duration */ }
+class NetworkErrorEvent extends JalaEvent { /* errorMessage, statusCode?, headers?, body?, duration */ }
+class NetworkCancelEvent extends JalaEvent { }
 ```
 
-`KetokEventBus`: broadcast `Stream<KetokEvent> get events`, `void emit(KetokEvent e)`.
-Synchronous no-op (drop event, zero allocation beyond the call) when `Ketok` disabled —
+`JalaEventBus`: broadcast `Stream<JalaEvent> get events`, `void emit(JalaEvent e)`.
+Synchronous no-op (drop event, zero allocation beyond the call) when `Jala` disabled —
 bus takes a `bool Function() isEnabled` check.
 
 ### Store (`src/store/`)
 
 ```dart
-class KetokStore {
-  KetokStore({required KetokEventBus bus, int maxEntries = 300});
+class JalaStore {
+  JalaStore({required JalaEventBus bus, int maxEntries = 300});
   List<NetworkCallEntry> get entries;          // newest first
   Stream<List<NetworkCallEntry>> get watch;    // emits on every change
   NetworkCallEntry? byId(String id);
@@ -133,8 +133,8 @@ arrives for an evicted/unknown id (ignore).
 ### Redaction (`src/redact/`)
 
 ```dart
-class KetokRedactor {
-  KetokRedactor({Set<String> redactedHeaders = defaultRedactedHeaders,
+class JalaRedactor {
+  JalaRedactor({Set<String> redactedHeaders = defaultRedactedHeaders,
                  List<Pattern> redactedBodyPatterns = const []});
   static const defaultRedactedHeaders = {
     'authorization', 'proxy-authorization', 'cookie', 'set-cookie',
@@ -149,7 +149,7 @@ Redaction happens **at capture time** in the interceptor (values never enter the
 
 ### Filter engine (`src/filter/`)
 
-DevTools-style grammar. `KetokFilter.parse(String query)` -> `KetokFilter` with
+DevTools-style grammar. `JalaFilter.parse(String query)` -> `JalaFilter` with
 `bool matches(NetworkCallEntry e)`. Space-separated terms, AND semantics,
 `-` prefix negates a term. Case-insensitive. Malformed terms degrade to free-text.
 
@@ -178,18 +178,18 @@ DevTools-style grammar. `KetokFilter.parse(String query)` -> `KetokFilter` with
     options: Options(method: 'POST', headers: {...}), data: {...});
   ```
 - `HarExporter.exportSession(List<NetworkCallEntry>)` / `exportCall(entry)` -> HAR 1.2
-  JSON string (creator `{"name":"ketok","version":"0.1.0"}`); omit timings sub-phases we
+  JSON string (creator `{"name":"jala","version":"0.1.0"}`); omit timings sub-phases we
   don't have (use -1 per HAR spec), include startedDateTime, time, request/response
   headers, bodies as text where captured.
 
 ### Config (`src/config.dart`)
 
 ```dart
-class KetokConfig {
+class JalaConfig {
   final bool enabled;                  // facade defaults this to kDebugMode
   final int maxEntries;                // default 300
   final int maxBodyBytes;              // default 512*1024
-  final KetokRedactor redactor;
+  final JalaRedactor redactor;
 }
 ```
 
@@ -202,24 +202,24 @@ HAR shape validated by decoding JSON and asserting required fields.
 
 ---
 
-## Package: ketok_dio
+## Package: jala_dio
 
 ```dart
-class KetokDioInterceptor extends Interceptor {
-  KetokDioInterceptor();  // reads global Ketok bindings via KetokBinding.instance (core)
+class JalaDioInterceptor extends Interceptor {
+  JalaDioInterceptor();  // reads global Jala bindings via JalaBinding.instance (core)
 }
 ```
 
 - On attach to a `Dio`, the interceptor also registers that Dio instance with
-  `KetokReplayRegistry` (core holds the registry interface; ketok_dio implements
+  `JalaReplayRegistry` (core holds the registry interface; jala_dio implements
   replay by `dio.fetch(rebuiltRequestOptions)`), so the UI can trigger
-  `KetokReplay.replay(entryId)`. Replayed calls flow through interceptors again
+  `JalaReplay.replay(entryId)`. Replayed calls flow through interceptors again
   and are captured as new entries with `replayOf` set.
 - Zero-cost when disabled: first line of each hook checks enabled flag and forwards.
 - Capture: method, uri, headers (redacted), body via `CapturedBody.capture`,
   FormData -> summarize fields + file names/sizes (never read file bytes),
   `ResponseType.stream`/`bytes` -> metadata only, duration measured via stopwatch
-  keyed in `RequestOptions.extra['ketok_start']`, response headers flattened
+  keyed in `RequestOptions.extra['jala_start']`, response headers flattened
   (multi-value joined with ', ').
 - Handles: onRequest, onResponse, onError (DioException types incl. cancel ->
   NetworkCancelEvent), and must never throw (wrap in try/catch; a logging bug
@@ -227,19 +227,19 @@ class KetokDioInterceptor extends Interceptor {
 - Tests: use `dio` with a mock `HttpClientAdapter` to simulate success/error/
   cancel/binary/large bodies; assert emitted entries and replay behavior.
 
-## Package: ketok_ui
+## Package: jala_ui
 
 Flutter widgets. Own Navigator (do not touch host app navigation), own explicit
-`KetokTheme` (light/dark/system — never inherit host Theme). Material 3.
+`JalaTheme` (light/dark/system — never inherit host Theme). Material 3.
 
-- `KetokInspectorScreen` — root: filter bar + call list + app bar actions
+- `JalaInspectorScreen` — root: filter bar + call list + app bar actions
   (clear, export session as HAR via share/copy, theme toggle).
-  - Filter bar: TextField wired to `KetokFilter.parse`, with a hint showing grammar
+  - Filter bar: TextField wired to `JalaFilter.parse`, with a hint showing grammar
     and a help popover listing terms. Live filtering.
   - List tile: method chip, status color (pending spinner / 2xx green / 3xx blue /
     4xx orange / 5xx+error red), path (host as secondary), duration, size,
     replay badge when `replayOf != null`.
-- `KetokCallDetailScreen` — tabs: Overview (url, timing, sizes, status),
+- `JalaCallDetailScreen` — tabs: Overview (url, timing, sizes, status),
   Request (headers table + body), Response (headers + body).
   - Body view by kind: collapsible pretty-JSON tree with in-body search,
     image preview (content-type image/*, from re-request? NO — v0.1: only if bytes
@@ -247,32 +247,32 @@ Flutter widgets. Own Navigator (do not touch host app navigation), own explicit
     "binary/too large (n bytes) — metadata only" fallback.
   - Actions: Copy body, Copy cURL, Copy Dart snippet, Export HAR (this call),
     **Replay** button (disabled with tooltip if no replayer registered).
-- `KetokOverlayButton` — draggable floating bubble (snaps to edges, shows badge
-  with pending/error count), opens inspector via `Ketok.open()`.
-- Uses only `KetokStore.watch` streams; no business logic in widgets beyond display.
+- `JalaOverlayButton` — draggable floating bubble (snaps to edges, shows badge
+  with pending/error count), opens inspector via `Jala.open()`.
+- Uses only `JalaStore.watch` streams; no business logic in widgets beyond display.
 - Widget tests: list renders + live-filters entries; detail shows redacted header;
   JSON viewer expands nodes; copy-cURL puts expected string on clipboard.
 
-## Package: ketok (facade)
+## Package: jala (facade)
 
 ```dart
-Ketok.initialize({KetokConfig? config});        // idempotent; wires bus+store+binding
-Ketok.open();                                   // opens inspector (own navigator overlay)
-Ketok.close();
-Ketok.store / Ketok.bus / Ketok.isEnabled       // accessors for plugins
-KetokOverlay(child: app)                        // inserts bubble + inspector host above app
+Jala.initialize({JalaConfig? config});        // idempotent; wires bus+store+binding
+Jala.open();                                   // opens inspector (own navigator overlay)
+Jala.close();
+Jala.store / Jala.bus / Jala.isEnabled       // accessors for plugins
+JalaOverlay(child: app)                        // inserts bubble + inspector host above app
 ```
 
-Default `enabled: kDebugMode`. When disabled: `KetokOverlay` returns `child`
+Default `enabled: kDebugMode`. When disabled: `JalaOverlay` returns `child`
 directly, interceptor no-ops. README: hero section leads with production-safety +
 replay + filter grammar (the differentiators), comparison table vs Alice/Chucker.
 
-## Example app (`examples/ketok_example`)
+## Example app (`examples/jala_example`)
 
 Buttons firing against `https://httpbin.org` (and jsonplaceholder as backup):
 GET json, POST json, 404, 500, slow (delay/3), redirect, image (png), large
 response (~1MB to prove truncation), gzip, multipart upload, cancelled request,
-error (bad host). Uses `KetokOverlay` + `KetokDioInterceptor`. This is the manual
+error (bad host). Uses `JalaOverlay` + `JalaDioInterceptor`. This is the manual
 QA rig.
 
 ## Definition of done (v0.1)

@@ -22,22 +22,22 @@ jobs:
       - name: Analyze
         run: dart analyze --fatal-infos
 
-      - name: Test ketok_core
+      - name: Test jala_core
         run: dart test
-        working-directory: packages/ketok_core
+        working-directory: packages/jala_core
 
-      - name: Test ketok_dio
+      - name: Test jala_dio
         run: dart test
-        working-directory: packages/ketok_dio
+        working-directory: packages/jala_dio
 
-      - name: Test ketok_ui
+      - name: Test jala_ui
         run: flutter test
-        working-directory: packages/ketok_ui
+        working-directory: packages/jala_ui
 
-      - name: Test ketok
+      - name: Test jala
         run: flutter test
-        working-directory: packages/ketok
+        working-directory: packages/jala
 
-      - name: Test ketok_example
+      - name: Test jala_example
         run: flutter test
-        working-directory: examples/ketok_example
+        working-directory: examples/jala_example

@@ -1,25 +1,26 @@
-# Ketok
+# Jala
 
-An in-app network inspector for Flutter — a Chrome DevTools Network tab you
-drop into your own app.
+**Jala** ("net" in Indonesian) is an in-app network inspector for Flutter —
+a Chrome DevTools Network tab you drop into your own app. A product of
+[Ketok](https://ketok.id).
 
 ## Why not Alice / Chucker / talker?
 
-Ketok exists because the incumbents each miss something concrete:
+Jala exists because the incumbents each miss something concrete:
 
-- **Replay.** Ketok can re-issue a captured request through the *live* Dio
+- **Replay.** Jala can re-issue a captured request through the *live* Dio
   instance with one tap. No Flutter inspector package does this.
 - **A real filter grammar.** `method:get status:4xx larger-than:10k
   slower-than:500ms is:replay -host:*.cdn.com` — DevTools-style, not just a
   text search box.
 - **Copy as cURL *and* as a Dart/Dio snippet.** Alice has neither; the Dart
-  snippet is unique to Ketok.
+  snippet is unique to Jala.
 - **Redaction on by default.** `Authorization`, `Cookie`, `X-Api-Key`, etc.
   are masked **at capture time** — the real values never enter the
   in-memory store, so there's nothing to leak even if a screenshot or crash
   report captures the inspector.
 - **A true no-op when disabled.** `enabled` defaults to `kDebugMode`; when
-  off, `KetokOverlay` returns your widget tree unchanged and the interceptor
+  off, `JalaOverlay` returns your widget tree unchanged and the interceptor
   forwards without doing any capture work — safe to leave wired up in a
   release build.
 - **All six platforms.** Android, iOS, macOS, Windows, Linux, and web —
@@ -30,26 +31,26 @@ Ketok exists because the incumbents each miss something concrete:
 
 ```yaml
 dependencies:
-  ketok: ^0.1.0
-  ketok_dio: ^0.1.0
+  jala: ^0.1.0
+  jala_dio: ^0.1.0
   dio: ^5.9.0
 ```
 
 ```dart
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:ketok/ketok.dart';
-import 'package:ketok_dio/ketok_dio.dart';
+import 'package:jala/jala.dart';
+import 'package:jala_dio/jala_dio.dart';
 
 void main() {
-  Ketok.initialize(); // enabled: kDebugMode
+  Jala.initialize(); // enabled: kDebugMode
   final dio = Dio();
-  KetokDio.attach(dio);
-  runApp(KetokOverlay(child: MyApp(dio: dio)));
+  JalaDio.attach(dio);
+  runApp(JalaOverlay(child: MyApp(dio: dio)));
 }
 ```
 
-Tap the floating bubble (or call `Ketok.open()`) to inspect traffic.
+Tap the floating bubble (or call `Jala.open()`) to inspect traffic.
 
 ## Screenshots
 
@@ -70,7 +71,7 @@ Tap the floating bubble (or call `Ketok.open()`) to inspect traffic.
 
 Only claims verified against each package's actual behavior:
 
-| Capability | Ketok | alice | chucker_flutter | talker |
+| Capability | Jala | alice | chucker_flutter | talker |
 |---|:---:|:---:|:---:|:---:|
 | DevTools-style filter grammar | Yes | No | No | No |
 | Copy as cURL | Yes | No | Yes | No |
@@ -91,14 +92,14 @@ like-for-like competitor to the other three.
 
 | Package | Description |
 |---|---|
-| [`ketok`](packages/ketok) | Facade — `Ketok.initialize()`, `KetokOverlay`, open/close. Install this in your app. |
-| [`ketok_core`](packages/ketok_core) | Pure Dart: models, event bus, ring-buffer store, redaction, filter grammar, exporters. Zero Flutter dependency. |
-| [`ketok_dio`](packages/ketok_dio) | Dio interceptor + one-tap replay. |
-| [`ketok_ui`](packages/ketok_ui) | Inspector screens, JSON viewer, overlay bubble — own theme, own navigator. |
+| [`jala`](packages/jala) | Facade — `Jala.initialize()`, `JalaOverlay`, open/close. Install this in your app. |
+| [`jala_core`](packages/jala_core) | Pure Dart: models, event bus, ring-buffer store, redaction, filter grammar, exporters. Zero Flutter dependency. |
+| [`jala_dio`](packages/jala_dio) | Dio interceptor + one-tap replay. |
+| [`jala_ui`](packages/jala_ui) | Inspector screens, JSON viewer, overlay bubble — own theme, own navigator. |
 
 ```
 examples/
-  ketok_example/  Manual QA rig against httpbin.org (GET/POST/404/500/slow/
+  jala_example/  Manual QA rig against httpbin.org (GET/POST/404/500/slow/
                    redirect/image/large body/gzip/multipart/cancel/error)
 ```
 
@@ -124,9 +125,9 @@ structured terms degrade to free text instead of erroring.
 
 ## Production safety
 
-- **Off by default in release** — `Ketok.initialize()` defaults `enabled`
+- **Off by default in release** — `Jala.initialize()` defaults `enabled`
   to `kDebugMode`.
-- **True no-op when disabled** — `KetokOverlay` returns your child
+- **True no-op when disabled** — `JalaOverlay` returns your child
   unchanged; interceptor hooks check the enabled flag first and forward
   immediately, with no capture work on the hot networking path.
 - **Redaction at capture time** — sensitive headers are masked before an
@@ -135,7 +136,7 @@ structured terms degrade to free text instead of erroring.
 - **Hard body size caps** — 512 KB per captured body by default, avoiding
   the large-body OOM class of bug.
 - **Never breaks your networking** — capture logic is wrapped so a bug in
-  Ketok can't affect requests, responses, or errors flowing through your
+  Jala can't affect requests, responses, or errors flowing through your
   app.
 - **Own theme, own navigator** — the inspector doesn't inherit your app's
   `Theme` and doesn't touch your navigation stack; Android's back button is
@@ -155,11 +156,11 @@ structured terms degrade to free text instead of erroring.
 ```bash
 flutter pub get
 dart analyze
-(cd packages/ketok_core && dart test)
-(cd packages/ketok_dio && dart test)
-(cd packages/ketok_ui && flutter test)
-(cd packages/ketok && flutter test)
-cd examples/ketok_example && flutter run -d macos
+(cd packages/jala_core && dart test)
+(cd packages/jala_dio && dart test)
+(cd packages/jala_ui && flutter test)
+(cd packages/jala && flutter test)
+cd examples/jala_example && flutter run -d macos
 ```
 
 ## Spec

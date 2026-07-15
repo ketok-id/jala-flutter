@@ -1,12 +1,12 @@
-name: ketok_workspace
+name: jala_workspace
 publish_to: none
 
 environment:
   sdk: ^3.11.0
 
 workspace:
-  - packages/ketok_core
-  - packages/ketok_dio
-  - packages/ketok_ui
-  - packages/ketok
-  - examples/ketok_example
+  - packages/jala_core
+  - packages/jala_dio
+  - packages/jala_ui
+  - packages/jala
+  - examples/jala_example
