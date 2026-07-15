@@ -1,0 +1,15 @@
+name: ketok_core
+description: >
+  Pure-Dart core for Ketok: network call model, event bus, ring-buffer store,
+  redaction, DevTools-style filter grammar, and exporters (cURL, Dart/Dio
+  snippet, HAR 1.2).
+version: 0.1.0
+repository: https://github.com/ketok/ketok
+resolution: workspace
+
+environment:
+  sdk: ^3.11.0
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.0

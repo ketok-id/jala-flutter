@@ -1,0 +1,12 @@
+name: ketok_workspace
+publish_to: none
+
+environment:
+  sdk: ^3.11.0
+
+workspace:
+  - packages/ketok_core
+  - packages/ketok_dio
+  - packages/ketok_ui
+  - packages/ketok
+  - examples/ketok_example

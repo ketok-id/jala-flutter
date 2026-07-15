@@ -1,0 +1,22 @@
+name: ketok_ui
+description: Inspector UI for Ketok, the in-app Flutter network inspector. Call list with DevTools-style filtering, detail tabs, JSON viewer, and overlay bubble.
+version: 0.1.0
+repository: https://github.com/ketok/ketok
+
+environment:
+  sdk: ^3.11.0
+  flutter: ">=3.35.0"
+
+resolution: workspace
+
+dependencies:
+  flutter:
+    sdk: flutter
+  ketok_core: ^0.1.0
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter:

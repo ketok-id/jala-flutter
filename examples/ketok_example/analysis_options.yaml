@@ -1,0 +1,6 @@
+include: ../../analysis_options.yaml
+
+linter:
+  rules:
+    # Demo app: print status lines from button handlers is intentional.
+    avoid_print: false

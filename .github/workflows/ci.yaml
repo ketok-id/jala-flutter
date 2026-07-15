@@ -1,0 +1,43 @@
+name: ci
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: dart analyze --fatal-infos
+
+      - name: Test ketok_core
+        run: dart test
+        working-directory: packages/ketok_core
+
+      - name: Test ketok_dio
+        run: dart test
+        working-directory: packages/ketok_dio
+
+      - name: Test ketok_ui
+        run: flutter test
+        working-directory: packages/ketok_ui
+
+      - name: Test ketok
+        run: flutter test
+        working-directory: packages/ketok
+
+      - name: Test ketok_example
+        run: flutter test
+        working-directory: examples/ketok_example
