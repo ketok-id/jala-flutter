@@ -4,7 +4,7 @@ description: >
   redaction, DevTools-style filter grammar, and exporters (cURL, Dart/Dio
   snippet, HAR 1.2).
 version: 0.1.0
-repository: https://github.com/setilanaji/ketok
+repository: https://github.com/ketok-id/ketok-flutter
 resolution: workspace
 
 environment:

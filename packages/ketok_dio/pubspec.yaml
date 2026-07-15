@@ -1,7 +1,7 @@
 name: ketok_dio
 description: Dio interceptor for Ketok, the in-app Flutter network inspector. Captures requests, responses, and errors, and supports one-tap replay.
 version: 0.1.0
-repository: https://github.com/setilanaji/ketok
+repository: https://github.com/ketok-id/ketok-flutter
 
 environment:
   sdk: ^3.11.0
