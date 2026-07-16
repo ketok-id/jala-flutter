@@ -1,3 +1,20 @@
+## 0.4.0
+
+- Merged inspector list: `NetworkCallEntry` and `WsConnectionEntry`
+  interleave chronologically. GraphQL entries show `operationName` as the
+  title with a `QUERY`/`MUTATION` method chip; WS entries show a `WS`
+  chip, uri, live status color (connecting/open/closed/error), and
+  frame count, updating live from `watchWs`.
+- `JalaWsDetailScreen`: connection header (uri, status, open/close times,
+  close code/reason) plus a frame timeline (direction arrow, relative
+  timestamp, size) with a substring filter box; tapping a text frame opens
+  a body view that reuses the JSON tree when the frame parses as JSON.
+- Call detail Request tab for GraphQL entries (`is:graphql`) becomes two
+  panes: Query (monospace, selectable) and Variables (JSON tree).
+- WS entries hide cURL/HAR export actions (not representable) and instead
+  offer copy frame text / copy connection summary as JSON.
+- Filter help documents `is:ws`, `is:graphql`, and `op:<name>`.
+
 ## 0.3.0
 
 - Mocks screen (list / enable / delete) and mock rule editor.

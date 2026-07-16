@@ -14,7 +14,7 @@ environment:
 resolution: workspace
 
 dependencies:
-  jala_core: ^0.3.0
+  jala_core: ^0.4.0
   stream_channel: ^2.1.0
   web_socket_channel: ^3.0.0
 

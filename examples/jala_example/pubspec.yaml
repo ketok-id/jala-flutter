@@ -13,12 +13,19 @@ dependencies:
   dio: ^5.9.0
   flutter:
     sdk: flutter
+  gql: ^1.0.0
+  gql_exec: ^1.1.0
+  gql_http_link: ^1.2.0
+  gql_link: ^1.0.0
   http: ^1.2.0
-  jala: ^0.3.0
-  jala_core: ^0.3.0
-  jala_dio: ^0.3.0
-  jala_http: ^0.3.0
+  jala: ^0.4.0
+  jala_core: ^0.4.0
+  jala_dio: ^0.4.0
+  jala_graphql: ^0.4.0
+  jala_http: ^0.4.0
+  jala_websocket: ^0.4.0
   path_provider: ^2.1.0
+  web_socket_channel: ^3.0.0
 
 dev_dependencies:
   flutter_lints: ^6.0.0

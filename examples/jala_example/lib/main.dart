@@ -1,12 +1,20 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:gql/language.dart' show parseString;
+import 'package:gql_exec/gql_exec.dart' as gql_exec;
+import 'package:gql_http_link/gql_http_link.dart';
+import 'package:gql_link/gql_link.dart';
 import 'package:http/http.dart' as http;
 import 'package:jala/jala.dart';
 import 'package:jala_dio/jala_dio.dart';
+import 'package:jala_graphql/jala_graphql.dart';
 import 'package:jala_http/jala_http.dart';
+import 'package:jala_websocket/jala_websocket.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 
 /// Manual QA rig for Jala.
 ///
@@ -14,7 +22,9 @@ import 'package:path_provider/path_provider.dart';
 /// redaction, truncation, multipart, progress, mocks, and error paths in the
 /// inspector. Primary echo host is postman-echo (httpbin.org has been
 /// intermittently 503); large downloads use Cloudflare's speed endpoint;
-/// simple GETs also hit jsonplaceholder as a backup.
+/// simple GETs also hit jsonplaceholder as a backup; the realtime section
+/// hits the public `wss://ws.postman-echo.com/raw` WS echo server and the
+/// public `https://countries.trevorblades.com/` GraphQL API.
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // The hosted demo (GitHub Pages) is a release build, where the
@@ -120,7 +130,9 @@ class _DemoHomeState extends State<_DemoHome> {
           const Text(
             'Echo host: postman-echo.com\n'
             'Large: Cloudflare speed test (1 MiB)\n'
-            'Backup GET: jsonplaceholder.typicode.com',
+            'Backup GET: jsonplaceholder.typicode.com\n'
+            'WS echo: wss://ws.postman-echo.com/raw\n'
+            'GraphQL: countries.trevorblades.com',
           ),
           const Divider(height: 32),
           _btn('GET json', () => _run('GET json', () async {
@@ -224,6 +236,81 @@ class _DemoHomeState extends State<_DemoHome> {
                 'https://speed.cloudflare.com/__down?bytes=1048576',
               ),
             );
+          })),
+          const Divider(height: 32),
+          Text(
+            'Realtime (jala_websocket + jala_graphql)',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: 8),
+          _btn('WS: echo (3 frames)', () => _run('ws echo', () async {
+            final Uri uri = Uri.parse('wss://ws.postman-echo.com/raw');
+            final WebSocketChannel raw = WebSocketChannel.connect(uri);
+            final WebSocketChannel channel = JalaWebSocketChannel.wrap(
+              raw,
+              uri: uri,
+            );
+            // Must listen to `stream` for the wrapper to observe (and
+            // capture) received frames — the echo server's replies.
+            final StreamSubscription<dynamic> sub = channel.stream.listen(
+              (_) {},
+            );
+            await channel.ready;
+            for (int i = 1; i <= 3; i++) {
+              channel.sink.add('hello jala $i');
+              await Future<void>.delayed(const Duration(milliseconds: 300));
+            }
+            await sub.cancel();
+            await channel.sink.close(1000, 'done');
+          })),
+          _btn('WS: binary frame', () => _run('ws binary', () async {
+            final Uri uri = Uri.parse('wss://ws.postman-echo.com/raw');
+            final WebSocketChannel raw = WebSocketChannel.connect(uri);
+            final WebSocketChannel channel = JalaWebSocketChannel.wrap(
+              raw,
+              uri: uri,
+            );
+            final StreamSubscription<dynamic> sub = channel.stream.listen(
+              (_) {},
+            );
+            await channel.ready;
+            channel.sink.add(Uint8List.fromList(<int>[1, 2, 3, 4, 5]));
+            await Future<void>.delayed(const Duration(milliseconds: 300));
+            await sub.cancel();
+            await channel.sink.close(1000, 'done');
+          })),
+          _btn('GraphQL: countries query', () => _run('graphql countries', () async {
+            final Uri endpoint = Uri.parse(
+              'https://countries.trevorblades.com/',
+            );
+            final Link link = Link.from(<Link>[
+              JalaGraphQLLink(endpoint: endpoint),
+              HttpLink(endpoint.toString()),
+            ]);
+            const String source = r'''
+              query GetCountry($code: ID!) {
+                country(code: $code) {
+                  name
+                  emoji
+                  capital
+                }
+              }
+            ''';
+            final gql_exec.Request request = gql_exec.Request(
+              operation: gql_exec.Operation(
+                document: parseString(source),
+                operationName: 'GetCountry',
+              ),
+              variables: const <String, dynamic>{'code': 'ID'},
+            );
+            final gql_exec.Response response = await link
+                .request(request)
+                .first;
+            if (response.errors != null && response.errors!.isNotEmpty) {
+              throw StateError(
+                'GraphQL error: ${response.errors!.map((e) => e.message).join(', ')}',
+              );
+            }
           })),
         ],
       ),

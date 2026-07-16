@@ -34,6 +34,14 @@ jobs:
         run: dart test
         working-directory: packages/jala_http
 
+      - name: Test jala_graphql
+        run: dart test
+        working-directory: packages/jala_graphql
+
+      - name: Test jala_websocket
+        run: dart test
+        working-directory: packages/jala_websocket
+
       - name: Test jala_ui
         run: flutter test
         working-directory: packages/jala_ui

@@ -1,3 +1,23 @@
+## 0.4.0
+
+- GraphQL metadata on the existing call model: `NetworkCallEntry`/
+  `NetworkRequestEvent` gain `operationName`/`operationType`
+  (`query`/`mutation`/`subscription`) — GraphQL calls are still
+  `NetworkCallEntry`s, just tagged.
+- New WebSocket entity: `WsConnectionEntry` (id, uri, status, open/close
+  times, close code/reason, frame count) with a per-connection `WsFrame`
+  ring buffer (default 200 frames; direction, binary flag, size, redacted
+  text preview capped at 4 KB). New events: `WsConnectEvent`,
+  `WsOpenEvent`, `WsFrameEvent`, `WsCloseEvent`, `WsErrorEvent`.
+- `JalaStore` gains a parallel `wsConnections` collection (cap 20,
+  oldest-closed evicted first) and a `watchWs` stream, independent of the
+  existing `entries`/`watch` — WebSocket connections are never merged into
+  `NetworkCallEntry` at the core layer.
+- Filter grammar: `op:<name>` (operationName glob), `is:graphql`
+  (`operationName != null`), `is:ws`, and a new `matchesWs` entry point for
+  matching `WsConnectionEntry` (bare text, `host:`/`d:`, `status:`/`s:`,
+  `is:ws`).
+
 ## 0.3.0
 
 - Mock rule engine: `JalaMockRule`, sealed `MockAction`

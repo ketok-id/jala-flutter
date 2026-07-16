@@ -1,3 +1,9 @@
+## 0.4.0
+
+- Lockstep release; no functional changes. Bumped for the `jala_core`
+  0.4.0 dependency (GraphQL metadata + WebSocket models, unused by this
+  package directly).
+
 ## 0.3.0
 
 - Rule-based request mocking: match `JalaMockRegistry` before the inner

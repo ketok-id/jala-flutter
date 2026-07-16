@@ -17,7 +17,7 @@ dependencies:
   gql: ^1.0.0
   gql_exec: ^1.1.0
   gql_link: ^1.0.0
-  jala_core: ^0.3.0
+  jala_core: ^0.4.0
 
 dev_dependencies:
   lints: ^6.0.0

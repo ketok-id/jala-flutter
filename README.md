@@ -33,8 +33,8 @@ Jala exists because the incumbents each miss something concrete:
 
 ```yaml
 dependencies:
-  jala: ^0.3.0
-  jala_dio: ^0.3.0
+  jala: ^0.4.0
+  jala_dio: ^0.4.0
   dio: ^5.9.0
 ```
 
@@ -55,8 +55,16 @@ void main() {
 Tap the floating bubble (or call `Jala.open()`) to inspect traffic.
 
 Using `package:http` instead of Dio? Install
-[`jala_http`](packages/jala_http) (`jala_http: ^0.3.0`) and call
+[`jala_http`](packages/jala_http) (`jala_http: ^0.4.0`) and call
 `JalaHttp.wrap(http.Client())` in place of `JalaDio.attach(dio)` above.
+
+Using GraphQL? Install [`jala_graphql`](packages/jala_graphql)
+(`jala_graphql: ^0.4.0`) and insert `JalaGraphQLLink(endpoint: uri)` before
+your terminating `gql_link` (works with `graphql_flutter` and `ferry`).
+
+Using WebSockets? Install [`jala_websocket`](packages/jala_websocket)
+(`jala_websocket: ^0.4.0`) and wrap your channel with
+`JalaWebSocketChannel.wrap(channel, uri: uri)`.
 
 **v0.2 capture extras:** image responses (`image/*` within the body cap)
 preview inline in the inspector; multipart uploads show a parts table
@@ -67,6 +75,11 @@ transfer progress when the adapter can observe the stream.
 canned responses / failures / delays without hitting the network, filter
 with `is:mocked`, and **Edit & resend** a modified request. Optional
 `Jala.enableMockPersistence(dir)` keeps rules across restarts.
+
+**v0.4 GraphQL + WebSocket:** GraphQL operations show their `operationName`
+with a `QUERY`/`MUTATION` chip and a Query/Variables detail pane; WebSocket
+connections appear in the same list with a live status and frame timeline
+you can drill into. Filter with `op:<name>`, `is:graphql`, `is:ws`.
 
 ## Screenshots
 
@@ -102,6 +115,8 @@ Only claims verified against each package's actual behavior:
 | True no-op when disabled | Yes | Partial | Yes | N/A |
 | Desktop + web support | Yes | No (mobile-only) | No (Android-only) | Yes |
 | `package:http` client support | Yes | Yes | Yes | Yes |
+| GraphQL operation-aware capture | Yes | No | Partial — operation names only | No |
+| WebSocket frame inspection | Yes | No | No | No |
 | What it is | Network inspector | Network inspector | Network inspector | General-purpose logger |
 
 talker is a structured logging/error-tracking library, not a network
@@ -117,12 +132,15 @@ like-for-like competitor to the other three.
 | [`jala_core`](packages/jala_core) | Pure Dart: models, event bus, ring-buffer store, redaction, filter grammar, exporters. Zero Flutter dependency. |
 | [`jala_dio`](packages/jala_dio) | Dio interceptor + one-tap replay. |
 | [`jala_http`](packages/jala_http) | `package:http` client wrapper + one-tap replay (stream tee). |
+| [`jala_graphql`](packages/jala_graphql) | `gql_link` link — operation-aware GraphQL capture (name, query, variables, response); works with `graphql_flutter` and `ferry`. |
+| [`jala_websocket`](packages/jala_websocket) | `WebSocketChannel` wrapper — connection + frame-timeline capture (direction, size, preview). |
 | [`jala_ui`](packages/jala_ui) | Inspector screens, JSON viewer, overlay bubble — own theme, own navigator. |
 
 ```
 examples/
   jala_example/  Manual QA rig (GET/POST/404/500/slow/redirect/image/
-                   large body/gzip/multipart/cancel/error; Dio + http)
+                   large body/gzip/multipart/cancel/error; Dio + http;
+                   WebSocket echo + GraphQL query under "realtime")
 ```
 
 ## Filter grammar
@@ -139,6 +157,9 @@ examples/
 | `slower-than:500` | Duration greater than n milliseconds |
 | `is:replay` | Entry is a replay of another call |
 | `body:token` | Substring of captured request or response body text |
+| `op:<name>` | GraphQL `operationName`; `*` wildcard allowed (`op:Get*`) |
+| `is:graphql` | Entry carries GraphQL operation metadata |
+| `is:ws` | WebSocket connection entries (merged list only) |
 | bare word | Substring of method + full URL |
 | `-<term>` | Negates that term |
 
@@ -169,10 +190,12 @@ structured terms degrade to free text instead of erroring.
 
 - **v0.2** — `package:http` adapter, image preview, multipart detail,
   upload/download progress.
-- **v0.3** (this release) — rule-based mocking + edit-and-resend (see
-  [docs/ROADMAP.md](docs/ROADMAP.md)).
-- **Later** — GraphQL, WebSocket, storage explorers, throttling, desktop
-  companion.
+- **v0.3** — rule-based mocking + edit-and-resend.
+- **v0.4** (this release) — `jala_graphql` + `jala_websocket`: GraphQL
+  operation-aware capture, WebSocket connection + frame-timeline capture,
+  merged inspector list (see [docs/ROADMAP.md](docs/ROADMAP.md)).
+- **Later** — storage explorers, throttling / network-condition
+  simulation, desktop companion.
 
 ## Develop
 
@@ -182,6 +205,8 @@ dart analyze
 (cd packages/jala_core && dart test)
 (cd packages/jala_dio && dart test)
 (cd packages/jala_http && dart test)
+(cd packages/jala_graphql && dart test)
+(cd packages/jala_websocket && dart test)
 (cd packages/jala_ui && flutter test)
 (cd packages/jala && flutter test)
 cd examples/jala_example && flutter run -d macos

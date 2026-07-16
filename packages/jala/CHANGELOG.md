@@ -1,3 +1,11 @@
+## 0.4.0
+
+- Lockstep with 0.4.0 core/ui: GraphQL operation metadata, merged
+  WebSocket list + connection detail, `op:`/`is:graphql`/`is:ws` filters.
+  No changes to the `Jala` facade API itself — attach `jala_graphql`
+  (`JalaGraphQLLink`) or `jala_websocket` (`JalaWebSocketChannel.wrap`)
+  alongside `jala_dio`/`jala_http` to capture GraphQL and WebSocket traffic.
+
 ## 0.3.0
 
 - `Jala.enableMockPersistence(directory)` — file-backed mock rules that
