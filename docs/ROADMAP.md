@@ -7,12 +7,12 @@ Status as of 2026-07-16. Detailed execution plans live in `docs/plans/`.
 | A | Launch & adoption | 0.1.1 / 0.1.2 | ✅ DONE — [plan](plans/track-a-launch.md) |
 | B | Capture-surface growth (jala_http, image preview, multipart, progress) | 0.2.0 | ✅ DONE — [plan](plans/track-b-v0.2.md) |
 | C | Mocking & edit-and-resend | 0.3.0 | ✅ DONE — [plan](plans/track-c-v0.3-mocking.md) |
-| D | Realtime & GraphQL (proposed next) | 0.4.0 | 📝 PLANNED — [plan](plans/track-d-v0.4.md) |
+| D | Realtime & GraphQL | 0.4.0 | ✅ DONE — [plan](plans/track-d-v0.4.md) |
+| E | Power tools: throttling, session share, subscription payloads | 0.5.0 | 📝 PLANNED — [plan](plans/track-e-v0.5.md) |
 
 All five packages (`jala`, `jala_core`, `jala_dio`, `jala_http`, `jala_ui`)
-are published on pub.dev at **0.3.0** in lockstep under the verified
-publisher `ketok.id` (pending: `jala_http` publisher assignment — user
-action, package Admin tab).
+plus `jala_graphql` and `jala_websocket` are published on pub.dev at
+**0.4.0** in lockstep, all under the verified publisher `ketok.id`.
 
 ## Track D — v0.4.0 proposal: GraphQL + WebSocket
 
@@ -36,8 +36,6 @@ re-check its scope against the actual issues first.
 
 - Storage explorers (Hive/Isar/Drift/SharedPreferences) — first non-network
   plugin; validates the Ketok plugin ecosystem vision.
-- Throttling / network-condition simulation — `MockDelay` (shipped in 0.3)
-  is the seed; full profiles (slow 3G, loss) exist in no in-app tool.
 - Desktop companion (remote debug) — after in-app surface saturates.
 - In-flight breakpoints — explicitly rejected for in-app (deadlock-prone);
   revisit only with the desktop companion.
