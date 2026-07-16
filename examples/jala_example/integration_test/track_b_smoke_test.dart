@@ -2,6 +2,8 @@
 //
 // Fires real network calls through jala_dio / jala_http and asserts against
 // Jala.store + the inspector UI.
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -39,7 +41,7 @@ void main() {
   testWidgets('B3 multipart + B4 large download smoke', (
     WidgetTester tester,
   ) async {
-    app.main();
+    unawaited(app.main());
     await tester.pumpAndSettle(const Duration(seconds: 2));
     await pause(tester, 500);
 

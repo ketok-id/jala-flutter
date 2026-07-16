@@ -473,11 +473,11 @@ void main() {
         () async {
       JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
       JalaBinding.instance.mockRegistry.add(
-        JalaMockRule(
+        const JalaMockRule(
           id: 'mock-http',
           name: 'users',
           urlPattern: 'https://api.example.com/users*',
-          action: const MockResponse(
+          action: MockResponse(
             statusCode: 200,
             headers: <String, String>{'content-type': 'application/json'},
             body: '{"mocked":true}',
@@ -507,11 +507,11 @@ void main() {
     test('MockFailure throws without hitting the inner client', () async {
       JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
       JalaBinding.instance.mockRegistry.add(
-        JalaMockRule(
+        const JalaMockRule(
           id: 'fail-http',
           name: 'fail',
           urlPattern: 'https://api.example.com/*',
-          action: const MockFailure(kind: MockFailureKind.connectionError),
+          action: MockFailure(kind: MockFailureKind.connectionError),
         ),
       );
       var hits = 0;

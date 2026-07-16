@@ -67,7 +67,7 @@ void main() {
     step('5 dio.get returned in ${sw.elapsedMilliseconds}ms');
 
     expect(response.statusCode, 200);
-    expect(response.data, isA<Map>());
+    expect(response.data, isA<Map<String, Object?>>());
     expect((response.data as Map)['jala_smoke'], isTrue);
     expect((response.data as Map)['source'], 'mock');
     expect(sw.elapsedMilliseconds, lessThan(3000));

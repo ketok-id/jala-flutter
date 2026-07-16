@@ -15,6 +15,7 @@ dependencies:
     sdk: flutter
   http: ^1.2.0
   jala: ^0.3.0
+  jala_core: ^0.3.0
   jala_dio: ^0.3.0
   jala_http: ^0.3.0
   path_provider: ^2.1.0

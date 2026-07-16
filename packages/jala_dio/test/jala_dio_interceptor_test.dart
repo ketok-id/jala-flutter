@@ -512,11 +512,11 @@ void main() {
     test('MockResponse short-circuits without hitting the adapter', () async {
       JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
       JalaBinding.instance.mockRegistry.add(
-        JalaMockRule(
+        const JalaMockRule(
           id: 'mock-users',
           name: 'users',
           urlPattern: 'https://api.example.com/users*',
-          action: const MockResponse(
+          action: MockResponse(
             statusCode: 200,
             headers: <String, String>{'content-type': 'application/json'},
             body: '{"mocked":true}',
@@ -546,11 +546,11 @@ void main() {
     test('MockFailure produces an error entry without adapter hit', () async {
       JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
       JalaBinding.instance.mockRegistry.add(
-        JalaMockRule(
+        const JalaMockRule(
           id: 'fail',
           name: 'fail',
           urlPattern: 'https://api.example.com/*',
-          action: const MockFailure(kind: MockFailureKind.connectionError),
+          action: MockFailure(kind: MockFailureKind.connectionError),
         ),
       );
       var adapterHits = 0;
@@ -574,11 +574,11 @@ void main() {
     test('disabled binding ignores mock rules', () async {
       JalaBinding.instance.initialize(config: JalaConfig(enabled: false));
       JalaBinding.instance.mockRegistry.add(
-        JalaMockRule(
+        const JalaMockRule(
           id: 'mock-users',
           name: 'users',
           urlPattern: 'https://api.example.com/*',
-          action: const MockResponse(statusCode: 200, body: '{"mocked":true}'),
+          action: MockResponse(statusCode: 200, body: '{"mocked":true}'),
         ),
       );
       var adapterHits = 0;

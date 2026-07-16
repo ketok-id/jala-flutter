@@ -1,36 +1,57 @@
 # Jala roadmap
 
-Working plan after the 0.1.0 release (2026-07-16). Three tracks, executed in
-order. Each track has a detailed execution plan in `docs/plans/`.
+Status as of 2026-07-16. Detailed execution plans live in `docs/plans/`.
 
-| Track | Goal | Ships as | Plan |
+| Track | Goal | Shipped as | Status |
 |---|---|---|---|
-| A | Launch & adoption | 0.1.1 (metadata only) | [track-a-launch.md](plans/track-a-launch.md) |
-| B | Capture-surface growth | 0.2.0 | [track-b-v0.2.md](plans/track-b-v0.2.md) |
-| C | Mocking & edit-and-resend | 0.3.0 | [track-c-v0.3-mocking.md](plans/track-c-v0.3-mocking.md) |
+| A | Launch & adoption | 0.1.1 / 0.1.2 | ✅ DONE — [plan](plans/track-a-launch.md) |
+| B | Capture-surface growth (jala_http, image preview, multipart, progress) | 0.2.0 | ✅ DONE — [plan](plans/track-b-v0.2.md) |
+| C | Mocking & edit-and-resend | 0.3.0 | ✅ DONE — [plan](plans/track-c-v0.3-mocking.md) |
+| D | Realtime & GraphQL (proposed next) | 0.4.0 | 📝 planned below |
 
-Ordering rationale: v0.1 is technically strong but has zero eyeballs — the
-cheapest wins right now are adoption (Track A), not features. Track B widens
-reach (`package:http` is the most-used client) and closes the known v0.1 gaps.
-Track C is the category-changing bet: rule-based mocking is the most-loved
-feature of Charles/Proxyman and no Flutter package does it well.
+All five packages (`jala`, `jala_core`, `jala_dio`, `jala_http`, `jala_ui`)
+are published on pub.dev at **0.3.0** in lockstep under the verified
+publisher `ketok.id` (pending: `jala_http` publisher assignment — user
+action, package Admin tab).
 
-## Horizon (v0.4+, not yet planned in detail)
+## Track D — v0.4.0 proposal: GraphQL + WebSocket
 
-- GraphQL support (operation-aware UI: query/variables panes, operation
-  grouping) — every incumbent lags here.
-- WebSocket frame inspection — essentially greenfield in Flutter.
+The two capture surfaces every incumbent handles badly (research: Chucker's
+GraphQL lags Apollo 4; only requests_inspector has purpose-built GraphQL;
+WebSocket frame inspection is effectively greenfield in Flutter).
+
+- `jala_graphql`: link/wrapper for `graphql_flutter` — operation-aware
+  capture (operation name, query/variables/response as separate panes),
+  operation-based grouping in the list, batched-query breakdown.
+- `jala_websocket`: `WebSocketChannel` wrapper — connection entries with a
+  frame timeline (per-frame direction/size/preview), text + binary frames,
+  close codes. New UI surface: frame list under a connection detail screen.
+- Filter grammar additions: `op:<name>`, `is:ws`, `is:graphql`.
+
+Write a detailed `docs/plans/track-d-v0.4.md` (same format as B/C) before
+starting; not yet written because scope should be re-checked against
+whatever issues/feedback the launch announcements generate first.
+
+## Horizon (beyond v0.4, unplanned)
+
 - Storage explorers (Hive/Isar/Drift/SharedPreferences) — first non-network
   plugin; validates the Ketok plugin ecosystem vision.
-- Throttling / network-condition simulation — exists in no in-app tool.
-- Desktop companion (remote debug) — only after in-app surface is saturated.
+- Throttling / network-condition simulation — `MockDelay` (shipped in 0.3)
+  is the seed; full profiles (slow 3G, loss) exist in no in-app tool.
+- Desktop companion (remote debug) — after in-app surface saturates.
+- In-flight breakpoints — explicitly rejected for in-app (deadlock-prone);
+  revisit only with the desktop companion.
 
 ## Standing rules
 
-- Every release: CHANGELOG entries, `dart pub publish --dry-run` clean on all
-  packages, full test suite green, live smoke test on at least one real
-  device or simulator before `pub publish`.
-- Version all `jala_*` packages in lockstep.
-- Packages stay under the pub.dev verified publisher `ketok.id`.
+- Every release: lockstep versions across all `jala_*` packages, CHANGELOG
+  entries, `dart pub publish --dry-run` clean, full test suite green, and
+  a live smoke test on at least one real device or simulator.
+- CI runs `dart analyze --fatal-infos` — run it locally before pushing;
+  plain `dart analyze` passing is NOT sufficient.
+- Packages belong to pub.dev verified publisher `ketok.id`; new packages
+  must be assigned to it after first publish (web UI, user action).
 - `ketok_core` on pub.dev is a reserved brand name — never publish product
   code to it.
+- Delegation model: Fable/Opus plans, reviews, and gates; Sonnet executes
+  features; Haiku executes mechanical fixes.

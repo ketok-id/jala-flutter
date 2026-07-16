@@ -1,6 +1,8 @@
 // Demo driver: performs the README-GIF interaction sequence on a real
 // device/simulator while the screen is being recorded. Not a correctness
 // test — assertions are minimal; pacing pauses are for the viewer.
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -16,7 +18,7 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('gif demo flow', (WidgetTester tester) async {
-    app.main();
+    unawaited(app.main());
     await tester.pumpAndSettle();
     await pause(tester, 1500);
 
