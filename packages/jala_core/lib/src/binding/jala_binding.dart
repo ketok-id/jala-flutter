@@ -68,7 +68,12 @@ class JalaBinding {
     _config = effective;
     final JalaEventBus bus = JalaEventBus(isEnabled: () => isEnabled);
     _bus = bus;
-    _store = JalaStore(bus: bus, maxEntries: effective.maxEntries);
+    _store = JalaStore(
+      bus: bus,
+      maxEntries: effective.maxEntries,
+      maxWsConnections: effective.maxWsConnections,
+      maxWsFramesPerConnection: effective.maxWsFramesPerConnection,
+    );
   }
 
   /// Tears down the current binding and replaces the singleton with a

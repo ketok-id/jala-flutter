@@ -1,4 +1,7 @@
 import '../model/captured_body.dart';
+import '../model/ws_frame.dart';
+
+part 'ws_event.dart';
 
 /// Base type for everything flowing through [JalaEventBus].
 ///
@@ -29,6 +32,8 @@ class NetworkRequestEvent extends JalaEvent {
     this.size,
     this.replayOf,
     this.mockRuleId,
+    this.operationName,
+    this.operationType,
   });
 
   /// HTTP method, uppercased.
@@ -61,6 +66,15 @@ class NetworkRequestEvent extends JalaEvent {
   /// When non-null, a mock rule short-circuited or delayed this request
   /// (see [JalaMockRegistry]).
   final String? mockRuleId;
+
+  /// GraphQL operation name (e.g. `GetUser`), when this request is a
+  /// GraphQL operation captured by a binding such as `jala_graphql` (see
+  /// docs/plans/track-d-v0.4.md D1/D3). Null for plain HTTP calls.
+  final String? operationName;
+
+  /// GraphQL operation type — `query`, `mutation`, or `subscription` —
+  /// when [operationName] is non-null. Null for plain HTTP calls.
+  final String? operationType;
 }
 
 /// Emitted when a response is received for a call.

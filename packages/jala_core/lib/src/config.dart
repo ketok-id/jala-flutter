@@ -14,6 +14,8 @@ class JalaConfig {
     this.maxEntries = 300,
     this.maxBodyBytes = CapturedBody.defaultMaxBytes,
     this.captureImageBodies = true,
+    this.maxWsConnections = 20,
+    this.maxWsFramesPerConnection = 200,
     JalaRedactor? redactor,
   }) : redactor = redactor ?? JalaRedactor();
 
@@ -23,6 +25,17 @@ class JalaConfig {
 
   /// Maximum number of entries retained by the store (ring buffer size).
   final int maxEntries;
+
+  /// Maximum number of WebSocket connections retained by the store (ring
+  /// buffer size for `JalaStore.wsConnections`). Oldest-closed (or errored)
+  /// connections are evicted first; see `JalaStore` for eviction order.
+  final int maxWsConnections;
+
+  /// Maximum number of frames retained per WebSocket connection (a
+  /// per-connection ring buffer). `WsConnectionEntry.frameCount` still
+  /// reflects the total number of frames ever observed, even once older
+  /// frames have been evicted from `WsConnectionEntry.frames`.
+  final int maxWsFramesPerConnection;
 
   /// Hard cap, in bytes, on each captured request/response body.
   final int maxBodyBytes;

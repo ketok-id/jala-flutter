@@ -304,5 +304,277 @@ void main() {
       expect(cleared.statusCode, isNull);
       expect(cleared.errorMessage, isNull);
     });
+
+    test(
+      'operationName/operationType: omission keeps, explicit null clears',
+      () {
+        final entry = makeEntry(
+          operationName: 'GetUser',
+          operationType: 'query',
+        );
+        final kept = entry.copyWith(method: 'PUT');
+        expect(kept.operationName, 'GetUser');
+        expect(kept.operationType, 'query');
+
+        final cleared = entry.copyWith(
+          operationName: null,
+          operationType: null,
+        );
+        expect(cleared.operationName, isNull);
+        expect(cleared.operationType, isNull);
+      },
+    );
+  });
+
+  group('GraphQL metadata', () {
+    test('request event with operation fields lands on the entry', () async {
+      emitRequest(
+        bus,
+        'gql-1',
+        method: 'post',
+        operationName: 'GetUser',
+        operationType: 'query',
+      );
+      await pump();
+
+      final entry = store.byId('gql-1')!;
+      expect(entry.operationName, 'GetUser');
+      expect(entry.operationType, 'query');
+    });
+
+    test('request event without operation fields leaves them null', () async {
+      emitRequest(bus, 'plain-1');
+      await pump();
+
+      final entry = store.byId('plain-1')!;
+      expect(entry.operationName, isNull);
+      expect(entry.operationType, isNull);
+    });
+  });
+
+  group('websocket', () {
+    late JalaStore wsStore;
+
+    setUp(() {
+      wsStore = JalaStore(
+        bus: bus,
+        maxEntries: 300,
+        maxWsConnections: 3,
+        maxWsFramesPerConnection: 4,
+      );
+    });
+
+    tearDown(() async {
+      await wsStore.dispose();
+    });
+
+    test('connect event creates a connecting entry', () async {
+      emitWsConnect(bus, 'ws-a', url: 'wss://x.dev/socket');
+      await pump();
+
+      expect(wsStore.wsConnections, hasLength(1));
+      final entry = wsStore.wsConnections.single;
+      expect(entry.id, 'ws-a');
+      expect(entry.uri, Uri.parse('wss://x.dev/socket'));
+      expect(entry.status, WsConnectionStatus.connecting);
+      expect(entry.frameCount, 0);
+      expect(entry.frames, isEmpty);
+    });
+
+    test('first frame promotes a connecting entry to open', () async {
+      emitWsConnect(bus, 'ws-a');
+      emitWsFrame(bus, 'ws-a', direction: WsDirection.sent, data: 'hi');
+      await pump();
+
+      final entry = wsStore.wsById('ws-a')!;
+      expect(entry.status, WsConnectionStatus.open);
+      expect(entry.frameCount, 1);
+      expect(entry.frames.single.direction, WsDirection.sent);
+      expect(entry.frames.single.preview, 'hi');
+    });
+
+    test('subsequent frames keep an open entry open and accumulate', () async {
+      emitWsConnect(bus, 'ws-a');
+      emitWsFrame(bus, 'ws-a', data: 'one');
+      emitWsFrame(bus, 'ws-a', direction: WsDirection.received, data: 'two');
+      await pump();
+
+      final entry = wsStore.wsById('ws-a')!;
+      expect(entry.status, WsConnectionStatus.open);
+      expect(entry.frameCount, 2);
+      expect(entry.frames.map((f) => f.preview), ['one', 'two']);
+    });
+
+    test('close event marks entry closed with code/reason', () async {
+      emitWsConnect(bus, 'ws-a');
+      emitWsClose(bus, 'ws-a', code: 1000, reason: 'done');
+      await pump();
+
+      final entry = wsStore.wsById('ws-a')!;
+      expect(entry.status, WsConnectionStatus.closed);
+      expect(entry.closeCode, 1000);
+      expect(entry.closeReason, 'done');
+      expect(entry.closedAt, isNotNull);
+    });
+
+    test('error event marks entry as error and keeps a message', () async {
+      emitWsConnect(bus, 'ws-a');
+      emitWsError(bus, 'ws-a', errorMessage: 'boom');
+      await pump();
+
+      final entry = wsStore.wsById('ws-a')!;
+      expect(entry.status, WsConnectionStatus.error);
+      expect(entry.closeReason, 'boom');
+      expect(entry.closedAt, isNotNull);
+    });
+
+    test('frame/close/error for unknown or evicted id is ignored', () async {
+      emitWsFrame(bus, 'ghost');
+      emitWsClose(bus, 'ghost');
+      emitWsError(bus, 'ghost');
+      await pump();
+      expect(wsStore.wsConnections, isEmpty);
+    });
+
+    test('connections are ordered newest first', () async {
+      emitWsConnect(bus, 'a');
+      emitWsConnect(bus, 'b');
+      await pump();
+
+      expect(wsStore.wsConnections.map((e) => e.id), ['b', 'a']);
+    });
+
+    group('frame ring buffer (cap 4)', () {
+      test('frames beyond the cap evict the oldest, frameCount keeps '
+          'counting', () async {
+        emitWsConnect(bus, 'ws-a');
+        for (var i = 1; i <= 6; i++) {
+          emitWsFrame(bus, 'ws-a', data: 'f$i');
+        }
+        await pump();
+
+        final entry = wsStore.wsById('ws-a')!;
+        expect(entry.frameCount, 6, reason: 'total ever observed');
+        expect(entry.frames, hasLength(4), reason: 'ring buffer cap');
+        expect(
+          entry.frames.map((f) => f.preview),
+          ['f3', 'f4', 'f5', 'f6'],
+          reason: 'oldest frames fall out first',
+        );
+      });
+    });
+
+    group('connection eviction (cap 3)', () {
+      test('oldest-closed connection is evicted before live ones', () async {
+        emitWsConnect(bus, 'c1');
+        emitWsClose(bus, 'c1');
+        emitWsConnect(bus, 'open-1');
+        emitWsConnect(bus, 'open-2');
+        await pump();
+        expect(wsStore.wsConnections, hasLength(3));
+
+        // One over capacity: the closed one (c1) must go first.
+        emitWsConnect(bus, 'open-3');
+        await pump();
+        expect(wsStore.wsById('c1'), isNull);
+        expect(wsStore.wsConnections, hasLength(3));
+        expect(
+          wsStore.wsConnections.map((e) => e.id),
+          ['open-3', 'open-2', 'open-1'],
+        );
+      });
+
+      test('errored connections are treated as terminal too', () async {
+        emitWsConnect(bus, 'e1');
+        emitWsError(bus, 'e1');
+        emitWsConnect(bus, 'open-1');
+        emitWsConnect(bus, 'open-2');
+        await pump();
+
+        emitWsConnect(bus, 'open-3');
+        await pump();
+        expect(wsStore.wsById('e1'), isNull);
+      });
+
+      test('oldest overall is evicted once no terminal entries remain', () async {
+        emitWsConnect(bus, 'p1');
+        emitWsConnect(bus, 'p2');
+        emitWsConnect(bus, 'p3');
+        await pump();
+        expect(wsStore.wsConnections, hasLength(3));
+
+        emitWsConnect(bus, 'p4');
+        await pump();
+        expect(
+          wsStore.wsById('p1'),
+          isNull,
+          reason: 'p1 is the oldest connecting connection',
+        );
+        expect(wsStore.wsConnections.map((e) => e.id), ['p4', 'p3', 'p2']);
+      });
+    });
+
+    group('watchWs', () {
+      test('immediately replays the current snapshot to new listeners', () async {
+        emitWsConnect(bus, 'a');
+        await pump();
+
+        final first = await wsStore.watchWs.first;
+        expect(first.map((e) => e.id), ['a']);
+      });
+
+      test('emits on every change', () async {
+        final snapshots = <List<WsConnectionEntry>>[];
+        final sub = wsStore.watchWs.listen(snapshots.add);
+
+        emitWsConnect(bus, 'a');
+        emitWsFrame(bus, 'a');
+        await pump();
+        wsStore.clear();
+        await pump();
+        await sub.cancel();
+
+        expect(snapshots.first, isEmpty, reason: 'initial snapshot');
+        expect(snapshots.last, isEmpty, reason: 'after clear');
+        expect(
+          snapshots.any((s) => s.any((e) => e.status == WsConnectionStatus.open)),
+          isTrue,
+        );
+      });
+    });
+
+    group('disabled no-op', () {
+      test('WS events are dropped while the bus is disabled', () async {
+        var enabled = false;
+        final gatedBus = JalaEventBus(isEnabled: () => enabled);
+        final gatedStore = JalaStore(bus: gatedBus);
+        addTearDown(() async {
+          await gatedStore.dispose();
+          await gatedBus.dispose();
+        });
+
+        emitWsConnect(gatedBus, 'dropped');
+        await pump();
+        expect(gatedStore.wsConnections, isEmpty);
+
+        enabled = true;
+        emitWsConnect(gatedBus, 'kept');
+        await pump();
+        expect(gatedStore.wsConnections.map((e) => e.id), ['kept']);
+      });
+    });
+  });
+
+  group('WsConnectionEntry copyWith', () {
+    test('explicit null clears nullable fields, omission keeps them', () {
+      final entry = makeWsEntry(closeCode: 1000, closeReason: 'bye');
+      final kept = entry.copyWith(status: WsConnectionStatus.closed);
+      expect(kept.closeCode, 1000);
+      expect(kept.closeReason, 'bye');
+
+      final cleared = entry.copyWith(closeCode: null, closeReason: null);
+      expect(cleared.closeCode, isNull);
+      expect(cleared.closeReason, isNull);
+    });
   });
 }

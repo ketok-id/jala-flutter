@@ -36,6 +36,8 @@ class NetworkCallEntry {
     this.replayOf,
     this.mockRuleId,
     this.progress,
+    this.operationName,
+    this.operationType,
   });
 
   /// Process-unique id for this call. Also the correlation key
@@ -104,6 +106,16 @@ class NetworkCallEntry {
   /// docs/plans/track-b-v0.2.md).
   final NetworkProgressEvent? progress;
 
+  /// GraphQL operation name (e.g. `GetUser`), populated from a matching
+  /// `NetworkRequestEvent.operationName` when this call is a GraphQL
+  /// operation captured by a binding such as `jala_graphql` (see
+  /// docs/plans/track-d-v0.4.md D1/D3). Null for plain HTTP calls.
+  final String? operationName;
+
+  /// GraphQL operation type — `query`, `mutation`, or `subscription` —
+  /// when [operationName] is non-null. Null for plain HTTP calls.
+  final String? operationType;
+
   /// Returns a copy of this entry with the given fields replaced.
   ///
   /// Nullable fields (e.g. [statusCode], [duration], [errorMessage]) use an
@@ -129,6 +141,8 @@ class NetworkCallEntry {
     Object? mockRuleId = _unset,
     String? client,
     Object? progress = _unset,
+    Object? operationName = _unset,
+    Object? operationType = _unset,
   }) {
     return NetworkCallEntry(
       id: id ?? this.id,
@@ -168,6 +182,12 @@ class NetworkCallEntry {
       progress: identical(progress, _unset)
           ? this.progress
           : progress as NetworkProgressEvent?,
+      operationName: identical(operationName, _unset)
+          ? this.operationName
+          : operationName as String?,
+      operationType: identical(operationType, _unset)
+          ? this.operationType
+          : operationType as String?,
     );
   }
 

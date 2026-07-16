@@ -35,6 +35,11 @@ class JalaCallListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final Uri uri = entry.uri;
     final TextTheme textTheme = Theme.of(context).textTheme;
+    final String? operationName = entry.operationName;
+    final bool isGraphQl = operationName != null;
+    final String chipLabel = isGraphQl
+        ? (entry.operationType?.toUpperCase() ?? entry.method)
+        : entry.method;
     return ListTile(
       onTap: onTap,
       leading: Row(
@@ -42,15 +47,19 @@ class JalaCallListTile extends StatelessWidget {
         children: <Widget>[
           JalaStatusIndicator(entry: entry),
           const SizedBox(width: 8),
-          JalaMethodChip(method: entry.method),
+          JalaMethodChip(method: chipLabel),
         ],
       ),
       title: Text(
-        uri.path.isEmpty ? '/' : uri.path,
+        isGraphQl ? operationName : (uri.path.isEmpty ? '/' : uri.path),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
-      subtitle: Text(uri.host, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(
+        isGraphQl ? '${uri.host}${uri.path}' : uri.host,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
       trailing: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,

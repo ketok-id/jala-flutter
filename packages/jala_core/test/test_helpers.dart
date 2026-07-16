@@ -23,6 +23,8 @@ NetworkCallEntry makeEntry({
   String? mockRuleId,
   String client = 'dio',
   NetworkProgressEvent? progress,
+  String? operationName,
+  String? operationType,
 }) {
   return NetworkCallEntry(
     id: id,
@@ -44,6 +46,8 @@ NetworkCallEntry makeEntry({
     mockRuleId: mockRuleId,
     client: client,
     progress: progress,
+    operationName: operationName,
+    operationType: operationType,
   );
 }
 
@@ -64,6 +68,8 @@ void emitRequest(
   int? size,
   String client = 'dio',
   String? replayOf,
+  String? operationName,
+  String? operationType,
 }) {
   bus.emit(
     NetworkRequestEvent(
@@ -76,6 +82,8 @@ void emitRequest(
       size: size,
       client: client,
       replayOf: replayOf,
+      operationName: operationName,
+      operationType: operationType,
     ),
   );
 }
@@ -124,6 +132,104 @@ void emitProgress(
       sentTotal: sentTotal,
       receivedBytes: receivedBytes,
       receivedTotal: receivedTotal,
+    ),
+  );
+}
+
+/// Builds a [WsConnectionEntry] with sensible defaults for tests.
+WsConnectionEntry makeWsEntry({
+  String id = 'ws-1',
+  String url = 'wss://echo.example.com/socket',
+  WsConnectionStatus status = WsConnectionStatus.open,
+  DateTime? openedAt,
+  DateTime? closedAt,
+  int? closeCode,
+  String? closeReason,
+  int frameCount = 0,
+  List<WsFrame> frames = const <WsFrame>[],
+}) {
+  return WsConnectionEntry(
+    id: id,
+    uri: Uri.parse(url),
+    status: status,
+    openedAt: openedAt ?? DateTime.utc(2026, 7, 15, 12),
+    closedAt: closedAt,
+    closeCode: closeCode,
+    closeReason: closeReason,
+    frameCount: frameCount,
+    frames: frames,
+  );
+}
+
+/// Emits a [WsConnectEvent] for [id] on [bus].
+void emitWsConnect(
+  JalaEventBus bus,
+  String id, {
+  String url = 'wss://echo.example.com/socket',
+  DateTime? timestamp,
+}) {
+  bus.emit(
+    WsConnectEvent(
+      connectionId: id,
+      timestamp: timestamp ?? DateTime.utc(2026, 7, 15, 12),
+      uri: Uri.parse(url),
+    ),
+  );
+}
+
+/// Emits a [WsFrameEvent] for [id] on [bus].
+void emitWsFrame(
+  JalaEventBus bus,
+  String id, {
+  WsDirection direction = WsDirection.sent,
+  dynamic data = 'hello',
+  DateTime? timestamp,
+  JalaRedactor? redactor,
+}) {
+  bus.emit(
+    WsFrameEvent(
+      connectionId: id,
+      timestamp: timestamp ?? DateTime.utc(2026, 7, 15, 12, 0, 1),
+      frame: WsFrame.capture(
+        timestamp: timestamp ?? DateTime.utc(2026, 7, 15, 12, 0, 1),
+        direction: direction,
+        data: data,
+        redactor: redactor ?? JalaRedactor(),
+      ),
+    ),
+  );
+}
+
+/// Emits a [WsCloseEvent] for [id] on [bus].
+void emitWsClose(
+  JalaEventBus bus,
+  String id, {
+  int? code,
+  String? reason,
+  DateTime? timestamp,
+}) {
+  bus.emit(
+    WsCloseEvent(
+      connectionId: id,
+      timestamp: timestamp ?? DateTime.utc(2026, 7, 15, 12, 0, 2),
+      code: code,
+      reason: reason,
+    ),
+  );
+}
+
+/// Emits a [WsErrorEvent] for [id] on [bus].
+void emitWsError(
+  JalaEventBus bus,
+  String id, {
+  String errorMessage = 'connection reset',
+  DateTime? timestamp,
+}) {
+  bus.emit(
+    WsErrorEvent(
+      connectionId: id,
+      timestamp: timestamp ?? DateTime.utc(2026, 7, 15, 12, 0, 2),
+      errorMessage: errorMessage,
     ),
   );
 }

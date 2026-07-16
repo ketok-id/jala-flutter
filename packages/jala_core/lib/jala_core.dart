@@ -22,6 +22,8 @@ export 'src/model/captured_body.dart';
 export 'src/model/jala_call_status.dart';
 export 'src/model/multipart_part.dart';
 export 'src/model/network_call_entry.dart';
+export 'src/model/ws_connection_entry.dart';
+export 'src/model/ws_frame.dart';
 export 'src/redact/jala_redactor.dart';
 export 'src/store/jala_store.dart';
 export 'src/util/glob.dart';
