@@ -24,7 +24,29 @@ class JalaDioReplayer implements JalaReplayer {
 
   @override
   Future<void> replay(NetworkCallEntry entry) async {
-    final RequestOptions options = _rebuildRequestOptions(entry);
+    await _fetch(_rebuildRequestOptions(entry));
+  }
+
+  @override
+  Future<void> replayModified(
+    NetworkCallEntry entry, {
+    String? method,
+    Uri? uri,
+    Map<String, String>? headers,
+    String? body,
+  }) async {
+    await _fetch(
+      _rebuildRequestOptions(
+        entry,
+        method: method,
+        uri: uri,
+        headers: headers,
+        bodyOverride: body,
+      ),
+    );
+  }
+
+  Future<void> _fetch(RequestOptions options) async {
     try {
       await _dio.fetch<dynamic>(options);
     } on DioException {
@@ -34,19 +56,37 @@ class JalaDioReplayer implements JalaReplayer {
     }
   }
 
-  RequestOptions _rebuildRequestOptions(NetworkCallEntry entry) {
-    final Map<String, dynamic> headers = <String, dynamic>{
-      for (final MapEntry<String, String> header
-          in entry.requestHeaders.entries)
+  RequestOptions _rebuildRequestOptions(
+    NetworkCallEntry entry, {
+    String? method,
+    Uri? uri,
+    Map<String, String>? headers,
+    String? bodyOverride,
+  }) {
+    final Map<String, String> sourceHeaders =
+        headers ?? entry.requestHeaders;
+    final Map<String, dynamic> rebuiltHeaders = <String, dynamic>{
+      for (final MapEntry<String, String> header in sourceHeaders.entries)
         if (header.value != JalaRedactor.mask) header.key: header.value,
     };
+    final dynamic data = bodyOverride != null
+        ? _dataFromText(bodyOverride)
+        : _rebuildData(entry.requestBody);
     return RequestOptions(
-      method: entry.method,
-      path: entry.uri.toString(),
-      headers: headers,
-      data: _rebuildData(entry.requestBody),
+      method: method ?? entry.method,
+      path: (uri ?? entry.uri).toString(),
+      headers: rebuiltHeaders,
+      data: data,
       extra: <String, dynamic>{JalaDioInterceptor.replayOfExtraKey: entry.id},
     );
+  }
+
+  dynamic _dataFromText(String text) {
+    try {
+      return jsonDecode(text);
+    } on Object {
+      return text;
+    }
   }
 
   dynamic _rebuildData(CapturedBody body) {

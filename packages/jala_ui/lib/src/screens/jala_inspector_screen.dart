@@ -9,6 +9,7 @@ import '../widgets/jala_call_list_tile.dart';
 import '../widgets/jala_filter_help_sheet.dart';
 import '../widgets/jala_themed_page.dart';
 import 'jala_call_detail_screen.dart';
+import 'jala_mocks_screen.dart';
 
 /// Root screen of the Jala inspector: filter bar, call list, and app bar
 /// actions (clear, copy session HAR, theme toggle).
@@ -126,6 +127,61 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
                         ),
                   title: const Text('Jala'),
                   actions: <Widget>[
+                    StreamBuilder<List<JalaMockRule>>(
+                      stream: JalaBinding.instance.mockRegistry.watch,
+                      initialData: JalaBinding.instance.mockRegistry.rules,
+                      builder: (
+                        BuildContext context,
+                        AsyncSnapshot<List<JalaMockRule>> snap,
+                      ) {
+                        final int enabled = (snap.data ?? const <JalaMockRule>[])
+                            .where((JalaMockRule r) => r.enabled)
+                            .length;
+                        return IconButton(
+                          tooltip: enabled > 0
+                              ? 'Mocks ($enabled enabled)'
+                              : 'Mocks',
+                          onPressed: () {
+                            Navigator.of(context).push(JalaMocksScreen.route());
+                          },
+                          // Avoid Badge animations that hang pumpAndSettle.
+                          icon: enabled > 0
+                              ? Stack(
+                                  clipBehavior: Clip.none,
+                                  children: <Widget>[
+                                    const Icon(Icons.rule),
+                                    Positioned(
+                                      right: -6,
+                                      top: -4,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 4,
+                                          vertical: 1,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .error,
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          '$enabled',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onError,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : const Icon(Icons.rule),
+                        );
+                      },
+                    ),
                     IconButton(
                       icon: const Icon(Icons.delete_outline),
                       tooltip: 'Clear',

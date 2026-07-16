@@ -6,6 +6,8 @@ import '../util/format.dart';
 import '../widgets/jala_body_view.dart';
 import '../widgets/jala_headers_table.dart';
 import '../widgets/jala_themed_page.dart';
+import 'jala_mock_editor_screen.dart';
+import 'jala_request_composer_screen.dart';
 
 /// Detail screen for a single call: Overview / Request / Response tabs and
 /// a bottom action bar (copy body / cURL / Dart snippet / HAR, replay).
@@ -158,6 +160,26 @@ class _JalaCallDetailScreenState extends State<JalaCallDetailScreen>
                       ),
                       icon: const Icon(Icons.description, size: 18),
                       label: const Text('HAR'),
+                    ),
+                    TextButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          JalaMockEditorScreen.routeFromEntry(entry),
+                        );
+                      },
+                      icon: const Icon(Icons.bolt, size: 18),
+                      label: const Text('Mock this'),
+                    ),
+                    TextButton.icon(
+                      onPressed: hasReplayer
+                          ? () {
+                              Navigator.of(context).push(
+                                JalaRequestComposerScreen.route(entry),
+                              );
+                            }
+                          : null,
+                      icon: const Icon(Icons.edit_note, size: 18),
+                      label: const Text('Edit & resend'),
                     ),
                     Tooltip(
                       message: hasReplayer

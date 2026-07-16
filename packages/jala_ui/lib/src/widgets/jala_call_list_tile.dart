@@ -59,6 +59,18 @@ class JalaCallListTile extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
+              if (entry.mockRuleId != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: Tooltip(
+                    message: 'Mocked',
+                    child: Icon(
+                      Icons.bolt,
+                      size: 14,
+                      color: textTheme.bodySmall?.color,
+                    ),
+                  ),
+                ),
               if (entry.replayOf != null)
                 Padding(
                   padding: const EdgeInsets.only(right: 4),

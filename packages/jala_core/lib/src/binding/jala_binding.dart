@@ -1,10 +1,11 @@
 import '../config.dart';
 import '../event/jala_event_bus.dart';
+import '../mock/jala_mock_registry.dart';
 import '../store/jala_store.dart';
 import 'jala_replay_registry.dart';
 
 /// Process-wide singleton wiring together Jala's config, event bus,
-/// store, and replay registry.
+/// store, replay registry, and mock registry.
 ///
 /// Client integrations (e.g. `JalaDioInterceptor`) read
 /// [JalaBinding.instance] instead of taking constructor parameters, so a
@@ -12,7 +13,8 @@ import 'jala_replay_registry.dart';
 /// client.
 ///
 /// Before [initialize] is called the binding exists but is disabled
-/// ([isEnabled] is false) — every capture path is a true no-op.
+/// ([isEnabled] is false) — every capture path is a true no-op. Mock
+/// short-circuits also require [isEnabled].
 class JalaBinding {
   JalaBinding._();
 
@@ -28,6 +30,10 @@ class JalaBinding {
   /// Registry the UI queries to replay calls; client integrations register
   /// themselves here.
   final JalaReplayRegistry replayRegistry = JalaReplayRegistry();
+
+  /// Ordered mock rules (first enabled match wins). Always present; adapters
+  /// only consult it when [isEnabled] is true.
+  final JalaMockRegistry mockRegistry = JalaMockRegistry();
 
   /// Whether Jala is initialized *and* enabled by config. Hot networking
   /// paths check this before doing any capture work.
@@ -72,6 +78,7 @@ class JalaBinding {
     _instance = JalaBinding._();
     await old._store?.dispose();
     await old._bus?.dispose();
+    await old.mockRegistry.dispose();
   }
 
   static T _require<T>(T? value, String name) {

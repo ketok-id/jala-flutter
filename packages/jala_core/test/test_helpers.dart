@@ -20,6 +20,7 @@ NetworkCallEntry makeEntry({
   JalaCallStatus status = JalaCallStatus.success,
   String? errorMessage,
   String? replayOf,
+  String? mockRuleId,
   String client = 'dio',
   NetworkProgressEvent? progress,
 }) {
@@ -40,6 +41,7 @@ NetworkCallEntry makeEntry({
     status: status,
     errorMessage: errorMessage,
     replayOf: replayOf,
+    mockRuleId: mockRuleId,
     client: client,
     progress: progress,
   );

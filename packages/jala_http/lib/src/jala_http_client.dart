@@ -61,19 +61,69 @@ class JalaHttpClient extends http.BaseClient {
 
     String? id;
     Stopwatch? stopwatch;
+    _BodyCapture? bodyCapture;
+    String? replayOf;
     try {
-      final _RequestCapture capture = _captureRequest(request, binding);
-      id = capture.id;
-      stopwatch = capture.stopwatch;
+      final String? replayHeader = request.headers[replayOfHeader];
+      if (replayHeader != null) {
+        request.headers.remove(replayOfHeader);
+        replayOf = replayHeader;
+      }
+      id = JalaIdGenerator.next();
+      stopwatch = Stopwatch()..start();
+      bodyCapture = _captureRequestBody(
+        request,
+        maxBytes: binding.config.maxBodyBytes,
+      );
     } catch (_) {
       // A capture bug must never break the app's networking; fall back to
       // an uncaptured passthrough for this call.
     }
 
-    if (id == null) {
+    if (id == null || bodyCapture == null || stopwatch == null) {
       return _inner.send(request);
     }
     final String callId = id;
+    final Stopwatch sw = stopwatch;
+
+    final JalaMockRule? rule = binding.mockRegistry.match(
+      method: request.method.toUpperCase(),
+      uri: request.url,
+      bodyText: bodyCapture.body.text,
+    );
+
+    try {
+      final Map<String, String> headers = binding.config.redactor
+          .redactHeaders(request.headers);
+      binding.bus.emit(
+        NetworkRequestEvent(
+          callId: callId,
+          timestamp: DateTime.now(),
+          method: request.method.toUpperCase(),
+          uri: request.url,
+          headers: headers,
+          body: bodyCapture.body,
+          size: bodyCapture.size,
+          client: 'http',
+          replayOf: replayOf,
+          mockRuleId: rule?.id,
+        ),
+      );
+    } catch (_) {
+      // Continue even if emit fails.
+    }
+
+    if (rule != null) {
+      final http.StreamedResponse? mocked = await _applyMock(
+        rule,
+        request,
+        callId: callId,
+        stopwatch: sw,
+        binding: binding,
+      );
+      if (mocked != null) return mocked;
+      // MockDelay falls through to the real network below.
+    }
 
     // Shared between the upload (this method) and download (_captureResponse)
     // sides so every emitted NetworkProgressEvent reports both sides'
@@ -100,7 +150,7 @@ class JalaHttpClient extends http.BaseClient {
       return _captureResponse(
         response,
         callId: callId,
-        stopwatch: stopwatch,
+        stopwatch: sw,
         binding: binding,
         progressState: progressState,
       );
@@ -111,7 +161,7 @@ class JalaHttpClient extends http.BaseClient {
             callId: callId,
             timestamp: DateTime.now(),
             errorMessage: error.toString(),
-            duration: stopwatch?.elapsed,
+            duration: sw.elapsed,
           ),
         );
       } catch (_) {
@@ -121,47 +171,85 @@ class JalaHttpClient extends http.BaseClient {
     }
   }
 
+  /// Applies [rule]. Returns a synthetic response for response/failure
+  /// actions, or null for [MockDelay] (caller continues to the network).
+  Future<http.StreamedResponse?> _applyMock(
+    JalaMockRule rule,
+    http.BaseRequest request, {
+    required String callId,
+    required Stopwatch stopwatch,
+    required JalaBinding binding,
+  }) async {
+    try {
+      final Duration? delay = rule.action.delay;
+      if (delay != null && delay > Duration.zero) {
+        await Future<void>.delayed(delay);
+      }
+
+      switch (rule.action) {
+        case final MockDelay _:
+          return null;
+        case final MockResponse action:
+          final List<int> bytes = utf8.encode(action.body);
+          final CapturedBody body = CapturedBody.capture(
+            action.body,
+            contentType: action.headers.entries
+                .where(
+                  (MapEntry<String, String> e) =>
+                      e.key.toLowerCase() == 'content-type',
+                )
+                .map((MapEntry<String, String> e) => e.value)
+                .firstOrNull,
+            maxBytes: binding.config.maxBodyBytes,
+          );
+          binding.bus.emit(
+            NetworkResponseEvent(
+              callId: callId,
+              timestamp: DateTime.now(),
+              statusCode: action.statusCode,
+              headers: binding.config.redactor.redactHeaders(action.headers),
+              body: body,
+              size: bytes.length,
+              duration: stopwatch.elapsed,
+            ),
+          );
+          return http.StreamedResponse(
+            Stream<List<int>>.value(bytes),
+            action.statusCode,
+            contentLength: bytes.length,
+            request: request,
+            headers: action.headers,
+          );
+        case final MockFailure action:
+          final String message = action.kind == MockFailureKind.timeout
+              ? 'Jala mock timeout'
+              : 'Jala mock connection error';
+          binding.bus.emit(
+            NetworkErrorEvent(
+              callId: callId,
+              timestamp: DateTime.now(),
+              errorMessage: message,
+              duration: stopwatch.elapsed,
+            ),
+          );
+          if (action.kind == MockFailureKind.timeout) {
+            throw TimeoutException(message);
+          }
+          throw http.ClientException(message, request.url);
+      }
+    } on TimeoutException {
+      rethrow;
+    } on http.ClientException {
+      rethrow;
+    } catch (_) {
+      // Mock application bug: fall through to real network.
+      return null;
+    }
+  }
+
   @override
   void close() {
     _inner.close();
-  }
-
-  _RequestCapture _captureRequest(
-    http.BaseRequest request,
-    JalaBinding binding,
-  ) {
-    final String id = JalaIdGenerator.next();
-    final Stopwatch stopwatch = Stopwatch()..start();
-
-    final String? replayOf = request.headers[replayOfHeader];
-    if (replayOf != null) {
-      request.headers.remove(replayOfHeader);
-    }
-
-    final Map<String, String> headers = binding.config.redactor.redactHeaders(
-      request.headers,
-    );
-
-    final _BodyCapture bodyCapture = _captureRequestBody(
-      request,
-      maxBytes: binding.config.maxBodyBytes,
-    );
-
-    binding.bus.emit(
-      NetworkRequestEvent(
-        callId: id,
-        timestamp: DateTime.now(),
-        method: request.method.toUpperCase(),
-        uri: request.url,
-        headers: headers,
-        body: bodyCapture.body,
-        size: bodyCapture.size,
-        client: 'http',
-        replayOf: replayOf,
-      ),
-    );
-
-    return _RequestCapture(id: id, stopwatch: stopwatch);
   }
 
   _BodyCapture _captureRequestBody(
@@ -488,14 +576,6 @@ Stream<List<int>> _teeAndCapture(
   );
 
   return controller.stream;
-}
-
-/// Pairs a captured call's id with the stopwatch tracking its duration.
-class _RequestCapture {
-  const _RequestCapture({required this.id, required this.stopwatch});
-
-  final String id;
-  final Stopwatch stopwatch;
 }
 
 /// Pairs a captured body with its best-effort original size in bytes.

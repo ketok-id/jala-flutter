@@ -18,6 +18,7 @@ class JalaFilterHelpSheet extends StatelessWidget {
     ('larger-than:', 'responseSize > n bytes (k/m suffixes, e.g. 10k, 2m)'),
     ('slower-than:', 'duration > n milliseconds'),
     ('is:replay', 'the call is a replay of another entry'),
+    ('is:mocked', 'the call was handled by a mock rule'),
     ('body:', 'substring in captured request or response body'),
     ('bare text', 'substring of method + full URL'),
     ('-term', 'prefix any term with - to negate it'),

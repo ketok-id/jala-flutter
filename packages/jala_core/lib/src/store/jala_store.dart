@@ -100,6 +100,7 @@ class JalaStore {
       client: e.client,
       requestSize: e.size,
       replayOf: e.replayOf,
+      mockRuleId: e.mockRuleId,
     );
     _entries.insert(0, entry);
     _enforceCapacity();

@@ -42,6 +42,10 @@ class JalaDioInterceptor extends Interceptor {
   /// `NetworkRequestEvent.replayOf`.
   static const String replayOfExtraKey = 'jala_replay_of';
 
+  /// When true, response/error capture was already emitted by the mock
+  /// short-circuit path — [onResponse]/[onError] must not double-capture.
+  static const String mockHandledExtraKey = 'jala_mock_handled';
+
   /// `RequestOptions.extra` key holding this call's shared [_ProgressState],
   /// created in [_captureRequest] and read back in [_captureResponse] so
   /// upload- and download-side byte counts are reported together on the
@@ -75,12 +79,35 @@ class JalaDioInterceptor extends Interceptor {
       handler.next(options);
       return;
     }
+
+    _BodyCapture? bodyCapture;
     try {
-      _captureRequest(options);
+      bodyCapture = _prepareRequest(options);
     } catch (_) {
       // A capture bug must never break the app's networking.
+      handler.next(options);
+      return;
     }
-    handler.next(options);
+
+    final JalaBinding binding = JalaBinding.instance;
+    final JalaMockRule? rule = binding.mockRegistry.match(
+      method: options.method.toUpperCase(),
+      uri: options.uri,
+      bodyText: bodyCapture.body.text,
+    );
+
+    try {
+      _emitRequest(options, bodyCapture, mockRuleId: rule?.id);
+    } catch (_) {
+      // Continue even if emit fails.
+    }
+
+    if (rule == null) {
+      handler.next(options);
+      return;
+    }
+
+    unawaited(_applyMock(rule, options, handler));
   }
 
   @override
@@ -89,6 +116,10 @@ class JalaDioInterceptor extends Interceptor {
     ResponseInterceptorHandler handler,
   ) {
     if (!JalaBinding.instance.isEnabled) {
+      handler.next(response);
+      return;
+    }
+    if (response.requestOptions.extra[mockHandledExtraKey] == true) {
       handler.next(response);
       return;
     }
@@ -106,6 +137,10 @@ class JalaDioInterceptor extends Interceptor {
       handler.next(err);
       return;
     }
+    if (err.requestOptions.extra[mockHandledExtraKey] == true) {
+      handler.next(err);
+      return;
+    }
     try {
       _captureError(err);
     } catch (_) {
@@ -114,19 +149,13 @@ class JalaDioInterceptor extends Interceptor {
     handler.next(err);
   }
 
-  void _captureRequest(RequestOptions options) {
+  /// Allocates call id / stopwatch / progress wrappers and returns the
+  /// captured request body (for mock matching) without emitting yet.
+  _BodyCapture _prepareRequest(RequestOptions options) {
     final JalaBinding binding = JalaBinding.instance;
     final String id = JalaIdGenerator.next();
     options.extra[idExtraKey] = id;
     options.extra[startExtraKey] = Stopwatch()..start();
-
-    final Map<String, String> rawHeaders = <String, String>{
-      for (final MapEntry<String, dynamic> entry in options.headers.entries)
-        entry.key: '${entry.value}',
-    };
-    final Map<String, String> headers = binding.config.redactor.redactHeaders(
-      rawHeaders,
-    );
 
     final _BodyCapture capture = _captureRequestBody(
       options.data,
@@ -135,27 +164,6 @@ class JalaDioInterceptor extends Interceptor {
       redactor: binding.config.redactor,
     );
 
-    final String? replayOf = options.extra[replayOfExtraKey] as String?;
-
-    binding.bus.emit(
-      NetworkRequestEvent(
-        callId: id,
-        timestamp: DateTime.now(),
-        method: options.method.toUpperCase(),
-        uri: options.uri,
-        headers: headers,
-        body: capture.body,
-        size: capture.size,
-        client: 'dio',
-        replayOf: replayOf,
-      ),
-    );
-
-    // See _progressThresholdBytes' SPEC-NOTE: only a raw `Stream` request
-    // body can be observed incrementally from an interceptor. The state
-    // object is stashed regardless (even when upload progress can't be
-    // wired) so _captureResponse can report download-side progress under
-    // the same NetworkProgressEvent stream.
     final _ProgressState progressState = _ProgressState()
       ..sentTotal = _headerInt(options.headers, Headers.contentLengthHeader);
     options.extra[_progressStateExtraKey] = progressState;
@@ -167,6 +175,182 @@ class JalaDioInterceptor extends Interceptor {
         state: progressState,
       );
     }
+    return capture;
+  }
+
+  void _emitRequest(
+    RequestOptions options,
+    _BodyCapture capture, {
+    String? mockRuleId,
+  }) {
+    final JalaBinding binding = JalaBinding.instance;
+    final Map<String, String> rawHeaders = <String, String>{
+      for (final MapEntry<String, dynamic> entry in options.headers.entries)
+        entry.key: '${entry.value}',
+    };
+    final Map<String, String> headers = binding.config.redactor.redactHeaders(
+      rawHeaders,
+    );
+    final String? replayOf = options.extra[replayOfExtraKey] as String?;
+
+    binding.bus.emit(
+      NetworkRequestEvent(
+        callId: options.extra[idExtraKey] as String,
+        timestamp: DateTime.now(),
+        method: options.method.toUpperCase(),
+        uri: options.uri,
+        headers: headers,
+        body: capture.body,
+        size: capture.size,
+        client: 'dio',
+        replayOf: replayOf,
+        mockRuleId: mockRuleId,
+      ),
+    );
+  }
+
+  Future<void> _applyMock(
+    JalaMockRule rule,
+    RequestOptions options,
+    RequestInterceptorHandler handler,
+  ) async {
+    try {
+      final Duration? delay = rule.action.delay;
+      if (delay != null && delay > Duration.zero) {
+        await Future<void>.delayed(delay);
+      }
+
+      switch (rule.action) {
+        case final MockDelay _:
+          handler.next(options);
+        case final MockResponse action:
+          options.extra[mockHandledExtraKey] = true;
+          final Stopwatch? stopwatch =
+              options.extra[startExtraKey] as Stopwatch?;
+          final Duration duration = stopwatch?.elapsed ?? Duration.zero;
+          final List<int> bytes = utf8.encode(action.body);
+          final dynamic data = _mockResponseData(options, action, bytes);
+          final Headers headers = Headers.fromMap(<String, List<String>>{
+            for (final MapEntry<String, String> e in action.headers.entries)
+              e.key: <String>[e.value],
+          });
+          final Response<dynamic> response = Response<dynamic>(
+            requestOptions: options,
+            statusCode: action.statusCode,
+            statusMessage: null,
+            headers: headers,
+            data: data,
+          );
+          try {
+            _emitMockResponse(
+              options: options,
+              statusCode: action.statusCode,
+              headers: action.headers,
+              body: action.body,
+              size: bytes.length,
+              duration: duration,
+            );
+          } catch (_) {}
+          handler.resolve(response, true);
+        case final MockFailure action:
+          options.extra[mockHandledExtraKey] = true;
+          final Stopwatch? stopwatch =
+              options.extra[startExtraKey] as Stopwatch?;
+          final DioException err = _mockFailureException(options, action);
+          try {
+            JalaBinding.instance.bus.emit(
+              NetworkErrorEvent(
+                callId: options.extra[idExtraKey] as String,
+                timestamp: DateTime.now(),
+                errorMessage: err.message ?? err.toString(),
+                duration: stopwatch?.elapsed,
+              ),
+            );
+          } catch (_) {}
+          handler.reject(err);
+      }
+    } catch (_) {
+      // If mock application fails, fall through to the real network.
+      handler.next(options);
+    }
+  }
+
+  dynamic _mockResponseData(
+    RequestOptions options,
+    MockResponse action,
+    List<int> bytes,
+  ) {
+    switch (options.responseType) {
+      case ResponseType.bytes:
+        return Uint8List.fromList(bytes);
+      case ResponseType.stream:
+        return ResponseBody.fromBytes(
+          bytes,
+          action.statusCode,
+          headers: <String, List<String>>{
+            for (final MapEntry<String, String> e in action.headers.entries)
+              e.key: <String>[e.value],
+          },
+        );
+      case ResponseType.plain:
+        return action.body;
+      case ResponseType.json:
+        try {
+          return jsonDecode(action.body);
+        } on Object {
+          return action.body;
+        }
+    }
+  }
+
+  DioException _mockFailureException(
+    RequestOptions options,
+    MockFailure action,
+  ) {
+    switch (action.kind) {
+      case MockFailureKind.timeout:
+        return DioException.connectionTimeout(
+          timeout: options.connectTimeout ?? const Duration(seconds: 0),
+          requestOptions: options,
+        );
+      case MockFailureKind.connectionError:
+        return DioException.connectionError(
+          requestOptions: options,
+          reason: 'Jala mock connection error',
+        );
+    }
+  }
+
+  void _emitMockResponse({
+    required RequestOptions options,
+    required int statusCode,
+    required Map<String, String> headers,
+    required String body,
+    required int size,
+    required Duration duration,
+  }) {
+    final JalaBinding binding = JalaBinding.instance;
+    final String id = options.extra[idExtraKey] as String;
+    final CapturedBody captured = CapturedBody.capture(
+      body,
+      contentType: headers.entries
+          .where((MapEntry<String, String> e) =>
+              e.key.toLowerCase() == 'content-type')
+          .map((MapEntry<String, String> e) => e.value)
+          .firstOrNull,
+      maxBytes: binding.config.maxBodyBytes,
+    );
+    binding.bus.emit(
+      NetworkResponseEvent(
+        callId: id,
+        timestamp: DateTime.now(),
+        statusCode: statusCode,
+        headers: binding.config.redactor.redactHeaders(headers),
+        body: captured,
+        size: size,
+        duration: duration,
+      ),
+    );
   }
 
   void _captureResponse(Response<dynamic> response) {

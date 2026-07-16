@@ -467,4 +467,70 @@ void main() {
       },
     );
   });
+
+  group('JalaHttpClient mocks', () {
+    test('MockResponse short-circuits without hitting the inner client',
+        () async {
+      JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+      JalaBinding.instance.mockRegistry.add(
+        JalaMockRule(
+          id: 'mock-http',
+          name: 'users',
+          urlPattern: 'https://api.example.com/users*',
+          action: const MockResponse(
+            statusCode: 200,
+            headers: <String, String>{'content-type': 'application/json'},
+            body: '{"mocked":true}',
+          ),
+        ),
+      );
+      var hits = 0;
+      final FakeHttpClient fake = FakeHttpClient((request) async {
+        hits++;
+        return jsonStreamedResponse(<String, dynamic>{'real': true});
+      });
+      final JalaHttpClient client = JalaHttpClient(inner: fake);
+
+      final http.Response response = await client.get(
+        Uri.parse('https://api.example.com/users/1'),
+      );
+      await pump();
+
+      expect(hits, 0);
+      expect(response.statusCode, 200);
+      expect(response.body, contains('mocked'));
+      final NetworkCallEntry entry = JalaBinding.instance.store.entries.single;
+      expect(entry.mockRuleId, 'mock-http');
+      expect(entry.status, JalaCallStatus.success);
+    });
+
+    test('MockFailure throws without hitting the inner client', () async {
+      JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+      JalaBinding.instance.mockRegistry.add(
+        JalaMockRule(
+          id: 'fail-http',
+          name: 'fail',
+          urlPattern: 'https://api.example.com/*',
+          action: const MockFailure(kind: MockFailureKind.connectionError),
+        ),
+      );
+      var hits = 0;
+      final FakeHttpClient fake = FakeHttpClient((request) async {
+        hits++;
+        return jsonStreamedResponse(<String, dynamic>{});
+      });
+      final JalaHttpClient client = JalaHttpClient(inner: fake);
+
+      await expectLater(
+        client.get(Uri.parse('https://api.example.com/x')),
+        throwsA(isA<http.ClientException>()),
+      );
+      await pump();
+
+      expect(hits, 0);
+      final NetworkCallEntry entry = JalaBinding.instance.store.entries.single;
+      expect(entry.mockRuleId, 'fail-http');
+      expect(entry.status, JalaCallStatus.error);
+    });
+  });
 }

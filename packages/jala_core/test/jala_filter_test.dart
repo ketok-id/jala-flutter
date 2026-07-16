@@ -162,11 +162,18 @@ void main() {
 
   group('is term', () {
     final replay = makeEntry(replayOf: 'orig-1');
+    final mocked = makeEntry(mockRuleId: 'rule-1');
     final normal = makeEntry();
 
     test('is:replay', () {
       expect(match('is:replay', replay), isTrue);
       expect(match('is:replay', normal), isFalse);
+    });
+
+    test('is:mocked', () {
+      expect(match('is:mocked', mocked), isTrue);
+      expect(match('is:mocked', normal), isFalse);
+      expect(match('is:mocked', replay), isFalse);
     });
   });
 

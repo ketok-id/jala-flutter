@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:jala_core/jala_core.dart';
 import 'package:jala_ui/jala_ui.dart';
 
+import 'file_jala_mock_store.dart';
+
 /// Static facade for the Jala network inspector.
 ///
 /// Call [initialize] once at app start, wrap the app in [JalaOverlay]
@@ -24,6 +26,24 @@ class Jala {
     JalaBinding.instance.initialize(
       config: config ?? JalaConfig(enabled: kDebugMode),
     );
+  }
+
+  /// Attaches a file-backed mock rule store under [directory] and hydrates
+  /// rules from disk. No-op when Jala is disabled.
+  ///
+  /// The directory is caller-supplied (e.g. from `path_provider`) so this
+  /// package does not depend on platform path plugins. On web this is a
+  /// no-op store (rules stay in memory only).
+  ///
+  /// ```dart
+  /// Jala.initialize();
+  /// final dir = await getApplicationSupportDirectory();
+  /// await Jala.enableMockPersistence(dir.path);
+  /// ```
+  static Future<void> enableMockPersistence(String directory) async {
+    if (!isEnabled) return;
+    final FileJalaMockStore store = FileJalaMockStore(directory);
+    await JalaBinding.instance.mockRegistry.attachStore(store);
   }
 
   /// Whether Jala is initialized and enabled.

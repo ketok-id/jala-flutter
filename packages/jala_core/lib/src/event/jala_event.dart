@@ -28,6 +28,7 @@ class NetworkRequestEvent extends JalaEvent {
     required this.client,
     this.size,
     this.replayOf,
+    this.mockRuleId,
   });
 
   /// HTTP method, uppercased.
@@ -56,6 +57,10 @@ class NetworkRequestEvent extends JalaEvent {
   /// event is the natural place for a replaying client (e.g. `jala_dio`)
   /// to declare it, so it is included here as an optional field.
   final String? replayOf;
+
+  /// When non-null, a mock rule short-circuited or delayed this request
+  /// (see [JalaMockRegistry]).
+  final String? mockRuleId;
 }
 
 /// Emitted when a response is received for a call.

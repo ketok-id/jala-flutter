@@ -6,18 +6,26 @@ import 'package:http/http.dart' as http;
 import 'package:jala/jala.dart';
 import 'package:jala_dio/jala_dio.dart';
 import 'package:jala_http/jala_http.dart';
+import 'package:path_provider/path_provider.dart';
 
 /// Manual QA rig for Jala.
 ///
 /// Fires a variety of requests so you can exercise filters, export, replay,
-/// redaction, truncation, multipart, progress, and error paths in the
+/// redaction, truncation, multipart, progress, mocks, and error paths in the
 /// inspector. Primary echo host is postman-echo (httpbin.org has been
 /// intermittently 503); large downloads use Cloudflare's speed endpoint;
 /// simple GETs also hit jsonplaceholder as a backup.
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   // The hosted demo (GitHub Pages) is a release build, where the
   // `enabled: kDebugMode` default would turn Jala off — opt in explicitly.
   Jala.initialize(config: JalaConfig(enabled: true));
+  try {
+    final dir = await getApplicationSupportDirectory();
+    await Jala.enableMockPersistence(dir.path);
+  } on Object {
+    // Web / unsupported platforms keep in-memory mocks only.
+  }
   final Dio dio = Dio(
     BaseOptions(
       connectTimeout: const Duration(seconds: 15),

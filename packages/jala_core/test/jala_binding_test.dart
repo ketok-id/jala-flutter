@@ -10,6 +10,16 @@ class _RecordingReplayer implements JalaReplayer {
   Future<void> replay(NetworkCallEntry entry) async {
     replayed.add(entry);
   }
+
+  @override
+  Future<void> replayModified(
+    NetworkCallEntry entry, {
+    String? method,
+    Uri? uri,
+    Map<String, String>? headers,
+    String? body,
+  }) =>
+      replay(entry);
 }
 
 void main() {

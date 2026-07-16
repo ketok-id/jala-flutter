@@ -25,19 +25,59 @@ class JalaHttpReplayer implements JalaReplayer {
 
   @override
   Future<void> replay(NetworkCallEntry entry) async {
-    final http.Request request = http.Request(entry.method, entry.uri)
+    await _send(_buildRequest(entry));
+  }
+
+  @override
+  Future<void> replayModified(
+    NetworkCallEntry entry, {
+    String? method,
+    Uri? uri,
+    Map<String, String>? headers,
+    String? body,
+  }) async {
+    await _send(
+      _buildRequest(
+        entry,
+        method: method,
+        uri: uri,
+        headers: headers,
+        bodyOverride: body,
+      ),
+    );
+  }
+
+  http.Request _buildRequest(
+    NetworkCallEntry entry, {
+    String? method,
+    Uri? uri,
+    Map<String, String>? headers,
+    String? bodyOverride,
+  }) {
+    final Map<String, String> sourceHeaders =
+        headers ?? entry.requestHeaders;
+    final http.Request request = http.Request(
+      method ?? entry.method,
+      uri ?? entry.uri,
+    )
       ..headers.addAll(<String, String>{
-        for (final MapEntry<String, String> header
-            in entry.requestHeaders.entries)
+        for (final MapEntry<String, String> header in sourceHeaders.entries)
           if (header.value != JalaRedactor.mask) header.key: header.value,
       })
       ..headers[JalaHttpClient.replayOfHeader] = entry.id;
 
-    final List<int>? bytes = _rebuildBodyBytes(entry.requestBody);
-    if (bytes != null) {
-      request.bodyBytes = bytes;
+    if (bodyOverride != null) {
+      request.body = bodyOverride;
+    } else {
+      final List<int>? bytes = _rebuildBodyBytes(entry.requestBody);
+      if (bytes != null) {
+        request.bodyBytes = bytes;
+      }
     }
+    return request;
+  }
 
+  Future<void> _send(http.Request request) async {
     try {
       final http.StreamedResponse response = await _client.send(request);
       // [JalaHttpClient.send] only captures the response once its stream

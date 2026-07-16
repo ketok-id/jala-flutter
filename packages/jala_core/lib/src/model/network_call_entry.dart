@@ -34,6 +34,7 @@ class NetworkCallEntry {
     this.responseSize,
     this.errorMessage,
     this.replayOf,
+    this.mockRuleId,
     this.progress,
   });
 
@@ -90,6 +91,10 @@ class NetworkCallEntry {
   /// null if this is not a replay.
   final String? replayOf;
 
+  /// The id of the [JalaMockRule] that handled this call, or null if the
+  /// request was not matched by the mock registry.
+  final String? mockRuleId;
+
   /// Identifies which client/library captured this call, e.g. `'dio'`.
   final String client;
 
@@ -121,6 +126,7 @@ class NetworkCallEntry {
     JalaCallStatus? status,
     Object? errorMessage = _unset,
     Object? replayOf = _unset,
+    Object? mockRuleId = _unset,
     String? client,
     Object? progress = _unset,
   }) {
@@ -155,6 +161,9 @@ class NetworkCallEntry {
       replayOf: identical(replayOf, _unset)
           ? this.replayOf
           : replayOf as String?,
+      mockRuleId: identical(mockRuleId, _unset)
+          ? this.mockRuleId
+          : mockRuleId as String?,
       client: client ?? this.client,
       progress: identical(progress, _unset)
           ? this.progress

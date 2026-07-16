@@ -21,6 +21,7 @@ import '../model/network_call_entry.dart';
 ///   means bytes).
 /// - `slower-than:500` — duration > n milliseconds.
 /// - `is:replay` — the call is a replay of another entry.
+/// - `is:mocked` — the call was handled by a mock rule.
 /// - `body:token` — substring of captured request or response body text.
 /// - Any other term (including malformed structured terms) is free text
 ///   matched as a substring of `method + " " + full URL`.
@@ -166,10 +167,14 @@ class JalaFilter {
   }
 
   static _Predicate _is(String value) {
-    if (value.toLowerCase() == 'replay') {
-      return (e) => e.replayOf != null;
+    switch (value.toLowerCase()) {
+      case 'replay':
+        return (e) => e.replayOf != null;
+      case 'mocked':
+        return (e) => e.mockRuleId != null;
+      default:
+        return _freeText('is:$value');
     }
-    return _freeText('is:$value');
   }
 
   static _Predicate _body(String value) {

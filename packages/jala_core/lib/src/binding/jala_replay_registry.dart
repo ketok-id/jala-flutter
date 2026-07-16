@@ -9,6 +9,19 @@ import '../model/network_call_entry.dart';
 abstract class JalaReplayer {
   /// Re-issues the network call described by [entry].
   Future<void> replay(NetworkCallEntry entry);
+
+  /// Re-issues [entry] with optional field overrides (edit-and-resend).
+  ///
+  /// Default implementation ignores overrides and calls [replay]. Adapters
+  /// that support editing override this.
+  Future<void> replayModified(
+    NetworkCallEntry entry, {
+    String? method,
+    Uri? uri,
+    Map<String, String>? headers,
+    String? body,
+  }) =>
+      replay(entry);
 }
 
 /// Registry connecting the inspector UI ("Replay" button) to whichever
@@ -53,6 +66,27 @@ class JalaReplayRegistry {
     final JalaReplayer? replayer = _replayer;
     if (replayer == null) return false;
     await replayer.replay(entry);
+    return true;
+  }
+
+  /// Edit-and-resend via the active replayer. Returns false when none is
+  /// registered.
+  Future<bool> replayModified(
+    NetworkCallEntry entry, {
+    String? method,
+    Uri? uri,
+    Map<String, String>? headers,
+    String? body,
+  }) async {
+    final JalaReplayer? replayer = _replayer;
+    if (replayer == null) return false;
+    await replayer.replayModified(
+      entry,
+      method: method,
+      uri: uri,
+      headers: headers,
+      body: body,
+    );
     return true;
   }
 }

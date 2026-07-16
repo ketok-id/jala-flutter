@@ -507,4 +507,92 @@ void main() {
       },
     );
   });
+
+  group('mocks', () {
+    test('MockResponse short-circuits without hitting the adapter', () async {
+      JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+      JalaBinding.instance.mockRegistry.add(
+        JalaMockRule(
+          id: 'mock-users',
+          name: 'users',
+          urlPattern: 'https://api.example.com/users*',
+          action: const MockResponse(
+            statusCode: 200,
+            headers: <String, String>{'content-type': 'application/json'},
+            body: '{"mocked":true}',
+          ),
+        ),
+      );
+      var adapterHits = 0;
+      final harness = buildDio((options) async {
+        adapterHits++;
+        return jsonResponseBody(<String, dynamic>{'real': true});
+      });
+
+      final Response<dynamic> response = await harness.dio.get<dynamic>(
+        '/users/1',
+      );
+      await pump();
+
+      expect(adapterHits, 0);
+      expect(response.statusCode, 200);
+      expect(response.data, <String, dynamic>{'mocked': true});
+      final NetworkCallEntry entry = JalaBinding.instance.store.entries.single;
+      expect(entry.mockRuleId, 'mock-users');
+      expect(entry.status, JalaCallStatus.success);
+      expect(entry.responseBody.text, contains('mocked'));
+    });
+
+    test('MockFailure produces an error entry without adapter hit', () async {
+      JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+      JalaBinding.instance.mockRegistry.add(
+        JalaMockRule(
+          id: 'fail',
+          name: 'fail',
+          urlPattern: 'https://api.example.com/*',
+          action: const MockFailure(kind: MockFailureKind.connectionError),
+        ),
+      );
+      var adapterHits = 0;
+      final harness = buildDio((options) async {
+        adapterHits++;
+        return jsonResponseBody(<String, dynamic>{});
+      });
+
+      await expectLater(
+        harness.dio.get<dynamic>('/x'),
+        throwsA(isA<DioException>()),
+      );
+      await pump();
+
+      expect(adapterHits, 0);
+      final NetworkCallEntry entry = JalaBinding.instance.store.entries.single;
+      expect(entry.mockRuleId, 'fail');
+      expect(entry.status, JalaCallStatus.error);
+    });
+
+    test('disabled binding ignores mock rules', () async {
+      JalaBinding.instance.initialize(config: JalaConfig(enabled: false));
+      JalaBinding.instance.mockRegistry.add(
+        JalaMockRule(
+          id: 'mock-users',
+          name: 'users',
+          urlPattern: 'https://api.example.com/*',
+          action: const MockResponse(statusCode: 200, body: '{"mocked":true}'),
+        ),
+      );
+      var adapterHits = 0;
+      final harness = buildDio((options) async {
+        adapterHits++;
+        return jsonResponseBody(<String, dynamic>{'real': true});
+      });
+
+      final Response<dynamic> response = await harness.dio.get<dynamic>(
+        '/users/1',
+      );
+      expect(adapterHits, 1);
+      expect(response.data, <String, dynamic>{'real': true});
+      expect(JalaBinding.instance.store.entries, isEmpty);
+    });
+  });
 }
