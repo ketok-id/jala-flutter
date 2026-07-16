@@ -1,3 +1,9 @@
+## 0.1.2
+
+- Fix: snackbar actions (copy cURL/Dart/HAR/body, replay feedback) threw
+  inside the inspector overlay and could crash release builds — the overlay
+  now provides its own `ScaffoldMessenger`.
+
 ## 0.1.1
 
 - Add pub.dev topics.
