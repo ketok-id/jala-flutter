@@ -1,7 +1,33 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jala/jala.dart';
+
+void emitCompletedCall(String id) {
+  Jala.bus.emit(
+    NetworkRequestEvent(
+      callId: id,
+      timestamp: DateTime.utc(2026, 7, 16, 12),
+      method: 'GET',
+      uri: Uri.parse('https://api.example.com/users'),
+      headers: const <String, String>{},
+      body: CapturedBody.none,
+      client: 'dio',
+    ),
+  );
+  Jala.bus.emit(
+    NetworkResponseEvent(
+      callId: id,
+      timestamp: DateTime.utc(2026, 7, 16, 12, 0, 1),
+      statusCode: 200,
+      statusMessage: 'OK',
+      headers: const <String, String>{'content-type': 'application/json'},
+      body: CapturedBody.none,
+      duration: const Duration(milliseconds: 50),
+    ),
+  );
+}
 
 void main() {
   tearDown(() async {
@@ -121,6 +147,43 @@ void main() {
       expect(handled, isTrue, reason: 'back must not fall through to host');
       expect(Jala.isOpen, isFalse);
       expect(find.text('host-app'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'snackbar actions work inside the overlay '
+    '(regression: no ScaffoldMessenger above the inspector — copy/replay '
+    'threw in debug and crashed in release)',
+    (WidgetTester tester) async {
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (MethodCall call) async => null,
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+
+      Jala.initialize(config: JalaConfig(enabled: true));
+      emitCompletedCall('call-1');
+      await tester.pumpWidget(
+        const JalaOverlay(
+          child: MaterialApp(home: Scaffold(body: Text('host-app'))),
+        ),
+      );
+      Jala.open();
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('/users'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('cURL'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(SnackBar), findsOneWidget);
     },
   );
 

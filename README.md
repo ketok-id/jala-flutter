@@ -56,6 +56,10 @@ Tap the floating bubble (or call `Jala.open()`) to inspect traffic.
 
 ## Screenshots
 
+<p align="center">
+<img src="docs/screenshots/demo.gif" width="300" alt="Jala demo: firing requests, opening the inspector, filtering with s:4xx, viewing the redacted request, and replaying a call">
+</p>
+
 <table>
 <tr>
 <td><img src="docs/screenshots/list-dark.png" width="260" alt="Call list, dark theme"></td>

@@ -117,11 +117,15 @@ class _JalaInspectorHostState extends State<_JalaInspectorHost>
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.black54,
-      child: SafeArea(
-        child: Navigator(
-          key: _navKey,
+    // ScaffoldMessenger is normally provided by MaterialApp, which the
+    // inspector deliberately lives outside of — without our own, every
+    // snackbar action (copy, replay) throws / crashes in release.
+    return ScaffoldMessenger(
+      child: Material(
+        color: Colors.black54,
+        child: SafeArea(
+          child: Navigator(
+            key: _navKey,
           onGenerateRoute: (RouteSettings settings) {
             return PageRouteBuilder<void>(
               settings: settings,
@@ -154,6 +158,7 @@ class _JalaInspectorHostState extends State<_JalaInspectorHost>
               },
             );
           },
+          ),
         ),
       ),
     );
