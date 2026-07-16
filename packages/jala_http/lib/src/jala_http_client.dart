@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
@@ -45,6 +46,12 @@ class JalaHttpClient extends http.BaseClient {
   /// to the server or shows up in captured headers.
   static const String replayOfHeader = 'x-jala-replay-of';
 
+  /// Cadence for [NetworkProgressEvent] emission on either side of a call:
+  /// every ~64 KB transferred, plus unconditionally on the first and last
+  /// chunk — matches the response-side tee's existing granularity (see
+  /// [_teeAndCapture]) so upload and download progress read consistently.
+  static const int _progressThresholdBytes = 64 * 1024;
+
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     final JalaBinding binding = JalaBinding.instance;
@@ -68,13 +75,34 @@ class JalaHttpClient extends http.BaseClient {
     }
     final String callId = id;
 
+    // Shared between the upload (this method) and download (_captureResponse)
+    // sides so every emitted NetworkProgressEvent reports both sides'
+    // latest known values together — see B4 in docs/plans/track-b-v0.2.md.
+    final _ProgressState progressState = _ProgressState();
+    http.BaseRequest outgoing = request;
     try {
-      final http.StreamedResponse response = await _inner.send(request);
+      progressState.sentTotal = request.contentLength;
+      outgoing = _wrapForUploadProgress(
+        request,
+        callId: callId,
+        binding: binding,
+        state: progressState,
+      );
+    } catch (_) {
+      // A bug in the upload-progress wrapper must never break the app's
+      // networking; fall back to sending the original, unwrapped request —
+      // this just means no upload progress is observed for this call.
+      outgoing = request;
+    }
+
+    try {
+      final http.StreamedResponse response = await _inner.send(outgoing);
       return _captureResponse(
         response,
         callId: callId,
         stopwatch: stopwatch,
         binding: binding,
+        progressState: progressState,
       );
     } catch (error) {
       try {
@@ -141,23 +169,22 @@ class JalaHttpClient extends http.BaseClient {
     required int maxBytes,
   }) {
     if (request is http.MultipartRequest) {
-      final Map<String, dynamic> summary = <String, dynamic>{
-        'fields': <Map<String, String>>[
-          for (final MapEntry<String, String> entry in request.fields.entries)
-            <String, String>{'name': entry.key, 'value': entry.value},
-        ],
-        'files': <Map<String, dynamic>>[
-          for (final http.MultipartFile file in request.files)
-            <String, dynamic>{
-              'field': file.field,
-              'filename': file.filename,
-              'length': file.length,
-            },
-        ],
-      };
-      final CapturedBody body = CapturedBody.capture(
-        summary,
-        contentType: 'application/json',
+      final List<JalaMultipartPart> parts = <JalaMultipartPart>[
+        for (final MapEntry<String, String> entry in request.fields.entries)
+          JalaMultipartPart(
+            name: entry.key,
+            size: utf8.encode(entry.value).length,
+          ),
+        for (final http.MultipartFile file in request.files)
+          JalaMultipartPart(
+            name: file.field,
+            filename: file.filename,
+            contentType: file.contentType.mimeType,
+            size: file.length,
+          ),
+      ];
+      final CapturedBody body = CapturedBodyMultipart.capture(
+        parts,
         maxBytes: maxBytes,
       );
       return _BodyCapture(body, request.contentLength);
@@ -199,15 +226,28 @@ class JalaHttpClient extends http.BaseClient {
     required String callId,
     required Stopwatch? stopwatch,
     required JalaBinding binding,
+    required _ProgressState progressState,
   }) {
     final int maxBytes = binding.config.maxBodyBytes;
     final String? contentType = _headerValue(response.headers, 'content-type');
+    progressState.receivedTotal = response.contentLength;
+    int lastEmittedAt = 0;
 
     final Stream<List<int>> teed = _teeAndCapture(
       response.stream,
       maxBytes: maxBytes,
+      onChunk: (int totalSoFar) {
+        progressState.receivedBytes = totalSoFar;
+        if (lastEmittedAt == 0 ||
+            totalSoFar - lastEmittedAt >= _progressThresholdBytes) {
+          lastEmittedAt = totalSoFar;
+          _emitProgress(binding, callId, progressState);
+        }
+      },
       onDone: (List<int> buffered, int totalLength, bool truncated) {
         try {
+          progressState.receivedBytes = totalLength;
+          _emitProgress(binding, callId, progressState);
           final CapturedBody body = _buildResponseBody(
             buffered,
             contentType: contentType,
@@ -311,6 +351,66 @@ class JalaHttpClient extends http.BaseClient {
     }
     return null;
   }
+
+  /// Wraps [request]'s finalized body stream so upload progress can be
+  /// observed, re-hosting it on a fresh [http.BaseRequest] proxy
+  /// ([_ProgressUploadRequest]) that carries the same method/url/headers/
+  /// contentLength/redirect settings as [request].
+  ///
+  /// This is transparent to [_inner]: every [http.Client] implementation
+  /// only ever reads a [http.BaseRequest]'s generic properties plus
+  /// [http.BaseRequest.finalize] (see e.g. `IOClient.send`), never its
+  /// concrete runtime type. [request] is finalized here — exactly once, as
+  /// it would be by [_inner] regardless — and request-side capture in
+  /// [_captureRequest] always runs first and never touches [request]'s
+  /// body stream, so finalizing it here is safe.
+  http.BaseRequest _wrapForUploadProgress(
+    http.BaseRequest request, {
+    required String callId,
+    required JalaBinding binding,
+    required _ProgressState state,
+  }) {
+    final Stream<List<int>> original = request.finalize();
+    int sent = 0;
+    int lastEmittedAt = 0;
+    final Stream<List<int>> teed = original.transform(
+      StreamTransformer<List<int>, List<int>>.fromHandlers(
+        handleData: (List<int> chunk, EventSink<List<int>> sink) {
+          sent += chunk.length;
+          state.sentBytes = sent;
+          if (lastEmittedAt == 0 ||
+              sent - lastEmittedAt >= _progressThresholdBytes) {
+            lastEmittedAt = sent;
+            _emitProgress(binding, callId, state);
+          }
+          sink.add(chunk);
+        },
+        handleDone: (EventSink<List<int>> sink) {
+          state.sentBytes = sent;
+          _emitProgress(binding, callId, state);
+          sink.close();
+        },
+      ),
+    );
+    return _ProgressUploadRequest(request, teed);
+  }
+
+  void _emitProgress(JalaBinding binding, String callId, _ProgressState state) {
+    try {
+      binding.bus.emit(
+        NetworkProgressEvent(
+          callId: callId,
+          timestamp: DateTime.now(),
+          sentBytes: state.sentBytes,
+          sentTotal: state.sentTotal,
+          receivedBytes: state.receivedBytes,
+          receivedTotal: state.receivedTotal,
+        ),
+      );
+    } catch (_) {
+      // A capture bug must never break the app's networking.
+    }
+  }
 }
 
 /// Tees [source] into a new stream that forwards every chunk to the
@@ -318,17 +418,22 @@ class JalaHttpClient extends http.BaseClient {
 /// for capture and counting the true total length.
 ///
 /// [source] is only subscribed to once the returned stream is listened to,
-/// mirroring normal `Stream` semantics. [onDone] fires exactly once, with
-/// the buffered prefix (never larger than [maxBytes]), the true total byte
-/// count, and whether the stream exceeded [maxBytes] (and was therefore
-/// only partially buffered). [onError] fires (in addition to the error
-/// being forwarded to the caller) if [source] errors before completing.
+/// mirroring normal `Stream` semantics. [onDone] fires exactly once — on
+/// normal completion, on error, or if the caller cancels its subscription
+/// mid-read — with the buffered prefix (never larger than [maxBytes]), the
+/// true total byte count, and whether the stream exceeded [maxBytes] (and
+/// was therefore only partially buffered). [onError] fires (in addition to
+/// the error being forwarded to the caller) if [source] errors before
+/// completing. [onChunk], if given, fires after every chunk with the
+/// running total byte count — used to drive download-progress events
+/// without needing a second subscription to [source].
 Stream<List<int>> _teeAndCapture(
   Stream<List<int>> source, {
   required int maxBytes,
   required void Function(List<int> buffered, int totalLength, bool truncated)
   onDone,
   required void Function(Object error) onError,
+  void Function(int totalSoFar)? onChunk,
 }) {
   late final StreamController<List<int>> controller;
   StreamSubscription<List<int>>? subscription;
@@ -351,6 +456,7 @@ Stream<List<int>> _teeAndCapture(
           if (room > 0) {
             builder.add(room >= chunk.length ? chunk : chunk.sublist(0, room));
           }
+          onChunk?.call(total);
           controller.add(chunk);
         },
         onError: (Object error, StackTrace stackTrace) {
@@ -367,7 +473,18 @@ Stream<List<int>> _teeAndCapture(
     },
     onPause: () => subscription?.pause(),
     onResume: () => subscription?.resume(),
-    onCancel: () => subscription?.cancel(),
+    onCancel: () {
+      // If the caller cancels its subscription to the teed stream mid-read
+      // (before the source completes on its own), `onDone` above never
+      // fires — without this, `finish()` (and therefore the capture
+      // callback that completes the store entry) would never run, leaving
+      // the entry pending forever. Finish with whatever was buffered so
+      // far; `finished` guards against also running when this fires after
+      // a normal completion.
+      final Future<void>? result = subscription?.cancel();
+      finish();
+      return result;
+    },
   );
 
   return controller.stream;
@@ -387,4 +504,49 @@ class _BodyCapture {
 
   final CapturedBody body;
   final int? size;
+}
+
+/// Mutable, per-call running totals shared between the upload wrapper
+/// ([JalaHttpClient._wrapForUploadProgress]) and the response tee
+/// ([JalaHttpClient._captureResponse]), so every emitted
+/// [NetworkProgressEvent] reports both sides' latest known values together
+/// rather than one side clobbering the other's last-known figure.
+class _ProgressState {
+  int sentBytes = 0;
+  int? sentTotal;
+  int receivedBytes = 0;
+  int? receivedTotal;
+}
+
+/// A [http.BaseRequest] that copies its originating request's method/url/
+/// headers/contentLength/redirect settings but serves [_body] as its
+/// finalized byte stream.
+///
+/// Used only to re-host an already-finalized request body stream (see
+/// [JalaHttpClient._wrapForUploadProgress]) — the original request must
+/// have already been finalized by the time this is constructed.
+///
+/// SPEC-NOTE: this does not forward `http.Abortable.abortTrigger` — a
+/// newer, opt-in `package:http` mixin some apps use for request
+/// cancellation. That's an accepted, narrow limitation: an abortable
+/// request loses upload-progress tracking rather than the other way
+/// around, since preserving cancellation matters more.
+class _ProgressUploadRequest extends http.BaseRequest {
+  _ProgressUploadRequest(http.BaseRequest original, this._body)
+    : super(original.method, original.url) {
+    headers.addAll(original.headers);
+    followRedirects = original.followRedirects;
+    maxRedirects = original.maxRedirects;
+    persistentConnection = original.persistentConnection;
+    final int? length = original.contentLength;
+    if (length != null) contentLength = length;
+  }
+
+  final Stream<List<int>> _body;
+
+  @override
+  http.ByteStream finalize() {
+    super.finalize();
+    return http.ByteStream(_body);
+  }
 }

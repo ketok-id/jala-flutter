@@ -16,6 +16,7 @@ export 'src/export/har_exporter.dart';
 export 'src/filter/jala_filter.dart';
 export 'src/model/captured_body.dart';
 export 'src/model/jala_call_status.dart';
+export 'src/model/multipart_part.dart';
 export 'src/model/network_call_entry.dart';
 export 'src/redact/jala_redactor.dart';
 export 'src/store/jala_store.dart';

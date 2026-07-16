@@ -1,3 +1,4 @@
+import '../event/jala_event.dart';
 import 'captured_body.dart';
 import 'jala_call_status.dart';
 
@@ -33,6 +34,7 @@ class NetworkCallEntry {
     this.responseSize,
     this.errorMessage,
     this.replayOf,
+    this.progress,
   });
 
   /// Process-unique id for this call. Also the correlation key
@@ -91,6 +93,12 @@ class NetworkCallEntry {
   /// Identifies which client/library captured this call, e.g. `'dio'`.
   final String client;
 
+  /// The most recent upload/download progress observed for this call, or
+  /// null if no [NetworkProgressEvent] has arrived yet (or the capturing
+  /// adapter never observes progress for this kind of call — see B4 in
+  /// docs/plans/track-b-v0.2.md).
+  final NetworkProgressEvent? progress;
+
   /// Returns a copy of this entry with the given fields replaced.
   ///
   /// Nullable fields (e.g. [statusCode], [duration], [errorMessage]) use an
@@ -114,6 +122,7 @@ class NetworkCallEntry {
     Object? errorMessage = _unset,
     Object? replayOf = _unset,
     String? client,
+    Object? progress = _unset,
   }) {
     return NetworkCallEntry(
       id: id ?? this.id,
@@ -147,6 +156,9 @@ class NetworkCallEntry {
           ? this.replayOf
           : replayOf as String?,
       client: client ?? this.client,
+      progress: identical(progress, _unset)
+          ? this.progress
+          : progress as NetworkProgressEvent?,
     );
   }
 

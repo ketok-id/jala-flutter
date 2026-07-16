@@ -27,6 +27,13 @@ class FakeHttpClientAdapter implements HttpClientAdapter {
     Future<void>? cancelFuture,
   ) async {
     requests.add(options);
+    // A real adapter always reads the request stream (to write it to the
+    // socket); drain it here too so tests can exercise upload-progress
+    // wrapping (see JalaDioInterceptor's `_wrapUploadStream`) without a
+    // real transport.
+    if (requestStream != null) {
+      await requestStream.drain<void>();
+    }
     return handler(options);
   }
 

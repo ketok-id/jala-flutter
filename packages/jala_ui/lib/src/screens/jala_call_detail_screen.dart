@@ -187,6 +187,21 @@ class _OverviewTab extends StatelessWidget {
 
   final NetworkCallEntry entry;
 
+  /// Renders a live "Sent X / Y · Received A / B" line for a still-pending
+  /// call's latest [NetworkProgressEvent] — see B4 in
+  /// docs/plans/track-b-v0.2.md.
+  static String _transferredLabel(NetworkProgressEvent progress) {
+    final String sent = progress.sentTotal != null
+        ? '${humanizeBytes(progress.sentBytes)} / '
+              '${humanizeBytes(progress.sentTotal)}'
+        : humanizeBytes(progress.sentBytes);
+    final String received = progress.receivedTotal != null
+        ? '${humanizeBytes(progress.receivedBytes)} / '
+              '${humanizeBytes(progress.receivedTotal)}'
+        : humanizeBytes(progress.receivedBytes);
+    return 'Sent $sent · Received $received';
+  }
+
   static String _statusLabel(NetworkCallEntry entry) {
     switch (entry.status) {
       case JalaCallStatus.pending:
@@ -213,6 +228,10 @@ class _OverviewTab extends StatelessWidget {
       ('Response size', Text(humanizeBytes(entry.responseSize))),
       ('Start time', Text(entry.startTime.toLocal().toString())),
       ('Client', Text(entry.client)),
+      // Show whenever progress was observed — live while pending, and as a
+      // final snapshot after the call completes (B4).
+      if (entry.progress != null)
+        ('Transferred', Text(_transferredLabel(entry.progress!))),
       if (entry.errorMessage != null) ('Error', Text(entry.errorMessage!)),
     ];
     return ListView(

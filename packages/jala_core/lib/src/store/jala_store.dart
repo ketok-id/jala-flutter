@@ -80,6 +80,8 @@ class JalaStore {
         _onError(e);
       case final NetworkCancelEvent e:
         _onCancel(e);
+      case final NetworkProgressEvent e:
+        _onProgress(e);
     }
     _notify();
   }
@@ -139,6 +141,12 @@ class JalaStore {
     _entries[index] = _entries[index].copyWith(
       status: JalaCallStatus.cancelled,
     );
+  }
+
+  void _onProgress(NetworkProgressEvent e) {
+    final int index = _entries.indexWhere((entry) => entry.id == e.callId);
+    if (index == -1) return; // evicted or unknown; ignore per spec.
+    _entries[index] = _entries[index].copyWith(progress: e);
   }
 
   void _enforceCapacity() {

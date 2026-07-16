@@ -25,6 +25,11 @@ class JalaBodyView extends StatelessWidget {
         );
       case BodyKind.json:
         final String text = body.text ?? '';
+        final List<JalaMultipartPart>? multipart = CapturedBodyMultipart
+            .partsOf(body);
+        if (multipart != null) {
+          return _MultipartPartsTable(parts: multipart);
+        }
         try {
           final dynamic decoded = jsonDecode(text);
           return JalaJsonTree(data: decoded);
@@ -158,6 +163,59 @@ class _JalaFullScreenImage extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Renders a `{"@multipart": [...]}` capture (see B3 in
+/// docs/plans/track-b-v0.2.md) as a name/filename/content-type/size table
+/// instead of the raw JSON tree.
+class _MultipartPartsTable extends StatelessWidget {
+  const _MultipartPartsTable({required this.parts});
+
+  final List<JalaMultipartPart> parts;
+
+  @override
+  Widget build(BuildContext context) {
+    if (parts.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: Text('Multipart body with no parts'),
+      );
+    }
+    final TextStyle? headerStyle = Theme.of(context).textTheme.labelLarge;
+    return Table(
+      columnWidths: const <int, TableColumnWidth>{
+        0: FlexColumnWidth(),
+        1: FlexColumnWidth(),
+        2: FlexColumnWidth(),
+        3: IntrinsicColumnWidth(),
+      },
+      defaultVerticalAlignment: TableCellVerticalAlignment.top,
+      children: <TableRow>[
+        TableRow(
+          children: <Widget>[
+            _cell(Text('Name', style: headerStyle)),
+            _cell(Text('Filename', style: headerStyle)),
+            _cell(Text('Content-Type', style: headerStyle)),
+            _cell(Text('Size', style: headerStyle)),
+          ],
+        ),
+        for (final JalaMultipartPart part in parts)
+          TableRow(
+            children: <Widget>[
+              _cell(SelectableText(part.name)),
+              _cell(SelectableText(part.filename ?? '—')),
+              _cell(SelectableText(part.contentType ?? '—')),
+              _cell(Text(humanizeBytes(part.size))),
+            ],
+          ),
+      ],
+    );
+  }
+
+  Widget _cell(Widget child) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+    child: child,
+  );
 }
 
 class _InfoCard extends StatelessWidget {

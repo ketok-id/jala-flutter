@@ -95,11 +95,15 @@ void main() {
       await pump();
 
       expect(fake.requests, hasLength(2));
-      final http.Request replayedRequest = fake.requests.last as http.Request;
-      expect(
-        jsonDecode(replayedRequest.body),
-        <String, dynamic>{'name': 'ada'},
-      );
+      // The request that actually reaches the inner client is re-hosted on
+      // an upload-progress-tracking proxy (see
+      // JalaHttpClient._wrapForUploadProgress), not the original
+      // http.Request instance — read the body back via the bytes
+      // FakeHttpClient already drained rather than casting to http.Request
+      // (and rather than calling `.finalize()` again, which would throw:
+      // a request can only be finalized once).
+      final List<int> bytes = fake.requestBodies.last;
+      expect(jsonDecode(utf8.decode(bytes)), <String, dynamic>{'name': 'ada'});
     });
 
     test(

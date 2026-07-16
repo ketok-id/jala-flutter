@@ -7,11 +7,13 @@ import 'package:jala/jala.dart';
 import 'package:jala_dio/jala_dio.dart';
 import 'package:jala_http/jala_http.dart';
 
-/// Manual QA rig for Jala v0.1.
+/// Manual QA rig for Jala.
 ///
-/// Fires a variety of requests against httpbin.org (jsonplaceholder as
-/// backup for simple GETs) so you can exercise filters, export, replay,
-/// redaction, truncation, and error paths in the inspector.
+/// Fires a variety of requests so you can exercise filters, export, replay,
+/// redaction, truncation, multipart, progress, and error paths in the
+/// inspector. Primary echo host is postman-echo (httpbin.org has been
+/// intermittently 503); large downloads use Cloudflare's speed endpoint;
+/// simple GETs also hit jsonplaceholder as a backup.
 void main() {
   // The hosted demo (GitHub Pages) is a release build, where the
   // `enabled: kDebugMode` default would turn Jala off — opt in explicitly.
@@ -108,43 +110,49 @@ class _DemoHomeState extends State<_DemoHome> {
           Text(_last, style: Theme.of(context).textTheme.bodyMedium),
           const SizedBox(height: 16),
           const Text(
-            'Primary host: https://httpbin.org\n'
-            'Backup: https://jsonplaceholder.typicode.com',
+            'Echo host: postman-echo.com\n'
+            'Large: Cloudflare speed test (1 MiB)\n'
+            'Backup GET: jsonplaceholder.typicode.com',
           ),
           const Divider(height: 32),
           _btn('GET json', () => _run('GET json', () async {
-            await dio.get<dynamic>('https://httpbin.org/json');
+            await dio.get<dynamic>('https://postman-echo.com/get?hello=jala');
           })),
           _btn('POST json', () => _run('POST json', () async {
             await dio.post<dynamic>(
-              'https://httpbin.org/post',
+              'https://postman-echo.com/post',
               data: <String, dynamic>{'hello': 'jala', 'n': 42},
             );
           })),
           _btn('404', () => _run('404', () async {
-            await dio.get<dynamic>('https://httpbin.org/status/404');
+            await dio.get<dynamic>('https://postman-echo.com/status/404');
           })),
           _btn('500', () => _run('500', () async {
-            await dio.get<dynamic>('https://httpbin.org/status/500');
+            await dio.get<dynamic>('https://postman-echo.com/status/500');
           })),
           _btn('Slow (delay/3)', () => _run('slow', () async {
-            await dio.get<dynamic>('https://httpbin.org/delay/3');
+            // postman-echo has no delay endpoint; use a long poll style
+            // timeout host that responds slowly via httpbingo (httpbin fork).
+            await dio.get<dynamic>('https://httpbingo.org/delay/3');
           })),
           _btn('Redirect', () => _run('redirect', () async {
-            await dio.get<dynamic>('https://httpbin.org/redirect/2');
+            await dio.get<dynamic>('https://postman-echo.com/redirect-to?url=https://postman-echo.com/get&status_code=302');
           })),
           _btn('Image (png)', () => _run('image', () async {
             await dio.get<List<int>>(
-              'https://httpbin.org/image/png',
+              'https://httpbingo.org/image/png',
               options: Options(responseType: ResponseType.bytes),
             );
           })),
           _btn('Large (~1MB)', () => _run('large', () async {
-            // 1 MiB of bytes — proves body truncation in the inspector.
-            await dio.get<dynamic>('https://httpbin.org/bytes/1048576');
+            // 1 MiB of bytes — proves body truncation + download progress.
+            await dio.get<dynamic>(
+              'https://speed.cloudflare.com/__down?bytes=1048576',
+              options: Options(responseType: ResponseType.bytes),
+            );
           })),
           _btn('Gzip', () => _run('gzip', () async {
-            await dio.get<dynamic>('https://httpbin.org/gzip');
+            await dio.get<dynamic>('https://postman-echo.com/gzip');
           })),
           _btn('Multipart upload', () => _run('multipart', () async {
             final FormData form = FormData.fromMap(<String, dynamic>{
@@ -154,7 +162,10 @@ class _DemoHomeState extends State<_DemoHome> {
                 filename: 'hello.txt',
               ),
             });
-            await dio.post<dynamic>('https://httpbin.org/post', data: form);
+            await dio.post<dynamic>(
+              'https://postman-echo.com/post',
+              data: form,
+            );
           })),
           _btn('Cancel in-flight', () => _run('cancel', () async {
             _cancelToken?.cancel('user');
@@ -164,7 +175,7 @@ class _DemoHomeState extends State<_DemoHome> {
             unawaited(
               dio
                   .get<dynamic>(
-                    'https://httpbin.org/delay/5',
+                    'https://httpbingo.org/delay/5',
                     cancelToken: token,
                   )
                   .catchError((Object _) => Response<dynamic>(
@@ -190,18 +201,20 @@ class _DemoHomeState extends State<_DemoHome> {
           const SizedBox(height: 8),
           _btn('HTTP: GET json', () => _run('http GET json', () async {
             await widget.httpClient.get(
-              Uri.parse('https://httpbin.org/json'),
+              Uri.parse('https://postman-echo.com/get?hello=jala'),
             );
           })),
           _btn('HTTP: 404', () => _run('http 404', () async {
             await widget.httpClient.get(
-              Uri.parse('https://httpbin.org/status/404'),
+              Uri.parse('https://postman-echo.com/status/404'),
             );
           })),
           _btn('HTTP: Large (~1MB)', () => _run('http large', () async {
-            // 1 MiB of bytes — proves body truncation for package:http too.
+            // 1 MiB — body truncation + tee progress for package:http.
             await widget.httpClient.get(
-              Uri.parse('https://httpbin.org/bytes/1048576'),
+              Uri.parse(
+                'https://speed.cloudflare.com/__down?bytes=1048576',
+              ),
             );
           })),
         ],

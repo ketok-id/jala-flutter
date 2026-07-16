@@ -1,6 +1,8 @@
 /// Formatting helpers shared by Jala UI widgets.
 library;
 
+import 'package:jala_core/jala_core.dart';
+
 /// Humanizes a byte count as `B`/`KB`/`MB`. Returns `--` when [bytes] is
 /// null.
 String humanizeBytes(int? bytes) {
@@ -19,4 +21,25 @@ String humanizeBytes(int? bytes) {
 String humanizeDuration(Duration? duration) {
   if (duration == null) return '--';
   return '${duration.inMilliseconds} ms';
+}
+
+/// The overall completion fraction (0.0–1.0) for [progress], or null when
+/// no total is known yet — callers should fall back to an indeterminate
+/// indicator in that case.
+///
+/// Prefers the response side once its total is known (a call is, from the
+/// UI's perspective, "mostly" a download): falls back to the request side
+/// otherwise. Either side being 0/null just means that side hasn't been (or
+/// can't be) measured for this call — see `NetworkProgressEvent`.
+double? progressFraction(NetworkProgressEvent? progress) {
+  if (progress == null) return null;
+  final int? receivedTotal = progress.receivedTotal;
+  if (receivedTotal != null && receivedTotal > 0) {
+    return (progress.receivedBytes / receivedTotal).clamp(0.0, 1.0);
+  }
+  final int? sentTotal = progress.sentTotal;
+  if (sentTotal != null && sentTotal > 0) {
+    return (progress.sentBytes / sentTotal).clamp(0.0, 1.0);
+  }
+  return null;
 }

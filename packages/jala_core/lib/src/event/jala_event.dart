@@ -123,3 +123,38 @@ class NetworkErrorEvent extends JalaEvent {
 class NetworkCancelEvent extends JalaEvent {
   const NetworkCancelEvent({required super.callId, required super.timestamp});
 }
+
+/// Emitted periodically while a call's request or response bytes are still
+/// in flight, so a still-[JalaCallStatus.pending] entry can show live
+/// upload/download progress instead of just an indeterminate spinner.
+///
+/// Adapters emit this at their own cadence (see each adapter's stream tee —
+/// `jala_http`'s and `jala_dio`'s both throttle to roughly every 64 KB, plus
+/// the first and last chunk of whichever side they can observe); `JalaStore`
+/// simply keeps the most recent one per call (`NetworkCallEntry.progress`).
+///
+/// SPEC-NOTE: not every adapter/response shape can observe both sides — a
+/// field being 0/null just means that side hasn't been (or can't be)
+/// measured yet, not that zero bytes were transferred.
+class NetworkProgressEvent extends JalaEvent {
+  const NetworkProgressEvent({
+    required super.callId,
+    required super.timestamp,
+    required this.sentBytes,
+    required this.receivedBytes,
+    this.sentTotal,
+    this.receivedTotal,
+  });
+
+  /// Request body bytes sent so far.
+  final int sentBytes;
+
+  /// Total request body size, if known in advance.
+  final int? sentTotal;
+
+  /// Response body bytes received so far.
+  final int receivedBytes;
+
+  /// Total response body size, if known (typically from `Content-Length`).
+  final int? receivedTotal;
+}

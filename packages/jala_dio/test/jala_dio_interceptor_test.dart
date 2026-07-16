@@ -396,16 +396,115 @@ void main() {
 
       final NetworkCallEntry entry = JalaBinding.instance.store.entries.single;
       expect(entry.requestBody.kind, BodyKind.json);
-      final Map<String, dynamic> decoded =
-          jsonDecode(entry.requestBody.text!) as Map<String, dynamic>;
-      expect(decoded['fields'], <Map<String, String>>[
-        {'name': 'name', 'value': 'ada'},
-      ]);
-      final List<dynamic> files = decoded['files'] as List<dynamic>;
-      expect(files, hasLength(1));
-      final Map<String, dynamic> file = files.single as Map<String, dynamic>;
-      expect(file['filename'], 'avatar.png');
-      expect(file['length'], 'binarydata'.length);
+      final List<JalaMultipartPart>? parts = CapturedBodyMultipart.partsOf(
+        entry.requestBody,
+      );
+      expect(parts, isNotNull);
+      expect(parts, hasLength(2));
+      expect(parts![0].name, 'name');
+      expect(parts[0].filename, isNull);
+      expect(parts[0].size, 'ada'.length);
+      expect(parts[1].name, 'avatar');
+      expect(parts[1].filename, 'avatar.png');
+      expect(parts[1].size, 'binarydata'.length);
     });
+  });
+
+  group('progress', () {
+    test(
+      'a ResponseType.stream response reports download progress once '
+      'drained',
+      () async {
+        JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+        final List<int> bigBody = List<int>.generate(
+          200 * 1024,
+          (i) => i % 256,
+        );
+        final harness = buildDio(
+          (options) async => ResponseBody.fromBytes(
+            bigBody,
+            200,
+            headers: <String, List<String>>{
+              'content-length': <String>['${bigBody.length}'],
+            },
+          ),
+        );
+
+        final Response<ResponseBody> response = await harness.dio
+            .get<ResponseBody>(
+              '/download',
+              options: Options(responseType: ResponseType.stream),
+            );
+        await pump();
+
+        // Dio considers a stream response "done" as soon as the
+        // ResponseBody arrives — before the caller drains the stream —
+        // so no progress has been observed yet.
+        NetworkCallEntry entry = JalaBinding.instance.store.entries.single;
+        expect(entry.progress, isNull);
+
+        final List<int> received = await response.data!.stream
+            .expand((chunk) => chunk)
+            .toList();
+        expect(received, bigBody);
+        await pump();
+
+        entry = JalaBinding.instance.store.entries.single;
+        expect(entry.progress, isNotNull);
+        expect(entry.progress!.receivedBytes, bigBody.length);
+        expect(entry.progress!.receivedTotal, bigBody.length);
+      },
+    );
+
+    test(
+      'a Stream<List<int>> request body reports upload progress',
+      () async {
+        JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+        final harness = buildDio(
+          (options) async => jsonResponseBody(<String, dynamic>{'ok': true}),
+        );
+
+        final List<int> payload = List<int>.generate(
+          150 * 1024,
+          (i) => i % 256,
+        );
+        await harness.dio.post<dynamic>(
+          '/upload-stream',
+          data: Stream<List<int>>.fromIterable(<List<int>>[payload]),
+          options: Options(
+            headers: <String, dynamic>{
+              'content-length': '${payload.length}',
+            },
+          ),
+        );
+        await pump();
+
+        final NetworkCallEntry entry =
+            JalaBinding.instance.store.entries.single;
+        expect(entry.progress, isNotNull);
+        expect(entry.progress!.sentBytes, payload.length);
+        expect(entry.progress!.sentTotal, payload.length);
+      },
+    );
+
+    test(
+      'a plain Map request body (the common case) never emits progress',
+      () async {
+        JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+        final harness = buildDio(
+          (options) async => jsonResponseBody(<String, dynamic>{'ok': true}),
+        );
+
+        await harness.dio.post<dynamic>(
+          '/plain',
+          data: <String, dynamic>{'hello': 'jala'},
+        );
+        await pump();
+
+        final NetworkCallEntry entry =
+            JalaBinding.instance.store.entries.single;
+        expect(entry.progress, isNull);
+      },
+    );
   });
 }

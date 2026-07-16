@@ -21,6 +21,7 @@ NetworkCallEntry makeEntry({
   String? errorMessage,
   String? replayOf,
   String client = 'dio',
+  NetworkProgressEvent? progress,
 }) {
   return NetworkCallEntry(
     id: id,
@@ -40,6 +41,7 @@ NetworkCallEntry makeEntry({
     errorMessage: errorMessage,
     replayOf: replayOf,
     client: client,
+    progress: progress,
   );
 }
 
@@ -99,6 +101,27 @@ void emitResponse(
       body: body ?? CapturedBody.none,
       size: size,
       duration: duration,
+    ),
+  );
+}
+
+/// Emits a progress event for [id] on [bus].
+void emitProgress(
+  JalaEventBus bus,
+  String id, {
+  int sentBytes = 0,
+  int? sentTotal,
+  int receivedBytes = 0,
+  int? receivedTotal,
+}) {
+  bus.emit(
+    NetworkProgressEvent(
+      callId: id,
+      timestamp: DateTime.utc(2026, 7, 15, 12, 0, 0, 500),
+      sentBytes: sentBytes,
+      sentTotal: sentTotal,
+      receivedBytes: receivedBytes,
+      receivedTotal: receivedTotal,
     ),
   );
 }

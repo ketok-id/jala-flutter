@@ -95,4 +95,41 @@ void main() {
       );
     });
   });
+
+  group('JalaBodyView / multipart (@multipart convention)', () {
+    testWidgets('renders a parts table instead of the raw JSON tree', (
+      WidgetTester tester,
+    ) async {
+      final body = CapturedBodyMultipart.capture(const <JalaMultipartPart>[
+        JalaMultipartPart(name: 'field', size: 4),
+        JalaMultipartPart(
+          name: 'file',
+          filename: 'hello.txt',
+          contentType: 'text/plain',
+          size: 24,
+        ),
+      ]);
+      await pumpBody(tester, body);
+      await tester.pump();
+
+      // Table rendering, not the JSON tree (which would show `@multipart`
+      // as a key).
+      expect(find.byType(JalaJsonTree), findsNothing);
+      expect(find.text('field'), findsOneWidget);
+      expect(find.text('file'), findsOneWidget);
+      expect(find.text('hello.txt'), findsOneWidget);
+      expect(find.text('text/plain'), findsOneWidget);
+      expect(find.text('24 B'), findsOneWidget);
+    });
+
+    testWidgets('an empty parts list shows a friendly message', (
+      WidgetTester tester,
+    ) async {
+      final body = CapturedBodyMultipart.capture(const <JalaMultipartPart>[]);
+      await pumpBody(tester, body);
+      await tester.pump();
+
+      expect(find.text('Multipart body with no parts'), findsOneWidget);
+    });
+  });
 }

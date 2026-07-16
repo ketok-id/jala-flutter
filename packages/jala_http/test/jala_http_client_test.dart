@@ -271,16 +271,17 @@ void main() {
         final NetworkCallEntry entry = JalaBinding.instance.store.entries
             .single;
         expect(entry.requestBody.kind, BodyKind.json);
-        final Map<String, dynamic> decoded =
-            jsonDecode(entry.requestBody.text!) as Map<String, dynamic>;
-        expect(decoded['fields'], <Map<String, String>>[
-          {'name': 'name', 'value': 'ada'},
-        ]);
-        final List<dynamic> files = decoded['files'] as List<dynamic>;
-        expect(files, hasLength(1));
-        final Map<String, dynamic> file = files.single as Map<String, dynamic>;
-        expect(file['filename'], 'avatar.png');
-        expect(file['length'], 'binarydata'.length);
+        final List<JalaMultipartPart>? parts = CapturedBodyMultipart.partsOf(
+          entry.requestBody,
+        );
+        expect(parts, isNotNull);
+        expect(parts, hasLength(2));
+        expect(parts![0].name, 'name');
+        expect(parts[0].filename, isNull);
+        expect(parts[0].size, 'ada'.length);
+        expect(parts[1].name, 'avatar');
+        expect(parts[1].filename, 'avatar.png');
+        expect(parts[1].size, 'binarydata'.length);
       },
     );
 
@@ -310,6 +311,159 @@ void main() {
             .single;
         expect(entry.requestBody.kind, BodyKind.stream);
         expect(entry.requestBody.text, isNull);
+      },
+    );
+  });
+
+  group('JalaHttpClient progress', () {
+    test('emits upload progress for a large request body', () async {
+      JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+      final FakeHttpClient fake = FakeHttpClient(
+        (request) async => jsonStreamedResponse(<String, dynamic>{'ok': true}),
+      );
+      final JalaHttpClient client = JalaHttpClient(inner: fake);
+
+      final List<int> big = List<int>.generate(200 * 1024, (i) => i % 256);
+      final List<NetworkProgressEvent> progressEvents =
+          <NetworkProgressEvent>[];
+      final StreamSubscription<JalaEvent> sub = JalaBinding.instance.bus.events
+          .listen((event) {
+            if (event is NetworkProgressEvent) progressEvents.add(event);
+          });
+      addTearDown(sub.cancel);
+
+      await client.post(
+        Uri.parse('https://api.example.com/upload'),
+        body: big,
+      );
+      await pump();
+
+      expect(progressEvents, isNotEmpty);
+      expect(progressEvents.last.sentBytes, big.length);
+      expect(progressEvents.last.sentTotal, big.length);
+    });
+
+    test(
+      'emits download progress as the response stream drains, with '
+      'content-length as the total',
+      () async {
+        JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+        final List<List<int>> chunks = <List<int>>[
+          List<int>.filled(80 * 1024, 1),
+          List<int>.filled(80 * 1024, 2),
+          List<int>.filled(40 * 1024, 3),
+        ];
+        final int total = chunks.fold<int>(0, (sum, c) => sum + c.length);
+        final FakeHttpClient fake = FakeHttpClient(
+          (request) async =>
+              chunkedStreamedResponse(chunks, contentLength: total),
+        );
+        final JalaHttpClient client = JalaHttpClient(inner: fake);
+
+        final List<NetworkProgressEvent> progressEvents =
+            <NetworkProgressEvent>[];
+        final StreamSubscription<JalaEvent> sub = JalaBinding
+            .instance
+            .bus
+            .events
+            .listen((event) {
+              if (event is NetworkProgressEvent) progressEvents.add(event);
+            });
+        addTearDown(sub.cancel);
+
+        final http.StreamedResponse streamed = await client.send(
+          http.Request(
+            'GET',
+            Uri.parse('https://api.example.com/download'),
+          ),
+        );
+        await streamed.stream.drain<void>();
+        await pump();
+
+        expect(progressEvents, isNotEmpty);
+        expect(progressEvents.last.receivedBytes, total);
+        expect(progressEvents.last.receivedTotal, total);
+      },
+    );
+
+    test(
+      'a plain small request/response pair still reports a final progress '
+      'event on completion',
+      () async {
+        JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+        final FakeHttpClient fake = FakeHttpClient(
+          (request) async => jsonStreamedResponse(<String, dynamic>{
+            'ok': true,
+          }),
+        );
+        final JalaHttpClient client = JalaHttpClient(inner: fake);
+
+        await client.get(Uri.parse('https://api.example.com/ping'));
+        await pump();
+
+        final NetworkCallEntry entry = JalaBinding.instance.store.entries
+            .single;
+        expect(entry.progress, isNotNull);
+        expect(entry.progress!.sentBytes, 0);
+        expect(entry.progress!.receivedBytes, greaterThan(0));
+      },
+    );
+  });
+
+  group('JalaHttpClient response-stream cancellation', () {
+    test(
+      "cancelling the caller's subscription mid-read still completes the "
+      'entry with the bytes received so far, instead of leaving it '
+      'pending forever',
+      () async {
+        JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+        final List<List<int>> chunks = <List<int>>[
+          utf8.encode('first-chunk;'),
+          utf8.encode('second-chunk;'),
+          utf8.encode('third-chunk;'),
+        ];
+        final FakeHttpClient fake = FakeHttpClient(
+          (request) async => chunkedStreamedResponse(
+            chunks,
+            // Content-type is required so CapturedBody keeps a text body
+            // (no content-type => BodyKind.bytes, text is null).
+            headers: const <String, String>{'content-type': 'text/plain'},
+            delayBetweenChunks: const Duration(milliseconds: 20),
+          ),
+        );
+        final JalaHttpClient client = JalaHttpClient(inner: fake);
+
+        final http.StreamedResponse streamed = await client.send(
+          http.Request(
+            'GET',
+            Uri.parse('https://api.example.com/cancel-me'),
+          ),
+        );
+
+        final Completer<void> firstChunkReceived = Completer<void>();
+        final List<int> received = <int>[];
+        final StreamSubscription<List<int>> sub = streamed.stream.listen((
+          List<int> chunk,
+        ) {
+          received.addAll(chunk);
+          if (!firstChunkReceived.isCompleted) firstChunkReceived.complete();
+        });
+        addTearDown(sub.cancel);
+
+        await firstChunkReceived.future;
+        await sub.cancel();
+        await pump();
+
+        final NetworkCallEntry entry = JalaBinding.instance.store.entries
+            .single;
+        // The defect this guards against: without an onCancel -> finish()
+        // path, the entry would stay pending forever once the caller
+        // cancels mid-read.
+        expect(entry.status, isNot(JalaCallStatus.pending));
+        expect(utf8.decode(received), 'first-chunk;');
+        expect(entry.responseBody.text, contains('first-chunk;'));
+        expect(entry.responseBody.text, isNot(contains('second-chunk;')));
+        expect(entry.responseSize, chunks.first.length);
       },
     );
   });

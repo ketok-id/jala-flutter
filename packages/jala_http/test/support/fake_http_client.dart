@@ -21,9 +21,24 @@ class FakeHttpClient extends http.BaseClient {
   /// order.
   final List<http.BaseRequest> requests = <http.BaseRequest>[];
 
+  /// The finalized request body bytes actually read for each entry in
+  /// [requests], in order — since a request can only be finalized once,
+  /// this is how tests inspect what was sent instead of calling
+  /// `request.finalize()` themselves (which would throw the second time).
+  final List<List<int>> requestBodies = <List<int>>[];
+
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     requests.add(request);
+    // A real client always reads the finalized body stream (to write it to
+    // the socket); do the same here so tests can exercise upload-progress
+    // wrapping (see JalaHttpClient._wrapForUploadProgress) without a real
+    // transport, and inspect what was actually sent via [requestBodies].
+    final List<int> bytes = await request
+        .finalize()
+        .expand((chunk) => chunk)
+        .toList();
+    requestBodies.add(bytes);
     return handler(request);
   }
 
@@ -41,6 +56,7 @@ http.StreamedResponse chunkedStreamedResponse(
   Map<String, String>? headers,
   Duration? delayBetweenChunks,
   http.BaseRequest? request,
+  int? contentLength,
 }) {
   Stream<List<int>> bodyStream() async* {
     for (final List<int> chunk in chunks) {
@@ -57,6 +73,7 @@ http.StreamedResponse chunkedStreamedResponse(
     reasonPhrase: reasonPhrase,
     headers: headers ?? const <String, String>{},
     request: request,
+    contentLength: contentLength,
   );
 }
 

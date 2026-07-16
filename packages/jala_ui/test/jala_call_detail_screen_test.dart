@@ -114,4 +114,45 @@ void main() {
 
     expect(find.text('This call is no longer available.'), findsOneWidget);
   });
+
+  testWidgets(
+    'Overview shows live transferred bytes for a pending call, and '
+    'updates as progress arrives',
+    (WidgetTester tester) async {
+      final JalaBinding binding = initJalaBinding();
+      emitPendingRequest(binding.bus, 'call-progress');
+      await flush();
+
+      await pumpJalaApp(
+        tester,
+        const JalaCallDetailScreen(entryId: 'call-progress'),
+      );
+      await pumpJalaSettle(tester);
+
+      expect(find.text('Transferred'), findsNothing);
+
+      emitProgress(
+        binding.bus,
+        'call-progress',
+        receivedBytes: 512,
+        receivedTotal: 2048,
+      );
+      await flush();
+      await pumpJalaSettle(tester);
+
+      expect(find.text('Transferred'), findsOneWidget);
+      expect(find.textContaining('512 B / 2.0 KB'), findsOneWidget);
+
+      emitProgress(
+        binding.bus,
+        'call-progress',
+        receivedBytes: 2048,
+        receivedTotal: 2048,
+      );
+      await flush();
+      await pumpJalaSettle(tester);
+
+      expect(find.textContaining('2.0 KB / 2.0 KB'), findsOneWidget);
+    },
+  );
 }

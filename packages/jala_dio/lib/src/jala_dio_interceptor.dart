@@ -1,3 +1,7 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:jala_core/jala_core.dart';
 
@@ -37,6 +41,33 @@ class JalaDioInterceptor extends Interceptor {
   /// original call, read back in [onRequest] to populate
   /// `NetworkRequestEvent.replayOf`.
   static const String replayOfExtraKey = 'jala_replay_of';
+
+  /// `RequestOptions.extra` key holding this call's shared [_ProgressState],
+  /// created in [_captureRequest] and read back in [_captureResponse] so
+  /// upload- and download-side byte counts are reported together on the
+  /// same [NetworkProgressEvent] — see B4 in docs/plans/track-b-v0.2.md.
+  static const String _progressStateExtraKey = 'jala_progress_state';
+
+  /// Cadence for [NetworkProgressEvent] emission on either side of a call:
+  /// every ~64 KB transferred, plus unconditionally on the first and last
+  /// chunk of whichever side an interceptor can actually observe.
+  ///
+  /// SPEC-NOTE: unlike `jala_http` (a real client wrapper that sees every
+  /// request/response byte), an interceptor only ever observes bytes for
+  /// the two cases below — everything else (the common case: `Map`/`bytes`/
+  /// `FormData` request bodies, and any non-streamed response) resolves
+  /// synchronously inside Dio's own transformer before the interceptor gets
+  /// a look, so no progress is ever emitted for it and pending entries keep
+  /// the plain spinner. This is a documented limitation, not a bug:
+  ///  - Download progress is only observable when the caller opts into
+  ///    `ResponseType.stream` (so `response.data` is Dio's own
+  ///    `ResponseBody`, whose `.stream` this interceptor can re-wrap).
+  ///  - Upload progress is only observable when the caller passes a
+  ///    `Stream<List<int>>` directly as `RequestOptions.data` (Dio's own
+  ///    supported way to stream a request body) — `FormData`/`Map`/bytes
+  ///    bodies are converted to bytes by Dio's transformer, off of a stream
+  ///    this interceptor never sees.
+  static const int _progressThresholdBytes = 64 * 1024;
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
@@ -119,6 +150,23 @@ class JalaDioInterceptor extends Interceptor {
         replayOf: replayOf,
       ),
     );
+
+    // See _progressThresholdBytes' SPEC-NOTE: only a raw `Stream` request
+    // body can be observed incrementally from an interceptor. The state
+    // object is stashed regardless (even when upload progress can't be
+    // wired) so _captureResponse can report download-side progress under
+    // the same NetworkProgressEvent stream.
+    final _ProgressState progressState = _ProgressState()
+      ..sentTotal = _headerInt(options.headers, Headers.contentLengthHeader);
+    options.extra[_progressStateExtraKey] = progressState;
+    if (options.data is Stream) {
+      options.data = _wrapUploadStream(
+        options.data as Stream<dynamic>,
+        callId: id,
+        binding: binding,
+        state: progressState,
+      );
+    }
   }
 
   void _captureResponse(Response<dynamic> response) {
@@ -131,6 +179,17 @@ class JalaDioInterceptor extends Interceptor {
       return;
     }
     final Stopwatch? stopwatch = options.extra[startExtraKey] as Stopwatch?;
+
+    final _ProgressState? progressState =
+        options.extra[_progressStateExtraKey] as _ProgressState?;
+    if (progressState != null && options.responseType == ResponseType.stream) {
+      _wireDownloadProgress(
+        response,
+        callId: id,
+        binding: binding,
+        state: progressState,
+      );
+    }
 
     final Map<String, String> headers = binding.config.redactor.redactHeaders(
       _flattenHeaders(response.headers),
@@ -213,12 +272,10 @@ class JalaDioInterceptor extends Interceptor {
     required JalaRedactor redactor,
   }) {
     if (data is FormData) {
-      final Map<String, dynamic> summary = _summarizeFormData(data);
-      final CapturedBody body = _redactedCapture(
-        summary,
-        contentType: 'application/json',
+      final List<JalaMultipartPart> parts = _multipartParts(data);
+      final CapturedBody body = CapturedBodyMultipart.capture(
+        parts,
         maxBytes: maxBytes,
-        redactor: redactor,
       );
       return _BodyCapture(body, data.length);
     }
@@ -301,21 +358,125 @@ class JalaDioInterceptor extends Interceptor {
     );
   }
 
-  Map<String, dynamic> _summarizeFormData(FormData data) {
-    return <String, dynamic>{
-      'fields': <Map<String, String>>[
-        for (final MapEntry<String, String> entry in data.fields)
-          <String, String>{'name': entry.key, 'value': entry.value},
-      ],
-      'files': <Map<String, dynamic>>[
-        for (final MapEntry<String, MultipartFile> entry in data.files)
-          <String, dynamic>{
-            'field': entry.key,
-            'filename': entry.value.filename,
-            'length': entry.value.length,
-          },
-      ],
-    };
+  List<JalaMultipartPart> _multipartParts(FormData data) {
+    return <JalaMultipartPart>[
+      for (final MapEntry<String, String> entry in data.fields)
+        JalaMultipartPart(
+          name: entry.key,
+          size: utf8.encode(entry.value).length,
+        ),
+      for (final MapEntry<String, MultipartFile> entry in data.files)
+        JalaMultipartPart(
+          name: entry.key,
+          filename: entry.value.filename,
+          contentType: entry.value.contentType?.mimeType,
+          size: entry.value.length,
+        ),
+    ];
+  }
+
+  /// Wraps a caller-supplied `Stream<List<int>>` request body (Dio's own
+  /// supported way to stream an upload) so upload progress can be observed
+  /// — see [_progressThresholdBytes]'s SPEC-NOTE for why this is the only
+  /// upload shape an interceptor can instrument.
+  Stream<List<int>> _wrapUploadStream(
+    Stream<dynamic> data, {
+    required String callId,
+    required JalaBinding binding,
+    required _ProgressState state,
+  }) {
+    final Stream<List<int>> source = data.cast<List<int>>();
+    int sent = 0;
+    int lastEmittedAt = 0;
+    return source.transform(
+      StreamTransformer<List<int>, List<int>>.fromHandlers(
+        handleData: (List<int> chunk, EventSink<List<int>> sink) {
+          sent += chunk.length;
+          state.sentBytes = sent;
+          if (lastEmittedAt == 0 ||
+              sent - lastEmittedAt >= _progressThresholdBytes) {
+            lastEmittedAt = sent;
+            _emitProgress(binding, callId, state);
+          }
+          sink.add(chunk);
+        },
+        handleDone: (EventSink<List<int>> sink) {
+          state.sentBytes = sent;
+          _emitProgress(binding, callId, state);
+          sink.close();
+        },
+      ),
+    );
+  }
+
+  /// Re-wraps a `ResponseType.stream` response's [ResponseBody.stream] so
+  /// download progress can be observed, replacing it in place — the caller
+  /// still reads `response.data.stream` (a [ResponseBody]) exactly as
+  /// before, just with a progress-emitting layer in front of it.
+  void _wireDownloadProgress(
+    Response<dynamic> response, {
+    required String callId,
+    required JalaBinding binding,
+    required _ProgressState state,
+  }) {
+    final dynamic data = response.data;
+    if (data is! ResponseBody) return;
+    state.receivedTotal ??= _headerValueInt(
+      response.headers,
+      Headers.contentLengthHeader,
+    );
+    int received = 0;
+    int lastEmittedAt = 0;
+    data.stream = data.stream.transform(
+      StreamTransformer<Uint8List, Uint8List>.fromHandlers(
+        handleData: (Uint8List chunk, EventSink<Uint8List> sink) {
+          received += chunk.length;
+          state.receivedBytes = received;
+          if (lastEmittedAt == 0 ||
+              received - lastEmittedAt >= _progressThresholdBytes) {
+            lastEmittedAt = received;
+            _emitProgress(binding, callId, state);
+          }
+          sink.add(chunk);
+        },
+        handleDone: (EventSink<Uint8List> sink) {
+          state.receivedBytes = received;
+          _emitProgress(binding, callId, state);
+          sink.close();
+        },
+      ),
+    );
+  }
+
+  void _emitProgress(JalaBinding binding, String callId, _ProgressState state) {
+    try {
+      binding.bus.emit(
+        NetworkProgressEvent(
+          callId: callId,
+          timestamp: DateTime.now(),
+          sentBytes: state.sentBytes,
+          sentTotal: state.sentTotal,
+          receivedBytes: state.receivedBytes,
+          receivedTotal: state.receivedTotal,
+        ),
+      );
+    } catch (_) {
+      // A capture bug must never break the app's networking.
+    }
+  }
+
+  int? _headerInt(Map<String, dynamic> headers, String name) {
+    for (final MapEntry<String, dynamic> entry in headers.entries) {
+      if (entry.key.toLowerCase() == name) {
+        return int.tryParse('${entry.value}');
+      }
+    }
+    return null;
+  }
+
+  int? _headerValueInt(Headers headers, String name) {
+    final String? value = _headerValue(headers, name);
+    return value == null ? null : int.tryParse(value);
   }
 
   Map<String, String> _flattenHeaders(Headers headers) {
@@ -339,4 +500,16 @@ class _BodyCapture {
 
   final CapturedBody body;
   final int? size;
+}
+
+/// Mutable, per-call running totals shared between [JalaDioInterceptor
+/// ._captureRequest] (upload side) and [JalaDioInterceptor._captureResponse]
+/// (download side), so every emitted [NetworkProgressEvent] reports both
+/// sides' latest known values together rather than one side clobbering the
+/// other's last-known figure.
+class _ProgressState {
+  int sentBytes = 0;
+  int? sentTotal;
+  int receivedBytes = 0;
+  int? receivedTotal;
 }

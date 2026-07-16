@@ -121,6 +121,29 @@ curl -X POST \\
         expect(curl, isNot(contains(base64Encode(imageBytes))));
       },
     );
+
+    test(
+      'multipart request body exports -F flags with filename placeholders, '
+      'never real content',
+      () {
+        final entry = makeEntry(
+          method: 'POST',
+          requestBody: CapturedBodyMultipart.capture(const [
+            JalaMultipartPart(name: 'field', size: 4),
+            JalaMultipartPart(
+              name: 'file',
+              filename: 'hello.txt',
+              contentType: 'text/plain',
+              size: 24,
+            ),
+          ]),
+        );
+        final curl = CurlExporter.export(entry);
+        expect(curl, isNot(contains('-d ')));
+        expect(curl, contains(r"-F 'field=<4 bytes"));
+        expect(curl, contains(r"-F 'file=@hello.txt;type=text/plain'"));
+      },
+    );
   });
 
   group('DartSnippetExporter', () {

@@ -64,6 +64,51 @@ void emitCompletedCall(
     );
 }
 
+/// Emits a request event for [id] on [bus] without a matching response,
+/// producing a pending [NetworkCallEntry] — useful for exercising pending-
+/// state UI (spinners, progress bars).
+void emitPendingRequest(
+  JalaEventBus bus,
+  String id, {
+  String method = 'GET',
+  String url = 'https://api.example.com/download',
+  Map<String, String> requestHeaders = const <String, String>{},
+  CapturedBody? requestBody,
+}) {
+  bus.emit(
+    NetworkRequestEvent(
+      callId: id,
+      timestamp: DateTime.utc(2026, 7, 15, 12),
+      method: method,
+      uri: Uri.parse(url),
+      headers: requestHeaders,
+      body: requestBody ?? CapturedBody.none,
+      client: 'test',
+    ),
+  );
+}
+
+/// Emits a progress event for [id] on [bus].
+void emitProgress(
+  JalaEventBus bus,
+  String id, {
+  int sentBytes = 0,
+  int? sentTotal,
+  int receivedBytes = 0,
+  int? receivedTotal,
+}) {
+  bus.emit(
+    NetworkProgressEvent(
+      callId: id,
+      timestamp: DateTime.utc(2026, 7, 15, 12, 0, 0, 500),
+      sentBytes: sentBytes,
+      sentTotal: sentTotal,
+      receivedBytes: receivedBytes,
+      receivedTotal: receivedTotal,
+    ),
+  );
+}
+
 /// Yields a single microtask so any sync-scheduled follow-ups from
 /// [emitCompletedCall] land before a widget tree is pumped.
 ///

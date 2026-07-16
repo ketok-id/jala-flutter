@@ -128,6 +128,37 @@ void main() {
     });
   });
 
+  group('progress', () {
+    test('progress event updates the matching pending entry', () async {
+      emitRequest(bus, 'a');
+      emitProgress(bus, 'a', sentBytes: 10, sentTotal: 100, receivedBytes: 0);
+      await pump();
+
+      final entry = store.byId('a')!;
+      expect(entry.status, JalaCallStatus.pending);
+      expect(entry.progress, isNotNull);
+      expect(entry.progress!.sentBytes, 10);
+      expect(entry.progress!.sentTotal, 100);
+    });
+
+    test('later progress events replace the earlier one', () async {
+      emitRequest(bus, 'a');
+      emitProgress(bus, 'a', sentBytes: 10, sentTotal: 100);
+      emitProgress(bus, 'a', sentBytes: 100, sentTotal: 100, receivedBytes: 50);
+      await pump();
+
+      final entry = store.byId('a')!;
+      expect(entry.progress!.sentBytes, 100);
+      expect(entry.progress!.receivedBytes, 50);
+    });
+
+    test('progress for unknown or evicted id is ignored', () async {
+      emitProgress(bus, 'ghost', sentBytes: 1);
+      await pump();
+      expect(store.entries, isEmpty);
+    });
+  });
+
   group('eviction', () {
     test('oldest completed entries are evicted before pending ones', () async {
       // 5 = maxEntries. c1/c2 completed; p1..p3 pending.
