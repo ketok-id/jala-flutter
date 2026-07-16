@@ -1,3 +1,10 @@
+## 0.2.0
+
+- Lockstep release with `jala_core` / `jala_ui` 0.2.0: image preview,
+  multipart parts table, and transfer progress in the inspector UI.
+- Pulls in the 0.2.0 capture surface (image bodies, multipart model,
+  `NetworkProgressEvent`) via dependency bumps.
+
 ## 0.1.2
 
 - Fix: snackbar actions (copy cURL/Dart/HAR/body, replay feedback) threw

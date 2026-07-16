@@ -33,8 +33,8 @@ Jala exists because the incumbents each miss something concrete:
 
 ```yaml
 dependencies:
-  jala: ^0.1.0
-  jala_dio: ^0.1.0
+  jala: ^0.2.0
+  jala_dio: ^0.2.0
   dio: ^5.9.0
 ```
 
@@ -57,6 +57,11 @@ Tap the floating bubble (or call `Jala.open()`) to inspect traffic.
 Using `package:http` instead of Dio? Install
 [`jala_http`](packages/jala_http) (`jala_http: ^0.2.0`) and call
 `JalaHttp.wrap(http.Client())` in place of `JalaDio.attach(dio)` above.
+
+**v0.2 capture extras:** image responses (`image/*` within the body cap)
+preview inline in the inspector; multipart uploads show a parts table
+(name / filename / content-type / size); pending calls can show determinate
+transfer progress when the adapter can observe the stream.
 
 ## Screenshots
 
@@ -106,12 +111,13 @@ like-for-like competitor to the other three.
 | [`jala`](packages/jala) | Facade — `Jala.initialize()`, `JalaOverlay`, open/close. Install this in your app. |
 | [`jala_core`](packages/jala_core) | Pure Dart: models, event bus, ring-buffer store, redaction, filter grammar, exporters. Zero Flutter dependency. |
 | [`jala_dio`](packages/jala_dio) | Dio interceptor + one-tap replay. |
+| [`jala_http`](packages/jala_http) | `package:http` client wrapper + one-tap replay (stream tee). |
 | [`jala_ui`](packages/jala_ui) | Inspector screens, JSON viewer, overlay bubble — own theme, own navigator. |
 
 ```
 examples/
-  jala_example/  Manual QA rig against httpbin.org (GET/POST/404/500/slow/
-                   redirect/image/large body/gzip/multipart/cancel/error)
+  jala_example/  Manual QA rig (GET/POST/404/500/slow/redirect/image/
+                   large body/gzip/multipart/cancel/error; Dio + http)
 ```
 
 ## Filter grammar
@@ -156,11 +162,12 @@ structured terms degrade to free text instead of erroring.
 
 ## Roadmap
 
-- **v0.2** — `package:http` client support, image preview, multipart
-  request detail, upload/download progress.
-- **v0.3** — GraphQL, WebSocket, and storage (shared prefs / secure
-  storage) explorers.
-- **Later** — request mocking, edit-and-resend.
+- **v0.2** (this release) — `package:http` adapter, image preview,
+  multipart request detail, upload/download progress.
+- **v0.3** — rule-based mocking + edit-and-resend (see
+  [docs/ROADMAP.md](docs/ROADMAP.md)).
+- **Later** — GraphQL, WebSocket, storage explorers, throttling, desktop
+  companion.
 
 ## Develop
 
@@ -169,6 +176,7 @@ flutter pub get
 dart analyze
 (cd packages/jala_core && dart test)
 (cd packages/jala_dio && dart test)
+(cd packages/jala_http && dart test)
 (cd packages/jala_ui && flutter test)
 (cd packages/jala && flutter test)
 cd examples/jala_example && flutter run -d macos

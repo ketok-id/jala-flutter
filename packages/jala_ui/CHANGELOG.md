@@ -1,3 +1,13 @@
+## 0.2.0
+
+- Image preview: `BodyKind.image` renders an inline `Image.memory` with
+  size/mime caption and full-screen pinch-zoom on tap.
+- Multipart request bodies render as a Name / Filename / Content-Type /
+  Size parts table instead of the raw `@multipart` JSON tree.
+- Pending list tiles show a determinate progress bar when totals are known;
+  call detail Overview shows a Transferred row (live while pending, final
+  snapshot after completion).
+
 ## 0.1.1
 
 - Add pub.dev topics.

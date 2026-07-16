@@ -15,7 +15,7 @@ resolution: workspace
 
 dependencies:
   http: ^1.2.0
-  jala_core: ^0.1.1
+  jala_core: ^0.2.0
 
 dev_dependencies:
   lints: ^6.0.0

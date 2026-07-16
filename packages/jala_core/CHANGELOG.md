@@ -1,3 +1,16 @@
+## 0.2.0
+
+- Image body capture: `BodyKind.image` plus `CapturedBody.bytes` /
+  `CapturedBody.captureBytes`, gated by `JalaConfig.captureImageBodies`
+  (default true) and `maxBodyBytes`.
+- Multipart model: `JalaMultipartPart` and `CapturedBodyMultipart` with the
+  `{"@multipart": [...]}` JSON convention for structured part metadata.
+- Progress events: `NetworkProgressEvent` (sent/received byte counters) and
+  `NetworkCallEntry.progress` updated live by the store.
+- cURL exporter emits `-F` flags with filename placeholders for multipart
+  bodies (never real file contents); image bodies export as size/mime
+  placeholders.
+
 ## 0.1.1
 
 - Add pub.dev topics.

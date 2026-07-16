@@ -1,3 +1,14 @@
+## 0.2.0
+
+- Capture `FormData` as structured multipart parts (`@multipart` convention)
+  without reading file bytes.
+- Capture `ResponseType.bytes` image responses as `BodyKind.image` when
+  within `maxBodyBytes` and `captureImageBodies` is enabled.
+- Upload/download progress: wrap `Stream` request bodies and
+  `ResponseType.stream` response bodies to emit `NetworkProgressEvent`
+  (plain Map/JSON bodies remain no-progress by design — see interceptor
+  docs).
+
 ## 0.1.1
 
 - Add pub.dev topics.

@@ -14,7 +14,8 @@ instead of depending on this package directly.
 - `JalaInspectorScreen` — filter bar (DevTools-style grammar, live &
   debounced) + call list + clear/copy-HAR/theme-toggle app bar actions.
 - `JalaCallDetailScreen` — Overview / Request / Response tabs, a
-  hand-rolled expandable JSON tree with in-body search, and a bottom
+  hand-rolled expandable JSON tree with in-body search, image preview,
+  multipart parts table, transfer progress on Overview, and a bottom
   action bar (copy body/cURL/Dart snippet/HAR, replay).
 - `JalaOverlayButton` — draggable floating bubble with a pending/error
   badge, meant to be dropped into a host app's root `Overlay`.

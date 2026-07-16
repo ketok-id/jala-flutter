@@ -21,15 +21,15 @@ Flutter (CLI tooling, server-side log tooling, etc.) as well as inside it.
 |---|---|
 | `JalaBinding` | Process-wide singleton wiring config, event bus, store, and replay registry. Client integrations read `JalaBinding.instance` instead of taking constructor parameters. |
 | `JalaReplayRegistry` / `JalaReplayer` | Connects the inspector UI's Replay action to whichever client integration can re-issue a call. |
-| `JalaEvent` / `JalaEventBus` | Sealed event types (`NetworkRequestEvent`, `NetworkResponseEvent`, `NetworkErrorEvent`, `NetworkCancelEvent`) and the broadcast bus clients emit them into. A true no-op (no allocation) when Jala is disabled. |
-| `JalaStore` | Ring-buffer store (default 300 entries) that correlates request/response/error events by call id into immutable `NetworkCallEntry` values, exposed as `entries` and a `watch` stream. |
-| `NetworkCallEntry` / `CapturedBody` | The immutable model of one captured call, and its request/response bodies with a hard 512 KB capture cap. |
+| `JalaEvent` / `JalaEventBus` | Sealed event types (`NetworkRequestEvent`, `NetworkResponseEvent`, `NetworkErrorEvent`, `NetworkCancelEvent`, `NetworkProgressEvent`) and the broadcast bus clients emit them into. A true no-op (no allocation) when Jala is disabled. |
+| `JalaStore` | Ring-buffer store (default 300 entries) that correlates request/response/error/progress events by call id into immutable `NetworkCallEntry` values, exposed as `entries` and a `watch` stream. |
+| `NetworkCallEntry` / `CapturedBody` | The immutable model of one captured call, and its request/response bodies with a hard 512 KB capture cap (including `BodyKind.image` bytes and structured `@multipart` parts). |
 | `JalaRedactor` | Case-insensitive header redaction (`Authorization`, `Cookie`, `X-Api-Key`, etc. by default) and body pattern redaction, meant to run **at capture time** so secrets never enter the store. |
 | `JalaFilter` | `JalaFilter.parse(query)` compiles a DevTools-style query into a `matches(NetworkCallEntry)` predicate. |
 | `CurlExporter` | Renders an entry as a runnable, shell-escaped `curl` command. |
 | `DartSnippetExporter` | Renders an entry as a runnable `dio.request(...)` snippet. |
 | `HarExporter` | Renders one call or a whole session as HAR 1.2 JSON. |
-| `JalaConfig` | `enabled`, `maxEntries`, `maxBodyBytes`, `redactor` — passed to `JalaBinding.instance.initialize(config: ...)`. |
+| `JalaConfig` | `enabled`, `maxEntries`, `maxBodyBytes`, `captureImageBodies`, `redactor` — passed to `JalaBinding.instance.initialize(config: ...)`. |
 
 ## Filter grammar
 
