@@ -1,0 +1,48 @@
+name: Feature request
+description: Suggest an idea or improvement for Jala.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion! Check the roadmap
+        (docs/ROADMAP.md) first in case it's already planned.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do, and what's missing or awkward today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What would you like Jala to do instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any workarounds or other packages you've tried.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which package does this affect?
+      multiple: true
+      options:
+        - jala (facade)
+        - jala_core
+        - jala_dio
+        - jala_ui
+        - Not sure
+    validations:
+      required: false

@@ -2,8 +2,9 @@ name: jala
 description: >
   In-app Flutter network inspector. Facade over jala_core + jala_ui with
   zero-config initialize, production-safe defaults, and a draggable overlay.
-version: 0.1.0
+version: 0.1.1
 repository: https://github.com/ketok-id/jala-flutter
+topics: [network, debugging, devtools, http, dio]
 
 environment:
   sdk: ^3.11.0
@@ -14,8 +15,8 @@ resolution: workspace
 dependencies:
   flutter:
     sdk: flutter
-  jala_core: ^0.1.0
-  jala_ui: ^0.1.0
+  jala_core: ^0.1.1
+  jala_ui: ^0.1.1
 
 dev_dependencies:
   flutter_lints: ^6.0.0

@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Roadmap
+    url: https://github.com/ketok-id/jala-flutter/blob/main/docs/ROADMAP.md
+    about: See what's planned before filing a feature request.

@@ -1,3 +1,8 @@
+## 0.1.1
+
+- Add pub.dev topics.
+- Add a minimal `example/` app so pub.dev renders the Example tab.
+
 ## 0.1.0
 
 - `Jala.initialize()` — idempotent setup that defaults `enabled` to

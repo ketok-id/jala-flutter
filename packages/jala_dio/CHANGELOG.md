@@ -1,3 +1,7 @@
+## 0.1.1
+
+- Add pub.dev topics.
+
 ## 0.1.0
 
 - `JalaDioInterceptor` capturing request/response/error/cancel events for

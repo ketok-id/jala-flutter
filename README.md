@@ -1,5 +1,7 @@
 # Jala
 
+**[Try the inspector in your browser ->](https://ketok-id.github.io/jala-flutter/)**
+
 **Jala** ("net" in Indonesian) is an in-app network inspector for Flutter —
 a Chrome DevTools Network tab you drop into your own app. A product of
 [Ketok](https://ketok.id).

@@ -9,4 +9,5 @@ workspace:
   - packages/jala_dio
   - packages/jala_ui
   - packages/jala
+  - packages/jala/example
   - examples/jala_example

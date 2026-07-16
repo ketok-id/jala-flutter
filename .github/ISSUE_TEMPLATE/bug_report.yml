@@ -1,0 +1,91 @@
+name: Bug report
+description: Report a problem with Jala.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill in as much
+        detail as you can.
+
+  - type: input
+    id: jala-version
+    attributes:
+      label: Jala version(s)
+      description: >
+        Versions of `jala`, `jala_core`, `jala_dio`, and/or `jala_ui` from
+        your pubspec.lock.
+      placeholder: "jala: 0.1.1, jala_dio: 0.1.1"
+    validations:
+      required: true
+
+  - type: input
+    id: http-client
+    attributes:
+      label: HTTP client + version
+      description: Which client are you using Jala with, and what version?
+      placeholder: "dio: 5.9.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      multiple: true
+      options:
+        - Android
+        - iOS
+        - macOS
+        - Windows
+        - Linux
+        - Web
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Capture vs UI area
+      description: Is the bug in what gets captured, or in the inspector UI?
+      options:
+        - Capture (missing/incorrect request, response, or error data)
+        - UI (inspector screens, filters, overlay bubble)
+        - Both / not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps (or a minimal repro repo/snippet) to trigger the bug.
+      placeholder: |
+        1. Call `Jala.initialize()` with ...
+        2. Fire a request that ...
+        3. Open the inspector and ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Logs, screenshots, or additional context.
+    validations:
+      required: false
