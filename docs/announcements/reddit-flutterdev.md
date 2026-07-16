@@ -1,7 +1,7 @@
 # r/FlutterDev post (draft — user posts, do not submit)
 
 **Suggested title:**
-Jala: an in-app network inspector for Flutter with one-tap replay, DevTools-style filters, and redaction by default
+Jala 0.4.0: the Flutter network inspector with one-tap replay and rule-based mocking, now with GraphQL + WebSocket
 
 **Suggested flair:** Tool / Package release (whatever r/FlutterDev's release tag is)
 
@@ -9,22 +9,21 @@ Jala: an in-app network inspector for Flutter with one-tap replay, DevTools-styl
 
 **Body:**
 
-I've been building [Jala](https://pub.dev/packages/jala) — an in-app network inspector for Flutter, basically a Chrome DevTools Network tab you drop into your own app. It's a Ketok project, just hit 0.1 on pub.dev, and I wanted to put it in front of people who'd actually use it before pushing further.
+I've been building [Jala](https://pub.dev/packages/jala) — an in-app network inspector for Flutter, basically a Chrome DevTools Network tab you drop into your own app. It's a Ketok project. Just shipped 0.4.0; it's grown a lot since the 0.1 post here, so this isn't "another Alice clone" anymore — two things in particular I haven't seen in any other Flutter inspector:
 
-The short version of why this exists: I like Alice, but I kept hitting the same three walls — no cURL export, no desktop support, and no way to just replay a request without going back to Postman or the app itself. So Jala focuses on three things:
+- **One-tap replay through the live client.** Tap a captured request (Dio or `package:http`) and it re-fires through the same interceptor/client chain your app is actually using — not a synthetic copy.
+- **Rule-based mocking.** Tap **"Mock this"** on any captured call and it becomes a rule — canned response, simulated failure, or delay — served without touching the network. Rules persist across restarts (`Jala.enableMockPersistence(dir)`). Combined with edit-and-resend and filtering with `is:mocked`, it's basically a Charles-style Map Local, except it lives inside your Flutter app instead of a separate proxy.
 
-- **One-tap replay through the live Dio instance.** Tap a captured request and it re-fires through the same interceptor chain your app is actually using — not a synthetic copy. As far as I can tell, no other Flutter inspector package does this.
-- **A real filter grammar**, not a text box: `method:get status:4xx host:api.* larger-than:10k slower-than:500ms is:replay -host:*.cdn.com`. Terms are AND'd, `-` negates, malformed terms just degrade to free text instead of erroring.
-- **Redaction on by default, at capture time.** `Authorization`, `Cookie`, `X-Api-Key`, etc. get masked before the entry ever reaches the in-memory store — the real value never exists in there, so there's no "oops, screenshot leaked a token" scenario.
+As far as I can tell, no other Flutter inspector package — Alice, chucker_flutter, talker — has replay *or* mocking.
 
-Also: copy as cURL *and* as a Dart/Dio snippet, HAR 1.2 export, a JSON body viewer with in-body search that auto-expands matches, and it's tested across all six platforms — web, a real Android 13 device, and the iOS 26.5 simulator, plus desktop. `enabled` defaults to `kDebugMode`, and when it's off the overlay is a true no-op (returns your widget tree unchanged, interceptor just forwards) so it's safe to leave wired up in release builds.
+**New in 0.4:** `jala_graphql` and `jala_websocket`. GraphQL support is built on `gql_link`, so it works with both `graphql_flutter` and `ferry` — operations show up with their `operationName`, a `QUERY`/`MUTATION` chip, and dedicated Query/Variables panes. WebSocket connections land in the same merged list with a live frame timeline: per-frame direction, size, preview, and close codes. Filter with `op:<name>`, `is:graphql`, `is:ws`.
 
-Quick start:
+Quick start (Dio):
 
 ```yaml
 dependencies:
-  jala: ^0.1.0
-  jala_dio: ^0.1.0
+  jala: ^0.4.0
+  jala_dio: ^0.4.0
   dio: ^5.9.0
 ```
 
@@ -42,16 +41,16 @@ void main() {
 }
 ```
 
-Tap the floating bubble to open the inspector.
+Tap the floating bubble to open the inspector. Swap in `jala_http`, `jala_graphql`, or `jala_websocket` the same way if that's your stack.
 
-**On Alice, chucker, and talker** — I want to be upfront about this since I'm posting a comparison of my own tool. Alice is genuinely the reason this category exists in Flutter at all, and a lot of Jala's list UX is a direct response to using it for years. Its gaps right now are concrete and fixable, not fundamental: no cURL export ([open issue #232](https://github.com/jhomlala/alice/issues/232)), no desktop support ([#243](https://github.com/jhomlala/alice/issues/243)), and the repo's been quiet for about 11 months. chucker_flutter is solid but Android/OkHttp only, so it's not really in the same lane as a cross-platform Dio inspector. talker is a structured logger/error-tracker — great at what it does, but it's not an inspector with a UI in this sense, so it's not a like-for-like comparison either.
+Still there from earlier releases: a real DevTools-style filter grammar (`method:get status:4xx larger-than:10k slower-than:500ms is:replay -host:*.cdn.com`), a JSON body viewer whose search auto-expands collapsed nodes to the matches, copy as cURL *and* as a Dart/Dio snippet, HAR 1.2 export, redaction on by default at capture time (sensitive headers are masked before an entry ever reaches the store), image preview, a multipart parts table, transfer progress on pending calls, and a true no-op when disabled — `enabled` defaults to `kDebugMode`, so it's safe to leave wired up in a release build. All six platforms: Android, iOS, macOS, Windows, Linux, web.
 
-Live demo in your browser, no install: **https://ketok-id.github.io/jala-flutter/**
+**On Alice, chucker, and talker** — since I'm posting a comparison of my own tool, I want to be upfront about it. Alice is genuinely the reason this category exists in Flutter, but it still has no cURL export, no desktop support, no replay, and no mocking, and the repo's been quiet for a long while. chucker_flutter is Android-only (OkHttp), and while it does have cURL and HAR export, it doesn't do replay, mocking, or GraphQL beyond operation names. talker is a structured logger/error-tracker — genuinely good at that job, but it's not a network inspector with a UI in this sense, so it's not really a like-for-like comparison either.
 
-Demo GIF: [attach here — request → filter → detail → replay loop]
+Live demo, no install: **https://ketok-id.github.io/jala-flutter/**
 
-Roadmap: `package:http` support and image/multipart previews are next (0.2), then GraphQL/WebSocket/storage explorers (0.3). Mocking and edit-and-resend are on the horizon after that.
+Demo GIF: [attach docs/screenshots/demo.gif here]
 
 Repo: https://github.com/ketok-id/jala-flutter
 
-Would genuinely appreciate feedback — especially if you try it against your own Dio setup and something breaks, or if the filter grammar is missing a term you'd reach for. Issues and PRs welcome.
+Would genuinely appreciate feedback — especially on the mocking workflow and the new GraphQL/WebSocket support, since those are the newest surface. Issues and PRs welcome.

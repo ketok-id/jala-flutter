@@ -38,7 +38,7 @@ plain alphabetical README edit, so read before opening the PR.
 Append this line to the bottom of the `## Utilities` section in `source.md`:
 
 ```
-- [Jala](https://github.com/ketok-id/jala-flutter) - In-app network inspector with one-tap replay, DevTools-style filters, and redaction by default by [Ketok](https://ketok.id)
+- [Jala](https://github.com/ketok-id/jala-flutter) - In-app network inspector with one-tap replay, rule-based mocking, and GraphQL/WebSocket capture by [Ketok](https://ketok.id)
 ```
 
 (No star-count bracket — README.md's generator appears to add those; source.md

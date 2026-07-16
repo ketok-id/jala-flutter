@@ -4,11 +4,11 @@
 
 **Tweet 1/3** (must stand alone — attach the demo GIF here)
 
-Shipped Jala 0.1: an in-app network inspector for Flutter.
+Jala 0.4.0 is out: an in-app network inspector for Flutter — a Chrome DevTools Network tab that lives inside your own app.
 
-One-tap replay through your live Dio instance, DevTools-style filters (`s:4xx host:api.* slower-than:500ms`), and redaction on by default at capture time.
+One-tap replay through your live Dio/http client, plus rule-based mocking (canned responses, failures, delays — persists across restarts). No other Flutter inspector has either.
 
-Try it in your browser, no install: https://ketok-id.github.io/jala-flutter/
+https://ketok-id.github.io/jala-flutter/
 
 [attach demo.gif here]
 
@@ -16,23 +16,25 @@ Try it in your browser, no install: https://ketok-id.github.io/jala-flutter/
 
 **Tweet 2/3**
 
-Why: Alice inspired this space but has no cURL export and no desktop support. chucker is Android/OkHttp-only. talker's a logger, not an inspector.
+New in 0.4: `jala_graphql` (works with graphql_flutter *and* ferry, operation-aware capture with Query/Variables panes) and `jala_websocket` (frame-level timelines: direction, size, preview, close codes) — merged into the same inspector list.
 
-Jala also does copy-as-Dart-snippet, HAR export, and a JSON viewer with in-body search — across all 6 Flutter platforms.
+Filter with `op:<name>`, `is:graphql`, `is:ws`, `is:mocked`.
 
 ---
 
 **Tweet 3/3**
 
+Mocking + edit-and-resend is basically a Charles-style Map Local — except it lives inside your Flutter app instead of a separate proxy.
+
 pub.dev: https://pub.dev/packages/jala
 Repo: https://github.com/ketok-id/jala-flutter
 
-Roadmap: package:http support next, then mocking + edit-and-resend. Issues/feedback welcome — especially if the filter grammar is missing a term you'd want.
+Feedback welcome, especially on the GraphQL/WS additions.
 
 ---
 
 ## LinkedIn (single paragraph)
 
-Just shipped Jala 0.1, an in-app network inspector for Flutter — think a Chrome DevTools Network tab you drop directly into your own app. The two things I think are genuinely new for this category in Flutter: one-tap replay of a captured request through your app's live Dio instance (not a synthetic copy), and a real DevTools-style filter grammar instead of a plain search box. Redaction of sensitive headers (Authorization, Cookie, API keys) is on by default and happens at capture time, so there's nothing sensitive sitting in memory to leak. It also supports copy-as-cURL and copy-as-Dart-snippet, HAR 1.2 export, and runs on all six Flutter platforms — tested on web, a real Android 13 device, and the iOS 26.5 simulator. Try the live browser demo (no install) at https://ketok-id.github.io/jala-flutter/, packages are on pub.dev under the verified publisher ketok.id, and the repo is at https://github.com/ketok-id/jala-flutter. Feedback and issues very welcome — mocking support is next on the roadmap.
+Just shipped Jala 0.4.0, an in-app network inspector for Flutter — think a Chrome DevTools Network tab you drop directly into your own app. It now covers HTTP (Dio and package:http), GraphQL (via gql_link, so it works with both graphql_flutter and ferry), and WebSocket traffic in one merged, filterable list. Two things I think are still genuinely unique in this category: one-tap replay of a captured request through your app's live client, and rule-based mocking — tap "Mock this" on any captured call to turn it into a canned response, simulated failure, or delay that persists across restarts, filterable with is:mocked and editable with edit-and-resend. It's basically a Charles-style Map Local, except it lives inside your Flutter app instead of a separate desktop proxy. Redaction of sensitive headers happens at capture time and is on by default; enabled defaults to kDebugMode with a true no-op in release builds. Seven packages, all under the verified publisher ketok.id on pub.dev, running on all six Flutter platforms. Live browser demo (no install): https://ketok-id.github.io/jala-flutter/. Repo: https://github.com/ketok-id/jala-flutter. Feedback very welcome, especially on the new GraphQL and WebSocket support.
 
 [attach demo.gif or a short screen recording]
