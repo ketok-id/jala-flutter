@@ -12,7 +12,7 @@ for the facade that wires this up in an app.
 
 ```yaml
 dependencies:
-  jala_dio: ^0.2.0   # requires jala_core ^0.2.0
+  jala_dio: ^0.3.0   # requires jala_core ^0.2.0
 ```
 
 ## Attach

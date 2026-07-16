@@ -12,8 +12,8 @@ talker, and the roadmap.
 
 ```yaml
 dependencies:
-  jala: ^0.2.0
-  jala_dio: ^0.2.0   # if you use Dio
+  jala: ^0.3.0
+  jala_dio: ^0.3.0   # if you use Dio
   dio: ^5.0.0
 ```
 

@@ -1,3 +1,11 @@
+## 0.3.0
+
+- Rule-based request mocking: match `JalaMockRegistry` before the inner
+  client and short-circuit with canned `StreamedResponse`, timeout /
+  connection errors, or delay (only when Jala is enabled).
+- Edit-and-resend: `JalaHttpReplayer.replayModified` with method/URL/
+  headers/body overrides.
+
 ## 0.2.0
 
 - First release of the `package:http` adapter for Jala.

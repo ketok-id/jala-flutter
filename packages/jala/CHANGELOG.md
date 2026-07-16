@@ -1,3 +1,9 @@
+## 0.3.0
+
+- `Jala.enableMockPersistence(directory)` — file-backed mock rules that
+  survive app restarts (IO platforms; no-op store on web).
+- Lockstep with 0.3.0 core/ui: mocking UI, `is:mocked`, edit-and-resend.
+
 ## 0.2.0
 
 - Lockstep release with `jala_core` / `jala_ui` 0.2.0: image preview,

@@ -33,8 +33,8 @@ Jala exists because the incumbents each miss something concrete:
 
 ```yaml
 dependencies:
-  jala: ^0.2.0
-  jala_dio: ^0.2.0
+  jala: ^0.3.0
+  jala_dio: ^0.3.0
   dio: ^5.9.0
 ```
 
@@ -55,13 +55,18 @@ void main() {
 Tap the floating bubble (or call `Jala.open()`) to inspect traffic.
 
 Using `package:http` instead of Dio? Install
-[`jala_http`](packages/jala_http) (`jala_http: ^0.2.0`) and call
+[`jala_http`](packages/jala_http) (`jala_http: ^0.3.0`) and call
 `JalaHttp.wrap(http.Client())` in place of `JalaDio.attach(dio)` above.
 
 **v0.2 capture extras:** image responses (`image/*` within the body cap)
 preview inline in the inspector; multipart uploads show a parts table
 (name / filename / content-type / size); pending calls can show determinate
 transfer progress when the adapter can observe the stream.
+
+**v0.3 mocking:** create rules from a captured call (**Mock this**), serve
+canned responses / failures / delays without hitting the network, filter
+with `is:mocked`, and **Edit & resend** a modified request. Optional
+`Jala.enableMockPersistence(dir)` keeps rules across restarts.
 
 ## Screenshots
 
@@ -162,9 +167,9 @@ structured terms degrade to free text instead of erroring.
 
 ## Roadmap
 
-- **v0.2** (this release) — `package:http` adapter, image preview,
-  multipart request detail, upload/download progress.
-- **v0.3** — rule-based mocking + edit-and-resend (see
+- **v0.2** — `package:http` adapter, image preview, multipart detail,
+  upload/download progress.
+- **v0.3** (this release) — rule-based mocking + edit-and-resend (see
   [docs/ROADMAP.md](docs/ROADMAP.md)).
 - **Later** — GraphQL, WebSocket, storage explorers, throttling, desktop
   companion.

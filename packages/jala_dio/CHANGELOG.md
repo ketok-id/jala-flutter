@@ -1,3 +1,11 @@
+## 0.3.0
+
+- Rule-based request mocking: after capture, match `JalaMockRegistry` and
+  short-circuit with canned response, synthetic failure, or delay (only
+  when Jala is enabled).
+- Edit-and-resend: `JalaDioReplayer.replayModified` rebuilds
+  `RequestOptions` with method/URL/headers/body overrides.
+
 ## 0.2.0
 
 - Capture `FormData` as structured multipart parts (`@multipart` convention)

@@ -1,3 +1,14 @@
+## 0.3.0
+
+- Mock rule engine: `JalaMockRule`, sealed `MockAction`
+  (`MockResponse` / `MockFailure` / `MockDelay`), `JalaMockRegistry`,
+  and pluggable `JalaMockStore` (in-memory default).
+- URL glob helper `globMatches` for full-URL pattern matching.
+- `NetworkCallEntry.mockRuleId` / request-event field for mocked calls.
+- Filter grammar: `is:mocked`.
+- Replay API: `JalaReplayer.replayModified` + registry helper for
+  edit-and-resend.
+
 ## 0.2.0
 
 - Image body capture: `BodyKind.image` plus `CapturedBody.bytes` /

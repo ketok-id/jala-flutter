@@ -1,3 +1,11 @@
+## 0.3.0
+
+- Mocks screen (list / enable / delete) and mock rule editor.
+- **Mock this** on call detail prefills a rule from a captured call.
+- **Edit & resend** composer for modified replay.
+- Call list bolt badge for mocked entries; filter help documents
+  `is:mocked`; inspector app bar opens Mocks with enabled-count badge.
+
 ## 0.2.0
 
 - Image preview: `BodyKind.image` renders an inline `Image.memory` with
