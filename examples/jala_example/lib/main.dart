@@ -11,7 +11,9 @@ import 'package:jala_dio/jala_dio.dart';
 /// backup for simple GETs) so you can exercise filters, export, replay,
 /// redaction, truncation, and error paths in the inspector.
 void main() {
-  Jala.initialize(); // enabled: kDebugMode
+  // The hosted demo (GitHub Pages) is a release build, where the
+  // `enabled: kDebugMode` default would turn Jala off — opt in explicitly.
+  Jala.initialize(config: JalaConfig(enabled: true));
   final Dio dio = Dio(
     BaseOptions(
       connectTimeout: const Duration(seconds: 15),
