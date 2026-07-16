@@ -148,6 +148,9 @@ class JalaStore {
       case final WsConnectEvent e:
         _onWsConnect(e);
         _notifyWs();
+      case final WsOpenEvent e:
+        _onWsOpen(e);
+        _notifyWs();
       case final WsFrameEvent e:
         _onWsFrame(e);
         _notifyWs();
@@ -250,6 +253,19 @@ class JalaStore {
     );
     _wsConnections.insert(0, entry);
     _enforceWsCapacity();
+  }
+
+  void _onWsOpen(WsOpenEvent e) {
+    final int index = _wsConnections.indexWhere(
+      (entry) => entry.id == e.connectionId,
+    );
+    if (index == -1) return; // evicted or unknown; ignore per spec.
+    final WsConnectionEntry current = _wsConnections[index];
+    if (current.status != WsConnectionStatus.connecting) {
+      return; // already open/closed/error — never downgrade a terminal
+      // state, and promoting an already-open entry again is a no-op.
+    }
+    _wsConnections[index] = current.copyWith(status: WsConnectionStatus.open);
   }
 
   void _onWsFrame(WsFrameEvent e) {

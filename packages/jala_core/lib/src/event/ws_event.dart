@@ -22,6 +22,26 @@ class WsConnectEvent extends JalaEvent {
   final Uri uri;
 }
 
+/// Emitted when a WebSocket connection is confirmed open — the handshake
+/// completed successfully (`WebSocketChannel.ready` resolved without error).
+///
+/// `JalaStore` promotes the matching `WsConnectionEntry.status` from
+/// `WsConnectionStatus.connecting` to `WsConnectionStatus.open`. This is a
+/// courtesy for bindings (like `jala_websocket`) that can observe the
+/// handshake explicitly; D1's original fallback — promoting on first frame,
+/// for bindings that can't observe the handshake — still applies and keeps
+/// working (see `JalaStore._onWsFrame`). Emitting this event for an already
+/// non-`connecting` connection (e.g. one that already closed or errored) is
+/// a no-op — see `JalaStore._onWsOpen`.
+class WsOpenEvent extends JalaEvent {
+  /// Creates a WS open event for [connectionId].
+  const WsOpenEvent({required String connectionId, required super.timestamp})
+    : super(callId: connectionId);
+
+  /// Convenience alias for [callId] in WS contexts.
+  String get connectionId => callId;
+}
+
 /// Emitted for every frame sent or received on a WebSocket connection.
 class WsFrameEvent extends JalaEvent {
   /// Creates a WS frame event for [connectionId].

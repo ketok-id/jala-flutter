@@ -1,0 +1,23 @@
+name: jala_websocket
+description: WebSocketChannel wrapper for Jala, the in-app Flutter network inspector. Captures connections and frame timelines with direction, size, and preview.
+version: 0.4.0
+repository: https://github.com/ketok-id/jala-flutter
+topics:
+  - network
+  - debugging
+  - devtools
+  - websocket
+
+environment:
+  sdk: ^3.11.0
+
+resolution: workspace
+
+dependencies:
+  jala_core: ^0.3.0
+  stream_channel: ^2.1.0
+  web_socket_channel: ^3.0.0
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.0

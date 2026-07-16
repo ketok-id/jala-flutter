@@ -200,6 +200,16 @@ void emitWsFrame(
   );
 }
 
+/// Emits a [WsOpenEvent] for [id] on [bus].
+void emitWsOpen(JalaEventBus bus, String id, {DateTime? timestamp}) {
+  bus.emit(
+    WsOpenEvent(
+      connectionId: id,
+      timestamp: timestamp ?? DateTime.utc(2026, 7, 15, 12, 0, 1),
+    ),
+  );
+}
+
 /// Emits a [WsCloseEvent] for [id] on [bus].
 void emitWsClose(
   JalaEventBus bus,

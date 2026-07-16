@@ -393,6 +393,36 @@ void main() {
       expect(entry.frames.single.preview, 'hi');
     });
 
+    test('open event promotes a connecting entry to open', () async {
+      emitWsConnect(bus, 'ws-a');
+      emitWsOpen(bus, 'ws-a');
+      await pump();
+
+      final entry = wsStore.wsById('ws-a')!;
+      expect(entry.status, WsConnectionStatus.open);
+      expect(entry.frameCount, 0, reason: 'no frame observed yet');
+    });
+
+    test(
+      'open event does not downgrade an already-closed/errored entry',
+      () async {
+        emitWsConnect(bus, 'ws-a');
+        emitWsClose(bus, 'ws-a', code: 1000, reason: 'done');
+        emitWsOpen(bus, 'ws-a'); // stale/late event; must be a no-op.
+        await pump();
+
+        final entry = wsStore.wsById('ws-a')!;
+        expect(entry.status, WsConnectionStatus.closed);
+        expect(entry.closeCode, 1000);
+      },
+    );
+
+    test('open event for unknown or evicted id is ignored', () async {
+      emitWsOpen(bus, 'ghost');
+      await pump();
+      expect(wsStore.wsConnections, isEmpty);
+    });
+
     test('subsequent frames keep an open entry open and accumulate', () async {
       emitWsConnect(bus, 'ws-a');
       emitWsFrame(bus, 'ws-a', data: 'one');
