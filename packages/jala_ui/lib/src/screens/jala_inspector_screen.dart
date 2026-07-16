@@ -8,8 +8,50 @@ import '../theme/jala_theme_controller.dart';
 import '../widgets/jala_call_list_tile.dart';
 import '../widgets/jala_filter_help_sheet.dart';
 import '../widgets/jala_themed_page.dart';
+import '../widgets/jala_ws_list_tile.dart';
 import 'jala_call_detail_screen.dart';
 import 'jala_mocks_screen.dart';
+import 'jala_ws_detail_screen.dart';
+
+/// One row of the chronologically-interleaved merged list: either a
+/// [NetworkCallEntry] or a [WsConnectionEntry], ordered newest-first by
+/// [NetworkCallEntry.startTime] / [WsConnectionEntry.openedAt] (see
+/// docs/plans/track-d-v0.4.md D4). `jala_core` deliberately keeps these two
+/// entities in separate collections (`watch`/`watchWs`) — merging only
+/// happens here, in the UI layer.
+sealed class _MergedEntry {
+  DateTime get time;
+}
+
+class _CallEntry extends _MergedEntry {
+  _CallEntry(this.entry);
+
+  final NetworkCallEntry entry;
+
+  @override
+  DateTime get time => entry.startTime;
+}
+
+class _WsEntry extends _MergedEntry {
+  _WsEntry(this.entry);
+
+  final WsConnectionEntry entry;
+
+  @override
+  DateTime get time => entry.openedAt;
+}
+
+List<_MergedEntry> _mergeEntries(
+  List<NetworkCallEntry> calls,
+  List<WsConnectionEntry> wsConnections,
+) {
+  final List<_MergedEntry> merged = <_MergedEntry>[
+    for (final NetworkCallEntry e in calls) _CallEntry(e),
+    for (final WsConnectionEntry e in wsConnections) _WsEntry(e),
+  ];
+  merged.sort((_MergedEntry a, _MergedEntry b) => b.time.compareTo(a.time));
+  return merged;
+}
 
 /// Root screen of the Jala inspector: filter bar, call list, and app bar
 /// actions (clear, copy session HAR, theme toggle).
@@ -109,146 +151,170 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
         builder:
             (
               BuildContext context,
-              AsyncSnapshot<List<NetworkCallEntry>> snapshot,
-            ) {
-              final List<NetworkCallEntry> all =
-                  snapshot.data ?? const <NetworkCallEntry>[];
-              final List<NetworkCallEntry> filtered = _filter.isEmpty
-                  ? all
-                  : all.where(_filter.matches).toList();
-              return Scaffold(
-                appBar: AppBar(
-                  leading: widget.onClose == null
-                      ? null
-                      : IconButton(
-                          icon: const Icon(Icons.close),
-                          tooltip: 'Close inspector',
-                          onPressed: widget.onClose,
-                        ),
-                  title: const Text('Jala'),
-                  actions: <Widget>[
-                    StreamBuilder<List<JalaMockRule>>(
-                      stream: JalaBinding.instance.mockRegistry.watch,
-                      initialData: JalaBinding.instance.mockRegistry.rules,
-                      builder: (
-                        BuildContext context,
-                        AsyncSnapshot<List<JalaMockRule>> snap,
-                      ) {
-                        final int enabled = (snap.data ?? const <JalaMockRule>[])
-                            .where((JalaMockRule r) => r.enabled)
-                            .length;
-                        return IconButton(
-                          tooltip: enabled > 0
-                              ? 'Mocks ($enabled enabled)'
-                              : 'Mocks',
-                          onPressed: () {
-                            Navigator.of(context).push(JalaMocksScreen.route());
-                          },
-                          // Avoid Badge animations that hang pumpAndSettle.
-                          icon: enabled > 0
-                              ? Stack(
-                                  clipBehavior: Clip.none,
-                                  children: <Widget>[
-                                    const Icon(Icons.rule),
-                                    Positioned(
-                                      right: -6,
-                                      top: -4,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 4,
-                                          vertical: 1,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .error,
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                        ),
-                                        child: Text(
-                                          '$enabled',
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .onError,
-                                          ),
-                                        ),
-                                      ),
+              AsyncSnapshot<List<NetworkCallEntry>> callsSnapshot,
+            ) => StreamBuilder<List<WsConnectionEntry>>(
+              stream: JalaBinding.instance.store.watchWs,
+              initialData: JalaBinding.instance.store.wsConnections,
+              builder:
+                  (
+                    BuildContext context,
+                    AsyncSnapshot<List<WsConnectionEntry>> wsSnapshot,
+                  ) => _buildScaffold(
+                    context,
+                    callsSnapshot.data ?? const <NetworkCallEntry>[],
+                    wsSnapshot.data ?? const <WsConnectionEntry>[],
+                  ),
+            ),
+      ),
+    );
+  }
+
+  Widget _buildScaffold(
+    BuildContext context,
+    List<NetworkCallEntry> calls,
+    List<WsConnectionEntry> wsConnections,
+  ) {
+    final List<_MergedEntry> all = _mergeEntries(calls, wsConnections);
+    final List<_MergedEntry> filtered = _filter.isEmpty
+        ? all
+        : all
+              .where(
+                (_MergedEntry merged) => switch (merged) {
+                  _CallEntry(:final NetworkCallEntry entry) => _filter.matches(
+                    entry,
+                  ),
+                  _WsEntry(:final WsConnectionEntry entry) => _filter.matchesWs(
+                    entry,
+                  ),
+                },
+              )
+              .toList();
+    return Scaffold(
+      appBar: AppBar(
+        leading: widget.onClose == null
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.close),
+                tooltip: 'Close inspector',
+                onPressed: widget.onClose,
+              ),
+        title: const Text('Jala'),
+        actions: <Widget>[
+          StreamBuilder<List<JalaMockRule>>(
+            stream: JalaBinding.instance.mockRegistry.watch,
+            initialData: JalaBinding.instance.mockRegistry.rules,
+            builder:
+                (BuildContext context, AsyncSnapshot<List<JalaMockRule>> snap) {
+                  final int enabled = (snap.data ?? const <JalaMockRule>[])
+                      .where((JalaMockRule r) => r.enabled)
+                      .length;
+                  return IconButton(
+                    tooltip: enabled > 0 ? 'Mocks ($enabled enabled)' : 'Mocks',
+                    onPressed: () {
+                      Navigator.of(context).push(JalaMocksScreen.route());
+                    },
+                    // Avoid Badge animations that hang pumpAndSettle.
+                    icon: enabled > 0
+                        ? Stack(
+                            clipBehavior: Clip.none,
+                            children: <Widget>[
+                              const Icon(Icons.rule),
+                              Positioned(
+                                right: -6,
+                                top: -4,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 1,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).colorScheme.error,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    '$enabled',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onError,
                                     ),
-                                  ],
-                                )
-                              : const Icon(Icons.rule),
-                        );
-                      },
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline),
-                      tooltip: 'Clear',
-                      onPressed: all.isEmpty
-                          ? null
-                          : () => _confirmClear(context),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.ios_share),
-                      tooltip: 'Copy session as HAR',
-                      onPressed: all.isEmpty
-                          ? null
-                          : () => _copySessionHar(context, all),
-                    ),
-                    const _ThemeToggleButton(),
-                  ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        : const Icon(Icons.rule),
+                  );
+                },
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            tooltip: 'Clear',
+            onPressed: all.isEmpty ? null : () => _confirmClear(context),
+          ),
+          IconButton(
+            icon: const Icon(Icons.ios_share),
+            tooltip: 'Copy session as HAR',
+            onPressed: calls.isEmpty
+                ? null
+                : () => _copySessionHar(context, calls),
+          ),
+          const _ThemeToggleButton(),
+        ],
+      ),
+      body: Column(
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: TextField(
+              controller: _filterController,
+              onChanged: _onFilterChanged,
+              decoration: InputDecoration(
+                hintText: 'method:get status:4xx host:api.* …',
+                prefixIcon: const Icon(Icons.filter_alt_outlined),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.help_outline),
+                  tooltip: 'Filter grammar',
+                  onPressed: () => _openHelp(context),
                 ),
-                body: Column(
-                  children: <Widget>[
-                    Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: TextField(
-                        controller: _filterController,
-                        onChanged: _onFilterChanged,
-                        decoration: InputDecoration(
-                          hintText: 'method:get status:4xx host:api.* …',
-                          prefixIcon: const Icon(Icons.filter_alt_outlined),
-                          suffixIcon: IconButton(
-                            icon: const Icon(Icons.help_outline),
-                            tooltip: 'Filter grammar',
-                            onPressed: () => _openHelp(context),
+                border: const OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+          ),
+          Expanded(
+            child: all.isEmpty
+                ? const _EmptyState(message: 'No network calls captured yet.')
+                : filtered.isEmpty
+                ? _EmptyState(
+                    message: 'No calls match "${_filterController.text}".',
+                  )
+                : ListView.separated(
+                    itemCount: filtered.length,
+                    separatorBuilder: (BuildContext context, int index) =>
+                        const Divider(height: 1),
+                    itemBuilder: (BuildContext context, int index) {
+                      return switch (filtered[index]) {
+                        _CallEntry(:final NetworkCallEntry entry) =>
+                          JalaCallListTile(
+                            entry: entry,
+                            onTap: () => Navigator.of(
+                              context,
+                            ).push(JalaCallDetailScreen.route(entry.id)),
                           ),
-                          border: const OutlineInputBorder(),
-                          isDense: true,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: all.isEmpty
-                          ? const _EmptyState(
-                              message: 'No network calls captured yet.',
-                            )
-                          : filtered.isEmpty
-                          ? _EmptyState(
-                              message:
-                                  'No calls match "${_filterController.text}".',
-                            )
-                          : ListView.separated(
-                              itemCount: filtered.length,
-                              separatorBuilder:
-                                  (BuildContext context, int index) =>
-                                      const Divider(height: 1),
-                              itemBuilder: (BuildContext context, int index) {
-                                final NetworkCallEntry entry = filtered[index];
-                                return JalaCallListTile(
-                                  entry: entry,
-                                  onTap: () => Navigator.of(
-                                    context,
-                                  ).push(JalaCallDetailScreen.route(entry.id)),
-                                );
-                              },
-                            ),
-                    ),
-                  ],
-                ),
-              );
-            },
+                        _WsEntry(:final WsConnectionEntry entry) =>
+                          JalaWsListTile(
+                            entry: entry,
+                            onTap: () => Navigator.of(
+                              context,
+                            ).push(JalaWsDetailScreen.route(entry.id)),
+                          ),
+                      };
+                    },
+                  ),
+          ),
+        ],
       ),
     );
   }

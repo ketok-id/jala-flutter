@@ -69,4 +69,22 @@ class JalaTheme {
         return serverErrorColor;
     }
   }
+
+  /// Resolves the status color for a WebSocket connection's current
+  /// lifecycle state (see docs/plans/track-d-v0.4.md D4): `connecting`
+  /// shares [pendingColor] (paired with a spinner, not this dot, by
+  /// callers), `open` reuses [redirectColor] (blue), `closed` reuses
+  /// [cancelledColor] (grey), and `error` reuses [serverErrorColor] (red).
+  static Color wsStatusColorFor(WsConnectionStatus status) {
+    switch (status) {
+      case WsConnectionStatus.connecting:
+        return pendingColor;
+      case WsConnectionStatus.open:
+        return redirectColor;
+      case WsConnectionStatus.closed:
+        return cancelledColor;
+      case WsConnectionStatus.error:
+        return serverErrorColor;
+    }
+  }
 }

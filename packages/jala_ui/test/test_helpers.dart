@@ -13,9 +13,17 @@ void configureJalaUiTests() {
 ///
 /// Pair with `tearDown(JalaBinding.resetForTesting)` so each test starts
 /// from a clean binding.
-JalaBinding initJalaBinding({int maxEntries = 300}) {
-  return JalaBinding.instance
-    ..initialize(config: JalaConfig(enabled: true, maxEntries: maxEntries));
+JalaBinding initJalaBinding({
+  int maxEntries = 300,
+  int maxWsFramesPerConnection = 200,
+}) {
+  return JalaBinding.instance..initialize(
+    config: JalaConfig(
+      enabled: true,
+      maxEntries: maxEntries,
+      maxWsFramesPerConnection: maxWsFramesPerConnection,
+    ),
+  );
 }
 
 /// Emits a request immediately followed by a response for [id] onto [bus],
@@ -36,24 +44,30 @@ void emitCompletedCall(
   Duration duration = const Duration(milliseconds: 42),
   int? responseSize = 128,
   String? replayOf,
+  DateTime? startTime,
+  String? operationName,
+  String? operationType,
 }) {
+  final DateTime start = startTime ?? DateTime.utc(2026, 7, 15, 12);
   bus
     ..emit(
       NetworkRequestEvent(
         callId: id,
-        timestamp: DateTime.utc(2026, 7, 15, 12),
+        timestamp: start,
         method: method,
         uri: Uri.parse(url),
         headers: requestHeaders,
         body: requestBody ?? CapturedBody.none,
         client: 'test',
         replayOf: replayOf,
+        operationName: operationName,
+        operationType: operationType,
       ),
     )
     ..emit(
       NetworkResponseEvent(
         callId: id,
-        timestamp: DateTime.utc(2026, 7, 15, 12, 0, 1),
+        timestamp: start.add(const Duration(seconds: 1)),
         statusCode: statusCode,
         statusMessage: statusMessage,
         headers: responseHeaders,
@@ -105,6 +119,95 @@ void emitProgress(
       sentTotal: sentTotal,
       receivedBytes: receivedBytes,
       receivedTotal: receivedTotal,
+    ),
+  );
+}
+
+// --- WebSocket event emitters -------------------------------------------
+// Replicated from jala_core's test helpers (packages/jala_core/test/
+// test_helpers.dart) — that file is not importable across packages, and D4
+// deliberately doesn't touch jala_core.
+
+/// Emits a [WsConnectEvent] for [id] on [bus].
+void emitWsConnect(
+  JalaEventBus bus,
+  String id, {
+  String url = 'wss://echo.example.com/socket',
+  DateTime? timestamp,
+}) {
+  bus.emit(
+    WsConnectEvent(
+      connectionId: id,
+      timestamp: timestamp ?? DateTime.utc(2026, 7, 15, 12),
+      uri: Uri.parse(url),
+    ),
+  );
+}
+
+/// Emits a [WsOpenEvent] for [id] on [bus].
+void emitWsOpen(JalaEventBus bus, String id, {DateTime? timestamp}) {
+  bus.emit(
+    WsOpenEvent(
+      connectionId: id,
+      timestamp: timestamp ?? DateTime.utc(2026, 7, 15, 12, 0, 1),
+    ),
+  );
+}
+
+/// Emits a [WsFrameEvent] for [id] on [bus]. [data] follows
+/// `WsFrame.capture` semantics: `String` -> text frame, `List<int>` ->
+/// binary frame (metadata only).
+void emitWsFrame(
+  JalaEventBus bus,
+  String id, {
+  WsDirection direction = WsDirection.sent,
+  dynamic data = 'hello',
+  DateTime? timestamp,
+}) {
+  bus.emit(
+    WsFrameEvent(
+      connectionId: id,
+      timestamp: timestamp ?? DateTime.utc(2026, 7, 15, 12, 0, 1),
+      frame: WsFrame.capture(
+        timestamp: timestamp ?? DateTime.utc(2026, 7, 15, 12, 0, 1),
+        direction: direction,
+        data: data,
+        redactor: JalaRedactor(),
+      ),
+    ),
+  );
+}
+
+/// Emits a [WsCloseEvent] for [id] on [bus].
+void emitWsClose(
+  JalaEventBus bus,
+  String id, {
+  int? code,
+  String? reason,
+  DateTime? timestamp,
+}) {
+  bus.emit(
+    WsCloseEvent(
+      connectionId: id,
+      timestamp: timestamp ?? DateTime.utc(2026, 7, 15, 12, 0, 2),
+      code: code,
+      reason: reason,
+    ),
+  );
+}
+
+/// Emits a [WsErrorEvent] for [id] on [bus].
+void emitWsError(
+  JalaEventBus bus,
+  String id, {
+  String errorMessage = 'connection reset',
+  DateTime? timestamp,
+}) {
+  bus.emit(
+    WsErrorEvent(
+      connectionId: id,
+      timestamp: timestamp ?? DateTime.utc(2026, 7, 15, 12, 0, 2),
+      errorMessage: errorMessage,
     ),
   );
 }

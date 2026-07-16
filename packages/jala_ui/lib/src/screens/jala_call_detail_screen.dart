@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jala_core/jala_core.dart';
@@ -5,6 +7,7 @@ import 'package:jala_core/jala_core.dart';
 import '../util/format.dart';
 import '../widgets/jala_body_view.dart';
 import '../widgets/jala_headers_table.dart';
+import '../widgets/jala_json_tree.dart';
 import '../widgets/jala_themed_page.dart';
 import 'jala_mock_editor_screen.dart';
 import 'jala_request_composer_screen.dart';
@@ -24,8 +27,7 @@ class JalaCallDetailScreen extends StatefulWidget {
   /// Builds a route pushing the detail screen for [entryId].
   static Route<void> route(String entryId) {
     return MaterialPageRoute<void>(
-      builder: (BuildContext context) =>
-          JalaCallDetailScreen(entryId: entryId),
+      builder: (BuildContext context) => JalaCallDetailScreen(entryId: entryId),
     );
   }
 
@@ -74,131 +76,141 @@ class _JalaCallDetailScreenState extends State<JalaCallDetailScreen>
       child: StreamBuilder<List<NetworkCallEntry>>(
         stream: JalaBinding.instance.store.watch,
         initialData: JalaBinding.instance.store.entries,
-        builder: (
-          BuildContext context,
-          AsyncSnapshot<List<NetworkCallEntry>> snapshot,
-        ) {
-          final NetworkCallEntry? entry = JalaBinding.instance.store.byId(
-            widget.entryId,
-          );
-          if (entry == null) {
-            return Scaffold(
-              appBar: AppBar(title: const Text('Call detail')),
-              body: const Center(
-                child: Text('This call is no longer available.'),
-              ),
-            );
-          }
-          final bool hasReplayer =
-              JalaBinding.instance.replayRegistry.hasReplayer;
-          return Scaffold(
-            appBar: AppBar(
-              title: Text(
-                '${entry.method} ${entry.uri.path}',
-                overflow: TextOverflow.ellipsis,
-              ),
-              bottom: TabBar(
-                controller: _tabController,
-                tabs: const <Tab>[
-                  Tab(text: 'Overview'),
-                  Tab(text: 'Request'),
-                  Tab(text: 'Response'),
-                ],
-              ),
-            ),
-            body: TabBarView(
-              controller: _tabController,
-              children: <Widget>[
-                _OverviewTab(entry: entry),
-                _HeadersBodyTab(
-                  headers: entry.requestHeaders,
-                  body: entry.requestBody,
+        builder:
+            (
+              BuildContext context,
+              AsyncSnapshot<List<NetworkCallEntry>> snapshot,
+            ) {
+              final NetworkCallEntry? entry = JalaBinding.instance.store.byId(
+                widget.entryId,
+              );
+              if (entry == null) {
+                return Scaffold(
+                  appBar: AppBar(title: const Text('Call detail')),
+                  body: const Center(
+                    child: Text('This call is no longer available.'),
+                  ),
+                );
+              }
+              final bool hasReplayer =
+                  JalaBinding.instance.replayRegistry.hasReplayer;
+              return Scaffold(
+                appBar: AppBar(
+                  title: Text(
+                    '${entry.method} ${entry.uri.path}',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  bottom: TabBar(
+                    controller: _tabController,
+                    tabs: const <Tab>[
+                      Tab(text: 'Overview'),
+                      Tab(text: 'Request'),
+                      Tab(text: 'Response'),
+                    ],
+                  ),
                 ),
-                _HeadersBodyTab(
-                  headers: entry.responseHeaders,
-                  body: entry.responseBody,
-                  errorMessage: entry.errorMessage,
-                ),
-              ],
-            ),
-            bottomNavigationBar: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                child: Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: 4,
+                body: TabBarView(
+                  controller: _tabController,
                   children: <Widget>[
-                    TextButton.icon(
-                      onPressed: () => _copy(
-                        context,
-                        'body',
-                        entry.responseBody.text ?? entry.requestBody.text ?? '',
-                      ),
-                      icon: const Icon(Icons.copy, size: 18),
-                      label: const Text('Body'),
+                    _OverviewTab(entry: entry),
+                    _HeadersBodyTab(
+                      headers: entry.requestHeaders,
+                      body: entry.requestBody,
+                      graphQlRequest: _GraphQlRequest.tryParse(entry),
                     ),
-                    TextButton.icon(
-                      onPressed: () =>
-                          _copy(context, 'cURL', CurlExporter.export(entry)),
-                      icon: const Icon(Icons.terminal, size: 18),
-                      label: const Text('cURL'),
-                    ),
-                    TextButton.icon(
-                      onPressed: () => _copy(
-                        context,
-                        'Dart snippet',
-                        DartSnippetExporter.export(entry),
-                      ),
-                      icon: const Icon(Icons.code, size: 18),
-                      label: const Text('Dart'),
-                    ),
-                    TextButton.icon(
-                      onPressed: () => _copy(
-                        context,
-                        'HAR',
-                        HarExporter.exportCall(entry),
-                      ),
-                      icon: const Icon(Icons.description, size: 18),
-                      label: const Text('HAR'),
-                    ),
-                    TextButton.icon(
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          JalaMockEditorScreen.routeFromEntry(entry),
-                        );
-                      },
-                      icon: const Icon(Icons.bolt, size: 18),
-                      label: const Text('Mock this'),
-                    ),
-                    TextButton.icon(
-                      onPressed: hasReplayer
-                          ? () {
-                              Navigator.of(context).push(
-                                JalaRequestComposerScreen.route(entry),
-                              );
-                            }
-                          : null,
-                      icon: const Icon(Icons.edit_note, size: 18),
-                      label: const Text('Edit & resend'),
-                    ),
-                    Tooltip(
-                      message: hasReplayer
-                          ? 'Replay this call'
-                          : 'No replayer attached — use JalaDio.attach(dio)',
-                      child: FilledButton.icon(
-                        onPressed: hasReplayer
-                            ? () => _replay(context, entry)
-                            : null,
-                        icon: const Icon(Icons.replay, size: 18),
-                        label: const Text('Replay'),
-                      ),
+                    _HeadersBodyTab(
+                      headers: entry.responseHeaders,
+                      body: entry.responseBody,
+                      errorMessage: entry.errorMessage,
                     ),
                   ],
                 ),
-              ),
-            ),
-          );
-        },
+                bottomNavigationBar: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 4,
+                    ),
+                    child: Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 4,
+                      children: <Widget>[
+                        TextButton.icon(
+                          onPressed: () => _copy(
+                            context,
+                            'body',
+                            entry.responseBody.text ??
+                                entry.requestBody.text ??
+                                '',
+                          ),
+                          icon: const Icon(Icons.copy, size: 18),
+                          label: const Text('Body'),
+                        ),
+                        TextButton.icon(
+                          onPressed: () => _copy(
+                            context,
+                            'cURL',
+                            CurlExporter.export(entry),
+                          ),
+                          icon: const Icon(Icons.terminal, size: 18),
+                          label: const Text('cURL'),
+                        ),
+                        TextButton.icon(
+                          onPressed: () => _copy(
+                            context,
+                            'Dart snippet',
+                            DartSnippetExporter.export(entry),
+                          ),
+                          icon: const Icon(Icons.code, size: 18),
+                          label: const Text('Dart'),
+                        ),
+                        TextButton.icon(
+                          onPressed: () => _copy(
+                            context,
+                            'HAR',
+                            HarExporter.exportCall(entry),
+                          ),
+                          icon: const Icon(Icons.description, size: 18),
+                          label: const Text('HAR'),
+                        ),
+                        TextButton.icon(
+                          onPressed: () {
+                            Navigator.of(
+                              context,
+                            ).push(JalaMockEditorScreen.routeFromEntry(entry));
+                          },
+                          icon: const Icon(Icons.bolt, size: 18),
+                          label: const Text('Mock this'),
+                        ),
+                        TextButton.icon(
+                          onPressed: hasReplayer
+                              ? () {
+                                  Navigator.of(context).push(
+                                    JalaRequestComposerScreen.route(entry),
+                                  );
+                                }
+                              : null,
+                          icon: const Icon(Icons.edit_note, size: 18),
+                          label: const Text('Edit & resend'),
+                        ),
+                        Tooltip(
+                          message: hasReplayer
+                              ? 'Replay this call'
+                              : 'No replayer attached — use JalaDio.attach(dio)',
+                          child: FilledButton.icon(
+                            onPressed: hasReplayer
+                                ? () => _replay(context, entry)
+                                : null,
+                            icon: const Icon(Icons.replay, size: 18),
+                            label: const Text('Replay'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
       ),
     );
   }
@@ -250,6 +262,16 @@ class _OverviewTab extends StatelessWidget {
       ('Response size', Text(humanizeBytes(entry.responseSize))),
       ('Start time', Text(entry.startTime.toLocal().toString())),
       ('Client', Text(entry.client)),
+      // GraphQL metadata (D4): operation name + type in one row.
+      if (entry.operationName != null)
+        (
+          'Operation',
+          Text(
+            entry.operationType != null
+                ? '${entry.operationName} (${entry.operationType})'
+                : entry.operationName!,
+          ),
+        ),
       // Show whenever progress was observed — live while pending, and as a
       // final snapshot after the call completes (B4).
       if (entry.progress != null)
@@ -291,7 +313,8 @@ class _OverviewTab extends StatelessWidget {
                 TextButton(
                   onPressed: () {
                     final String replayOf = entry.replayOf!;
-                    final NetworkCallEntry? original = JalaBinding.instance
+                    final NetworkCallEntry? original = JalaBinding
+                        .instance
                         .store
                         .byId(replayOf);
                     if (original != null) {
@@ -301,7 +324,9 @@ class _OverviewTab extends StatelessWidget {
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Original call is no longer available.'),
+                          content: Text(
+                            'Original call is no longer available.',
+                          ),
                         ),
                       );
                     }
@@ -316,19 +341,62 @@ class _OverviewTab extends StatelessWidget {
   }
 }
 
+/// The parsed GraphQL request payload of a captured entry: the `query`
+/// source string plus its (possibly absent) `variables` map.
+///
+/// The Request tab uses this to render dedicated Query/Variables sections
+/// instead of the raw JSON body view — see docs/plans/track-d-v0.4.md D4.
+class _GraphQlRequest {
+  const _GraphQlRequest({required this.query, required this.variables});
+
+  /// Parses [entry]'s request body as a GraphQL request payload
+  /// (`{operationName, query, variables}` — the shape `jala_graphql`
+  /// captures). Returns null when the entry carries no GraphQL metadata,
+  /// or when the body text does not parse as a JSON object with a `query`
+  /// string — in that case the tab falls back to the plain body view.
+  static _GraphQlRequest? tryParse(NetworkCallEntry entry) {
+    if (entry.operationName == null) return null;
+    final String? text = entry.requestBody.text;
+    if (text == null) return null;
+    final dynamic decoded;
+    try {
+      decoded = jsonDecode(text);
+    } on FormatException {
+      return null;
+    }
+    if (decoded is! Map<String, dynamic>) return null;
+    final dynamic query = decoded['query'];
+    if (query is! String) return null;
+    final dynamic variables = decoded['variables'];
+    return _GraphQlRequest(
+      query: query,
+      variables: variables is Map<String, dynamic> ? variables : null,
+    );
+  }
+
+  final String query;
+  final Map<String, dynamic>? variables;
+}
+
 class _HeadersBodyTab extends StatelessWidget {
   const _HeadersBodyTab({
     required this.headers,
     required this.body,
     this.errorMessage,
+    this.graphQlRequest,
   });
 
   final Map<String, String> headers;
   final CapturedBody body;
   final String? errorMessage;
 
+  /// When non-null, the Body section is replaced by Query/Variables
+  /// sections rendered from this parsed GraphQL payload.
+  final _GraphQlRequest? graphQlRequest;
+
   @override
   Widget build(BuildContext context) {
+    final _GraphQlRequest? graphQl = graphQlRequest;
     return ListView(
       padding: const EdgeInsets.all(12),
       children: <Widget>[
@@ -343,8 +411,28 @@ class _HeadersBodyTab extends StatelessWidget {
         Text('Headers', style: Theme.of(context).textTheme.titleSmall),
         JalaHeadersTable(headers: headers),
         const Divider(),
-        Text('Body', style: Theme.of(context).textTheme.titleSmall),
-        JalaBodyView(body: body),
+        if (graphQl != null) ...<Widget>[
+          Text('Query', style: Theme.of(context).textTheme.titleSmall),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: SelectableText(
+              graphQl.query,
+              style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+            ),
+          ),
+          const Divider(),
+          Text('Variables', style: Theme.of(context).textTheme.titleSmall),
+          if (graphQl.variables == null || graphQl.variables!.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Text('No variables'),
+            )
+          else
+            JalaJsonTree(data: graphQl.variables),
+        ] else ...<Widget>[
+          Text('Body', style: Theme.of(context).textTheme.titleSmall),
+          JalaBodyView(body: body),
+        ],
       ],
     );
   }

@@ -23,6 +23,25 @@ String humanizeDuration(Duration? duration) {
   return '${duration.inMilliseconds} ms';
 }
 
+/// Formats [dt] as a local `HH:mm:ss` clock time (zero-padded) — compact
+/// enough for a list tile's trailing label (see `JalaWsListTile`'s
+/// last-activity time).
+String humanizeClockTime(DateTime dt) {
+  final DateTime local = dt.toLocal();
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${two(local.hour)}:${two(local.minute)}:${two(local.second)}';
+}
+
+/// Formats the elapsed time from [start] to [at] as a short, "+"-prefixed
+/// duration label (e.g. `+120ms`, `+1.4s`) — used to anchor a WebSocket
+/// frame timeline to its connection's `openedAt`.
+String humanizeElapsed(DateTime start, DateTime at) {
+  final int ms = at.difference(start).inMilliseconds;
+  if (ms < 1000) return '+${ms}ms';
+  final double secs = ms / 1000;
+  return '+${secs.toStringAsFixed(secs < 10 ? 2 : 1)}s';
+}
+
 /// The overall completion fraction (0.0–1.0) for [progress], or null when
 /// no total is known yet — callers should fall back to an indeterminate
 /// indicator in that case.
