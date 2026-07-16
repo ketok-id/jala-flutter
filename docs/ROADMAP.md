@@ -7,7 +7,7 @@ Status as of 2026-07-16. Detailed execution plans live in `docs/plans/`.
 | A | Launch & adoption | 0.1.1 / 0.1.2 | ✅ DONE — [plan](plans/track-a-launch.md) |
 | B | Capture-surface growth (jala_http, image preview, multipart, progress) | 0.2.0 | ✅ DONE — [plan](plans/track-b-v0.2.md) |
 | C | Mocking & edit-and-resend | 0.3.0 | ✅ DONE — [plan](plans/track-c-v0.3-mocking.md) |
-| D | Realtime & GraphQL (proposed next) | 0.4.0 | 📝 planned below |
+| D | Realtime & GraphQL (proposed next) | 0.4.0 | 📝 PLANNED — [plan](plans/track-d-v0.4.md) |
 
 All five packages (`jala`, `jala_core`, `jala_dio`, `jala_http`, `jala_ui`)
 are published on pub.dev at **0.3.0** in lockstep under the verified
@@ -28,9 +28,9 @@ WebSocket frame inspection is effectively greenfield in Flutter).
   close codes. New UI surface: frame list under a connection detail screen.
 - Filter grammar additions: `op:<name>`, `is:ws`, `is:graphql`.
 
-Write a detailed `docs/plans/track-d-v0.4.md` (same format as B/C) before
-starting; not yet written because scope should be re-checked against
-whatever issues/feedback the launch announcements generate first.
+Detailed execution plan: [plans/track-d-v0.4.md](plans/track-d-v0.4.md)
+(written 2026-07-16). If launch feedback lands before Track D starts,
+re-check its scope against the actual issues first.
 
 ## Horizon (beyond v0.4, unplanned)
 
