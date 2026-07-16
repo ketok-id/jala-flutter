@@ -1,0 +1,22 @@
+name: jala_http
+description: package:http adapter for Jala, the in-app Flutter network inspector. Wraps any http Client to capture requests, responses, and errors, with one-tap replay.
+version: 0.2.0
+repository: https://github.com/ketok-id/jala-flutter
+topics:
+  - network
+  - debugging
+  - devtools
+  - http
+
+environment:
+  sdk: ^3.11.0
+
+resolution: workspace
+
+dependencies:
+  http: ^1.2.0
+  jala_core: ^0.1.1
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.0

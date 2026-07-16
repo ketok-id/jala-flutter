@@ -13,6 +13,7 @@ class JalaConfig {
     this.enabled = false,
     this.maxEntries = 300,
     this.maxBodyBytes = CapturedBody.defaultMaxBytes,
+    this.captureImageBodies = true,
     JalaRedactor? redactor,
   }) : redactor = redactor ?? JalaRedactor();
 
@@ -25,6 +26,12 @@ class JalaConfig {
 
   /// Hard cap, in bytes, on each captured request/response body.
   final int maxBodyBytes;
+
+  /// Whether image response bodies (content-type `image/*`) within
+  /// [maxBodyBytes] are kept as raw bytes ([BodyKind.image]) for inline
+  /// preview in the inspector. When false, image bodies fall back to the
+  /// existing metadata-only [BodyKind.bytes] capture.
+  final bool captureImageBodies;
 
   /// The redactor applied to headers and bodies at capture time.
   final JalaRedactor redactor;

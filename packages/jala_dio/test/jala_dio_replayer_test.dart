@@ -22,10 +22,7 @@ void main() {
 
       JalaDio.attach(dio);
 
-      expect(
-        dio.interceptors.whereType<JalaDioInterceptor>(),
-        hasLength(1),
-      );
+      expect(dio.interceptors.whereType<JalaDioInterceptor>(), hasLength(1));
       expect(JalaBinding.instance.replayRegistry.hasReplayer, isTrue);
     });
 
@@ -48,17 +45,18 @@ void main() {
         await pump();
 
         expect(JalaBinding.instance.store.entries, hasLength(1));
-        final NetworkCallEntry original = JalaBinding.instance.store.entries
-            .single;
+        final NetworkCallEntry original =
+            JalaBinding.instance.store.entries.single;
         expect(original.replayOf, isNull);
 
-        final bool replayed = await JalaBinding.instance.replayRegistry
-            .replay(original);
+        final bool replayed = await JalaBinding.instance.replayRegistry.replay(
+          original,
+        );
         expect(replayed, isTrue);
         await pump();
 
-        final List<NetworkCallEntry> entries = JalaBinding.instance.store
-            .entries;
+        final List<NetworkCallEntry> entries =
+            JalaBinding.instance.store.entries;
         expect(entries, hasLength(2));
 
         // Newest first: the replay is now at the front.
@@ -81,27 +79,33 @@ void main() {
       },
     );
 
-    test('replaying a JSON request body re-encodes it as decoded JSON', () async {
-      JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
-      final FakeHttpClientAdapter adapter = FakeHttpClientAdapter(
-        (options) async => jsonResponseBody(<String, dynamic>{'ok': true}),
-      );
-      final Dio dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'))
-        ..httpClientAdapter = adapter;
-      JalaDio.attach(dio);
+    test(
+      'replaying a JSON request body re-encodes it as decoded JSON',
+      () async {
+        JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+        final FakeHttpClientAdapter adapter = FakeHttpClientAdapter(
+          (options) async => jsonResponseBody(<String, dynamic>{'ok': true}),
+        );
+        final Dio dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'))
+          ..httpClientAdapter = adapter;
+        JalaDio.attach(dio);
 
-      await dio.post<dynamic>('/users', data: <String, dynamic>{'name': 'ada'});
-      await pump();
+        await dio.post<dynamic>(
+          '/users',
+          data: <String, dynamic>{'name': 'ada'},
+        );
+        await pump();
 
-      final NetworkCallEntry original = JalaBinding.instance.store.entries
-          .single;
-      await JalaBinding.instance.replayRegistry.replay(original);
-      await pump();
+        final NetworkCallEntry original =
+            JalaBinding.instance.store.entries.single;
+        await JalaBinding.instance.replayRegistry.replay(original);
+        await pump();
 
-      expect(adapter.requests, hasLength(2));
-      final RequestOptions replayedRequest = adapter.requests.last;
-      expect(replayedRequest.data, <String, dynamic>{'name': 'ada'});
-    });
+        expect(adapter.requests, hasLength(2));
+        final RequestOptions replayedRequest = adapter.requests.last;
+        expect(replayedRequest.data, <String, dynamic>{'name': 'ada'});
+      },
+    );
 
     test('replaying a failing call is swallowed by the replayer', () async {
       JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
@@ -110,7 +114,9 @@ void main() {
         options,
       ) async {
         calls++;
-        return jsonResponseBody(<String, dynamic>{'error': 'boom'}, statusCode: 500);
+        return jsonResponseBody(<String, dynamic>{
+          'error': 'boom',
+        }, statusCode: 500);
       });
       final Dio dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'))
         ..httpClientAdapter = adapter;
@@ -123,15 +129,14 @@ void main() {
       await pump();
       expect(calls, 1);
 
-      final NetworkCallEntry original = JalaBinding.instance.store.entries
-          .single;
+      final NetworkCallEntry original =
+          JalaBinding.instance.store.entries.single;
       // Must not throw, even though the replayed call itself fails.
       await JalaBinding.instance.replayRegistry.replay(original);
       await pump();
 
       expect(calls, 2);
-      final List<NetworkCallEntry> entries = JalaBinding.instance.store
-          .entries;
+      final List<NetworkCallEntry> entries = JalaBinding.instance.store.entries;
       expect(entries, hasLength(2));
       expect(entries.first.status, JalaCallStatus.error);
       expect(entries.first.replayOf, original.id);

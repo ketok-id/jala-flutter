@@ -172,10 +172,14 @@ void main() {
 
   group('body term', () {
     final entry = makeEntry(
-      requestBody: CapturedBody.capture('{"token": "abc"}',
-          contentType: 'application/json'),
-      responseBody: CapturedBody.capture('{"result": "GRANTED"}',
-          contentType: 'application/json'),
+      requestBody: CapturedBody.capture(
+        '{"token": "abc"}',
+        contentType: 'application/json',
+      ),
+      responseBody: CapturedBody.capture(
+        '{"result": "GRANTED"}',
+        contentType: 'application/json',
+      ),
     );
 
     test('matches request body substring', () {
@@ -297,8 +301,11 @@ void main() {
         '((((',
         r'\\',
       ]) {
-        expect(() => JalaFilter.parse(q).matches(makeEntry()), returnsNormally,
-            reason: 'query "$q" must not throw');
+        expect(
+          () => JalaFilter.parse(q).matches(makeEntry()),
+          returnsNormally,
+          reason: 'query "$q" must not throw',
+        );
       }
     });
   });

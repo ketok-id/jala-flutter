@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:jala_core/jala_core.dart';
 import 'package:test/test.dart';
@@ -23,8 +24,10 @@ void main() {
           'content-type': 'application/json',
           'accept-encoding': 'gzip, deflate',
         },
-        requestBody: CapturedBody.capture('{"name":"ada"}',
-            contentType: 'application/json'),
+        requestBody: CapturedBody.capture(
+          '{"name":"ada"}',
+          contentType: 'application/json',
+        ),
       );
       expect(CurlExporter.export(entry), '''
 curl -X POST \\
@@ -38,29 +41,35 @@ curl -X POST \\
     test('single quotes in body are shell-escaped', () {
       final entry = makeEntry(
         method: 'POST',
-        requestBody: CapturedBody.capture("{\"name\":\"O'Brien\"}",
-            contentType: 'application/json'),
+        requestBody: CapturedBody.capture(
+          "{\"name\":\"O'Brien\"}",
+          contentType: 'application/json',
+        ),
       );
       final curl = CurlExporter.export(entry);
       // Expected shell text: -d '{"name":"O'\''Brien"}'
-      const expected = "-d '" '{"name":"O' r"'\''" 'Brien"}' "'";
+      const expected =
+          "-d '"
+          '{"name":"O'
+          r"'\''"
+          'Brien"}'
+          "'";
       expect(curl, contains(expected));
     });
 
     test('unicode passes through unmangled inside single quotes', () {
       final entry = makeEntry(
         method: 'POST',
-        requestBody:
-            CapturedBody.capture('{"city":"日本 – Ōsaka ✓"}',
-                contentType: 'application/json'),
+        requestBody: CapturedBody.capture(
+          '{"city":"日本 – Ōsaka ✓"}',
+          contentType: 'application/json',
+        ),
       );
       expect(CurlExporter.export(entry), contains('日本 – Ōsaka ✓'));
     });
 
     test('single quotes in header values are shell-escaped', () {
-      final entry = makeEntry(
-        requestHeaders: const {'x-note': "it's"},
-      );
+      final entry = makeEntry(requestHeaders: const {'x-note': "it's"});
       expect(CurlExporter.export(entry), contains(r"-H 'x-note: it'\''s'"));
     });
 
@@ -92,6 +101,26 @@ curl -X POST \\
       expect(curl, isNot(contains('authorization')));
       expect(curl, contains("-H 'accept: application/json'"));
     });
+
+    test(
+      'image request body exports a size/mime placeholder, never base64',
+      () {
+        final imageBytes = Uint8List.fromList(List<int>.generate(67, (i) => i));
+        final entry = makeEntry(
+          method: 'POST',
+          requestBody: CapturedBody.image(
+            imageBytes,
+            originalSize: 67,
+            truncated: false,
+            contentType: 'image/png',
+          ),
+        );
+        final curl = CurlExporter.export(entry);
+        expect(curl, isNot(contains('-d ')));
+        expect(curl, contains('# request body omitted: image/png, 67 bytes'));
+        expect(curl, isNot(contains(base64Encode(imageBytes))));
+      },
+    );
   });
 
   group('DartSnippetExporter', () {
@@ -100,8 +129,10 @@ curl -X POST \\
         method: 'POST',
         url: 'https://api.example.com/users',
         requestHeaders: const {'content-type': 'application/json'},
-        requestBody: CapturedBody.capture('{"name":"ada"}',
-            contentType: 'application/json'),
+        requestBody: CapturedBody.capture(
+          '{"name":"ada"}',
+          contentType: 'application/json',
+        ),
       );
       expect(DartSnippetExporter.export(entry), '''
 final dio = Dio();
@@ -134,25 +165,43 @@ print(response.data);''');
     test('non-JSON body is passed as a plain string', () {
       final entry = makeEntry(
         method: 'POST',
-        requestBody: CapturedBody.capture('a=1&b=2',
-            contentType: 'application/x-www-form-urlencoded'),
+        requestBody: CapturedBody.capture(
+          'a=1&b=2',
+          contentType: 'application/x-www-form-urlencoded',
+        ),
       );
-      expect(
-        DartSnippetExporter.export(entry),
-        contains("data: 'a=1&b=2',"),
-      );
+      expect(DartSnippetExporter.export(entry), contains("data: 'a=1&b=2',"));
     });
 
     test(r'escapes quotes, dollars, and newlines in Dart strings', () {
       final entry = makeEntry(
         method: 'POST',
         requestHeaders: const {'x-note': r"it's $var"},
-        requestBody:
-            CapturedBody.capture('line1\nline2', contentType: 'text/plain'),
+        requestBody: CapturedBody.capture(
+          'line1\nline2',
+          contentType: 'text/plain',
+        ),
       );
       final snippet = DartSnippetExporter.export(entry);
       expect(snippet, contains(r"'x-note': 'it\'s \$var',"));
       expect(snippet, contains(r"data: 'line1\nline2',"));
+    });
+
+    test('image request body exports a placeholder comment, never base64', () {
+      final imageBytes = Uint8List.fromList(List<int>.generate(67, (i) => i));
+      final entry = makeEntry(
+        method: 'POST',
+        requestBody: CapturedBody.image(
+          imageBytes,
+          originalSize: 67,
+          truncated: false,
+          contentType: 'image/png',
+        ),
+      );
+      final snippet = DartSnippetExporter.export(entry);
+      expect(snippet, isNot(contains('data:')));
+      expect(snippet, contains('// request body omitted: image/png, 67 bytes'));
+      expect(snippet, isNot(contains(base64Encode(imageBytes))));
     });
   });
 
@@ -161,7 +210,9 @@ print(response.data);''');
         (jsonDecode(har) as Map).cast<String, Object?>();
 
     test('session export has required HAR 1.2 log fields', () {
-      final har = decode(HarExporter.exportSession([makeEntry(), makeEntry(id: 'b')]));
+      final har = decode(
+        HarExporter.exportSession([makeEntry(), makeEntry(id: 'b')]),
+      );
       final log = (har['log'] as Map).cast<String, Object?>();
 
       expect(log['version'], '1.2');
@@ -177,21 +228,25 @@ print(response.data);''');
         url: 'https://api.example.com/users?page=2&sort=asc',
         startTime: DateTime.utc(2026, 7, 15, 10, 30),
         requestHeaders: const {'content-type': 'application/json'},
-        requestBody: CapturedBody.capture('{"a":1}',
-            contentType: 'application/json'),
+        requestBody: CapturedBody.capture(
+          '{"a":1}',
+          contentType: 'application/json',
+        ),
         statusCode: 201,
         statusMessage: 'Created',
         responseHeaders: const {'content-type': 'application/json'},
-        responseBody: CapturedBody.capture('{"id":9}',
-            contentType: 'application/json'),
+        responseBody: CapturedBody.capture(
+          '{"id":9}',
+          contentType: 'application/json',
+        ),
         duration: const Duration(milliseconds: 345),
         requestSize: 7,
         responseSize: 8,
       );
       final har = decode(HarExporter.exportCall(entry));
       final log = (har['log'] as Map).cast<String, Object?>();
-      final harEntry =
-          ((log['entries'] as List).single as Map).cast<String, Object?>();
+      final harEntry = ((log['entries'] as List).single as Map)
+          .cast<String, Object?>();
 
       expect(harEntry['startedDateTime'], '2026-07-15T10:30:00.000Z');
       expect(harEntry['time'], 345);
@@ -248,8 +303,8 @@ print(response.data);''');
       );
       final har = decode(HarExporter.exportCall(pending));
       final log = (har['log'] as Map).cast<String, Object?>();
-      final harEntry =
-          ((log['entries'] as List).single as Map).cast<String, Object?>();
+      final harEntry = ((log['entries'] as List).single as Map)
+          .cast<String, Object?>();
       expect(harEntry['time'], 0);
       final response = (harEntry['response'] as Map).cast<String, Object?>();
       expect(response['status'], 0);
@@ -263,8 +318,8 @@ print(response.data);''');
       );
       final har = decode(HarExporter.exportCall(entry));
       final log = (har['log'] as Map).cast<String, Object?>();
-      final harEntry =
-          ((log['entries'] as List).single as Map).cast<String, Object?>();
+      final harEntry = ((log['entries'] as List).single as Map)
+          .cast<String, Object?>();
       final response = (harEntry['response'] as Map).cast<String, Object?>();
       expect(response['redirectURL'], 'https://x.dev/next');
     });
@@ -273,6 +328,41 @@ print(response.data);''');
       final har = HarExporter.exportSession([makeEntry()]);
       expect(har, contains('\n'));
       expect(() => jsonDecode(har), returnsNormally);
+    });
+
+    test('image body exports a size/mime placeholder text, never base64', () {
+      final imageBytes = Uint8List.fromList(List<int>.generate(67, (i) => i));
+      final imageBody = CapturedBody.image(
+        imageBytes,
+        originalSize: 67,
+        truncated: false,
+        contentType: 'image/png',
+      );
+      final entry = makeEntry(
+        method: 'POST',
+        requestBody: imageBody,
+        responseBody: imageBody,
+      );
+      final har = HarExporter.exportCall(entry);
+      expect(() => jsonDecode(har), returnsNormally);
+      expect(har, isNot(contains(base64Encode(imageBytes))));
+
+      final decoded = decode(har);
+      final log = (decoded['log'] as Map).cast<String, Object?>();
+      final harEntry = ((log['entries'] as List).single as Map)
+          .cast<String, Object?>();
+
+      final request = (harEntry['request'] as Map).cast<String, Object?>();
+      final postData = (request['postData'] as Map).cast<String, Object?>();
+      expect(postData['mimeType'], 'image/png');
+      expect(postData['text'], contains('image/png'));
+      expect(postData['text'], contains('67'));
+
+      final response = (harEntry['response'] as Map).cast<String, Object?>();
+      final content = (response['content'] as Map).cast<String, Object?>();
+      expect(content['mimeType'], 'image/png');
+      expect(content['text'], contains('image/png'));
+      expect(content['text'], contains('67'));
     });
   });
 }

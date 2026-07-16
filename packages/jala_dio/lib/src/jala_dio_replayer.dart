@@ -45,9 +45,7 @@ class JalaDioReplayer implements JalaReplayer {
       path: entry.uri.toString(),
       headers: headers,
       data: _rebuildData(entry.requestBody),
-      extra: <String, dynamic>{
-        JalaDioInterceptor.replayOfExtraKey: entry.id,
-      },
+      extra: <String, dynamic>{JalaDioInterceptor.replayOfExtraKey: entry.id},
     );
   }
 
@@ -59,6 +57,11 @@ class JalaDioReplayer implements JalaReplayer {
       case BodyKind.text:
       case BodyKind.truncated:
         return body.text;
+      case BodyKind.image:
+        // The raw bytes were retained specifically for preview/replay;
+        // Dio sends a `Uint8List` body as-is (see `DioMixin._transformData`),
+        // so no re-encoding is needed here.
+        return body.bytes;
       case BodyKind.bytes:
       case BodyKind.stream:
       case BodyKind.none:

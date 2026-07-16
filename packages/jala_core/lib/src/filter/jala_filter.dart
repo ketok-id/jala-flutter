@@ -117,13 +117,10 @@ class JalaFilter {
           e.status == JalaCallStatus.error ||
           e.status == JalaCallStatus.cancelled;
     }
-    final RegExpMatch? classMatch = RegExp(
-      r'^([1-5])xx$',
-    ).firstMatch(v);
+    final RegExpMatch? classMatch = RegExp(r'^([1-5])xx$').firstMatch(v);
     if (classMatch != null) {
       final int hundreds = int.parse(classMatch.group(1)!);
-      return (e) =>
-          e.statusCode != null && e.statusCode! ~/ 100 == hundreds;
+      return (e) => e.statusCode != null && e.statusCode! ~/ 100 == hundreds;
     }
     final int? exact = int.tryParse(v);
     if (exact != null) {
@@ -136,10 +133,7 @@ class JalaFilter {
   static _Predicate _host(String value) {
     final String v = value.toLowerCase();
     if (v.contains('*')) {
-      final String pattern = v
-          .split('*')
-          .map(RegExp.escape)
-          .join('.*');
+      final String pattern = v.split('*').map(RegExp.escape).join('.*');
       final RegExp regex = RegExp('^$pattern\$');
       return (e) => regex.hasMatch(e.uri.host.toLowerCase());
     }
@@ -187,8 +181,7 @@ class JalaFilter {
 
   static _Predicate _freeText(String term) {
     final String v = term.toLowerCase();
-    return (e) =>
-        '${e.method} ${e.uri}'.toLowerCase().contains(v);
+    return (e) => '${e.method} ${e.uri}'.toLowerCase().contains(v);
   }
 
   static String? _responseContentType(NetworkCallEntry e) {

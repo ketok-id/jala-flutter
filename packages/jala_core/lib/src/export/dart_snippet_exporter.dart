@@ -24,12 +24,21 @@ class DartSnippetExporter {
     }
     buffer.writeln('  ),');
 
-    final String? body = entry.requestBody.text;
-    if (body != null && body.isNotEmpty) {
-      if (entry.requestBody.kind == BodyKind.json) {
-        buffer.writeln('  data: jsonDecode(${_string(body)}),');
-      } else {
-        buffer.writeln('  data: ${_string(body)},');
+    // SPEC-NOTE: image bodies are never inlined as a Dart string literal
+    // (that would mean base64-encoding raw bytes into the snippet); emit a
+    // size/mime placeholder comment instead.
+    if (entry.requestBody.kind == BodyKind.image) {
+      buffer.writeln(
+        '  // request body omitted: ${_imagePlaceholder(entry.requestBody)}',
+      );
+    } else {
+      final String? body = entry.requestBody.text;
+      if (body != null && body.isNotEmpty) {
+        if (entry.requestBody.kind == BodyKind.json) {
+          buffer.writeln('  data: jsonDecode(${_string(body)}),');
+        } else {
+          buffer.writeln('  data: ${_string(body)},');
+        }
       }
     }
     buffer
@@ -37,6 +46,9 @@ class DartSnippetExporter {
       ..write('print(response.data);');
     return buffer.toString();
   }
+
+  static String _imagePlaceholder(CapturedBody body) =>
+      '${body.contentType ?? 'image'}, ${body.originalSize ?? '?'} bytes';
 
   /// Renders [value] as a single-quoted Dart string literal, escaping
   /// backslashes, quotes, `$` (to prevent interpolation), and control

@@ -19,8 +19,11 @@ void main() {
 
       expect(redacted, hasLength(headers.length));
       for (final entry in redacted.entries) {
-        expect(entry.value, JalaRedactor.mask,
-            reason: '${entry.key} must be masked');
+        expect(
+          entry.value,
+          JalaRedactor.mask,
+          reason: '${entry.key} must be masked',
+        );
       }
     });
 
@@ -31,8 +34,10 @@ void main() {
       });
       expect(redacted['Content-Type'], 'application/json');
       expect(redacted['Authorization'], JalaRedactor.mask);
-      expect(redacted.keys, ['Content-Type', 'Authorization'],
-          reason: 'name casing and order preserved');
+      expect(redacted.keys, [
+        'Content-Type',
+        'Authorization',
+      ], reason: 'name casing and order preserved');
     });
 
     test('custom redacted header set replaces the defaults', () {

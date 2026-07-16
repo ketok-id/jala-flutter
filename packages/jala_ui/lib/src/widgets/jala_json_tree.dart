@@ -129,7 +129,8 @@ class JalaJsonNode extends StatelessWidget {
 
     final List<MapEntry<String, dynamic>> children = _childEntries(value);
     final bool expanded =
-        expandedPaths.contains(path) || (query.isNotEmpty && children.isNotEmpty);
+        expandedPaths.contains(path) ||
+        (query.isNotEmpty && children.isNotEmpty);
     final String typeLabel = value is Map
         ? '{${children.length}}'
         : '[${children.length}]';
@@ -229,15 +230,12 @@ class _JalaJsonLeafState extends State<_JalaJsonLeaf> {
     final String shown = isLongString && !_expanded
         ? '${display.substring(0, _collapseThreshold)}…'
         : display;
-    final TextStyle baseStyle =
-        DefaultTextStyle.of(
-          context,
-        ).style.copyWith(fontFamily: 'monospace', fontSize: 13);
+    final TextStyle baseStyle = DefaultTextStyle.of(
+      context,
+    ).style.copyWith(fontFamily: 'monospace', fontSize: 13);
 
     return InkWell(
-      onTap: isLongString
-          ? () => setState(() => _expanded = !_expanded)
-          : null,
+      onTap: isLongString ? () => setState(() => _expanded = !_expanded) : null,
       child: Padding(
         padding: EdgeInsets.only(
           left: 8.0 * widget.depth + 26,

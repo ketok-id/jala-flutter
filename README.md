@@ -54,6 +54,10 @@ void main() {
 
 Tap the floating bubble (or call `Jala.open()`) to inspect traffic.
 
+Using `package:http` instead of Dio? Install
+[`jala_http`](packages/jala_http) (`jala_http: ^0.2.0`) and call
+`JalaHttp.wrap(http.Client())` in place of `JalaDio.attach(dio)` above.
+
 ## Screenshots
 
 <p align="center">
@@ -87,6 +91,7 @@ Only claims verified against each package's actual behavior:
 | Redaction on by default | Yes | Partial | Yes | No |
 | True no-op when disabled | Yes | Partial | Yes | N/A |
 | Desktop + web support | Yes | No (mobile-only) | No (Android-only) | Yes |
+| `package:http` client support | Yes | Yes | Yes | Yes |
 | What it is | Network inspector | Network inspector | Network inspector | General-purpose logger |
 
 talker is a structured logging/error-tracking library, not a network

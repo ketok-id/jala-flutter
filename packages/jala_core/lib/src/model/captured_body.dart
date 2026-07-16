@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 /// The shape of data held by a [CapturedBody].
 enum BodyKind {
@@ -21,6 +22,10 @@ enum BodyKind {
   /// A streaming body (e.g. `ResponseType.stream`); only metadata is kept,
   /// the stream itself is never consumed by Jala.
   stream,
+
+  /// An `image/*` body that fit entirely within the capture cap —
+  /// [CapturedBody.bytes] holds the raw image data for inline preview.
+  image,
 }
 
 /// An immutable, size-capped capture of a request or response body.
@@ -37,7 +42,31 @@ class CapturedBody {
     required this.originalSize,
     required this.truncated,
     required this.contentType,
+    this.bytes,
   });
+
+  /// Wraps [bytes] as a [BodyKind.image] capture.
+  ///
+  /// This is a non-const factory (unlike the other capture paths) because
+  /// `Uint8List` values are never compile-time constants. Callers normally
+  /// reach this via [captureBytes], which applies the cap/content-type
+  /// eligibility checks; use this constructor directly only when those
+  /// checks have already been done.
+  factory CapturedBody.image(
+    Uint8List bytes, {
+    required int originalSize,
+    required bool truncated,
+    String? contentType,
+  }) {
+    return CapturedBody._(
+      kind: BodyKind.image,
+      text: null,
+      originalSize: originalSize,
+      truncated: truncated,
+      contentType: contentType,
+      bytes: bytes,
+    );
+  }
 
   /// Captures [data] into a [CapturedBody], honoring [maxBytes].
   ///
@@ -124,6 +153,44 @@ class CapturedBody {
     );
   }
 
+  /// Central capture decision for raw binary bodies (e.g. a Dio
+  /// `ResponseType.bytes` response, or a buffered `http` byte response).
+  ///
+  /// Returns a [BodyKind.image] capture — retaining the raw bytes for
+  /// inline preview — only when all of the following hold:
+  /// - [contentType] starts with `image/` (case-insensitive);
+  /// - [captureImages] is `true` (wired from
+  ///   `JalaConfig.captureImageBodies`);
+  /// - `bytes.length <= maxBytes`.
+  ///
+  /// Otherwise it falls back to the existing metadata-only
+  /// [BodyKind.bytes] behavior: [originalSize] is recorded but the payload
+  /// itself is never retained.
+  static CapturedBody captureBytes(
+    List<int> bytes, {
+    String? contentType,
+    required int maxBytes,
+    required bool captureImages,
+  }) {
+    final bool isImage =
+        contentType != null && contentType.toLowerCase().startsWith('image/');
+    if (isImage && captureImages && bytes.length <= maxBytes) {
+      return CapturedBody.image(
+        bytes is Uint8List ? bytes : Uint8List.fromList(bytes),
+        originalSize: bytes.length,
+        truncated: false,
+        contentType: contentType,
+      );
+    }
+    return CapturedBody._(
+      kind: BodyKind.bytes,
+      text: null,
+      originalSize: bytes.length,
+      truncated: false,
+      contentType: contentType,
+    );
+  }
+
   /// A shared, allocation-free instance for absent bodies.
   static const CapturedBody none = CapturedBody._(
     kind: BodyKind.none,
@@ -152,6 +219,10 @@ class CapturedBody {
 
   /// The content-type reported alongside the body, if any.
   final String? contentType;
+
+  /// Raw image bytes, present only when [kind] is [BodyKind.image]; null
+  /// for every other kind.
+  final Uint8List? bytes;
 
   static bool _isTexty(String? contentType) {
     if (contentType == null) return false;
@@ -221,6 +292,11 @@ class CapturedBody {
     );
   }
 
+  // SPEC-NOTE: `bytes` is intentionally excluded from equality/hashCode —
+  // comparing raw image payloads byte-for-byte would make this an O(n)
+  // operation on every store/filter comparison. Two `BodyKind.image`
+  // captures are considered equal when their kind/size/truncated/
+  // contentType agree, same as any other kind.
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||

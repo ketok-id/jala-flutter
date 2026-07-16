@@ -1,0 +1,79 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
+
+/// A minimal fake `http.Client` that resolves every request through a
+/// caller-supplied [handler], so tests never touch real network I/O.
+///
+/// Every [http.BaseRequest] passed to [handler] is also appended to
+/// [requests], so tests can assert on exactly what was sent over the wire
+/// (e.g. that a redacted header was never resent on replay).
+class FakeHttpClient extends http.BaseClient {
+  FakeHttpClient(this.handler);
+
+  /// Produces the [http.StreamedResponse] for a given request, or throws
+  /// to simulate a transport-level failure.
+  final FutureOr<http.StreamedResponse> Function(http.BaseRequest request)
+  handler;
+
+  /// Every [http.BaseRequest] this client has been asked to send, in
+  /// order.
+  final List<http.BaseRequest> requests = <http.BaseRequest>[];
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    requests.add(request);
+    return handler(request);
+  }
+
+  @override
+  void close() {}
+}
+
+/// Builds a [http.StreamedResponse] whose body streams [chunks] one chunk
+/// at a time, optionally with a delay between chunks — used to exercise
+/// the response stream tee with a slow/chunked source.
+http.StreamedResponse chunkedStreamedResponse(
+  List<List<int>> chunks, {
+  int statusCode = 200,
+  String? reasonPhrase,
+  Map<String, String>? headers,
+  Duration? delayBetweenChunks,
+  http.BaseRequest? request,
+}) {
+  Stream<List<int>> bodyStream() async* {
+    for (final List<int> chunk in chunks) {
+      if (delayBetweenChunks != null) {
+        await Future<void>.delayed(delayBetweenChunks);
+      }
+      yield chunk;
+    }
+  }
+
+  return http.StreamedResponse(
+    bodyStream(),
+    statusCode,
+    reasonPhrase: reasonPhrase,
+    headers: headers ?? const <String, String>{},
+    request: request,
+  );
+}
+
+/// Builds a JSON-encoded [http.StreamedResponse] for [data].
+http.StreamedResponse jsonStreamedResponse(
+  Object? data, {
+  int statusCode = 200,
+  String? reasonPhrase,
+  Map<String, String>? headers,
+  http.BaseRequest? request,
+}) {
+  final List<int> bytes = utf8.encode(jsonEncode(data));
+  return chunkedStreamedResponse(
+    <List<int>>[bytes],
+    statusCode: statusCode,
+    reasonPhrase: reasonPhrase,
+    headers: <String, String>{'content-type': 'application/json', ...?headers},
+    request: request,
+  );
+}

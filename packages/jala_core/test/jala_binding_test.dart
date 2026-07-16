@@ -51,17 +51,19 @@ void main() {
       expect(binding.isEnabled, isTrue);
     });
 
-    test('events emitted on the binding bus land in the binding store',
-        () async {
-      final binding = JalaBinding.instance
-        ..initialize(config: JalaConfig(enabled: true));
+    test(
+      'events emitted on the binding bus land in the binding store',
+      () async {
+        final binding = JalaBinding.instance
+          ..initialize(config: JalaConfig(enabled: true));
 
-      emitRequest(binding.bus, 'a');
-      emitResponse(binding.bus, 'a', statusCode: 204);
-      await pump();
+        emitRequest(binding.bus, 'a');
+        emitResponse(binding.bus, 'a', statusCode: 204);
+        await pump();
 
-      expect(binding.store.byId('a')!.statusCode, 204);
-    });
+        expect(binding.store.byId('a')!.statusCode, 204);
+      },
+    );
 
     test('bus drops events while config is disabled', () async {
       final binding = JalaBinding.instance
@@ -92,17 +94,19 @@ void main() {
       expect(await registry.replay(makeEntry()), isFalse);
     });
 
-    test('registered replayer receives the entry, replay returns true',
-        () async {
-      final registry = JalaReplayRegistry();
-      final replayer = _RecordingReplayer();
-      registry.register(replayer);
+    test(
+      'registered replayer receives the entry, replay returns true',
+      () async {
+        final registry = JalaReplayRegistry();
+        final replayer = _RecordingReplayer();
+        registry.register(replayer);
 
-      final entry = makeEntry(id: 'orig');
-      expect(registry.hasReplayer, isTrue);
-      expect(await registry.replay(entry), isTrue);
-      expect(replayer.replayed.map((e) => e.id), ['orig']);
-    });
+        final entry = makeEntry(id: 'orig');
+        expect(registry.hasReplayer, isTrue);
+        expect(await registry.replay(entry), isTrue);
+        expect(replayer.replayed.map((e) => e.id), ['orig']);
+      },
+    );
 
     test('last registered replayer wins', () async {
       final registry = JalaReplayRegistry();

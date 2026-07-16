@@ -7,6 +7,7 @@ environment:
 workspace:
   - packages/jala_core
   - packages/jala_dio
+  - packages/jala_http
   - packages/jala_ui
   - packages/jala
   - packages/jala/example

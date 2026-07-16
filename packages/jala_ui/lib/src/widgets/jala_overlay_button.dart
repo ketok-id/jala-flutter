@@ -85,12 +85,14 @@ class _JalaOverlayButtonState extends State<JalaOverlayButton>
 
   void _onDragEnd(Size bounds) {
     final Offset current = _currentPosition(bounds);
-    final bool snapToLeft = (current.dx + widget.diameter / 2) < bounds.width / 2;
+    final bool snapToLeft =
+        (current.dx + widget.diameter / 2) < bounds.width / 2;
     final double targetX = snapToLeft ? 0.0 : bounds.width - widget.diameter;
     final Offset target = Offset(targetX, current.dy);
-    _snapAnimation = Tween<Offset>(begin: current, end: target).animate(
-      CurvedAnimation(parent: _snapController, curve: Curves.easeOut),
-    );
+    _snapAnimation = Tween<Offset>(
+      begin: current,
+      end: target,
+    ).animate(CurvedAnimation(parent: _snapController, curve: Curves.easeOut));
     unawaited(_snapController.forward(from: 0));
   }
 
@@ -108,9 +110,7 @@ class _JalaOverlayButtonState extends State<JalaOverlayButton>
         onPanUpdate: (DragUpdateDetails details) =>
             _onDragUpdate(details, bounds),
         onPanEnd: (DragEndDetails _) => _onDragEnd(bounds),
-        child: JalaThemedPage(
-          child: _JalaBubble(diameter: widget.diameter),
-        ),
+        child: JalaThemedPage(child: _JalaBubble(diameter: widget.diameter)),
       ),
     );
   }
@@ -123,71 +123,82 @@ class _JalaBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Stream<List<NetworkCallEntry>> watch = JalaBinding.instance.isInitialized
+    final Stream<List<NetworkCallEntry>> watch =
+        JalaBinding.instance.isInitialized
         ? JalaBinding.instance.store.watch
         : const Stream<List<NetworkCallEntry>>.empty();
     return StreamBuilder<List<NetworkCallEntry>>(
       stream: watch,
       initialData: const <NetworkCallEntry>[],
-      builder: (BuildContext context, AsyncSnapshot<List<NetworkCallEntry>> snapshot) {
-        final List<NetworkCallEntry> entries =
-            snapshot.data ?? const <NetworkCallEntry>[];
-        final int pending = entries
-            .where((NetworkCallEntry e) => e.status == JalaCallStatus.pending)
-            .length;
-        final int errors = entries
-            .where(
-              (NetworkCallEntry e) =>
-                  e.status == JalaCallStatus.error ||
-                  (e.statusCode != null && e.statusCode! >= 500),
-            )
-            .length;
-        final ColorScheme scheme = Theme.of(context).colorScheme;
-        return SizedBox(
-          width: diameter + 12,
-          height: diameter + 12,
-          child: Stack(
-            clipBehavior: Clip.none,
-            textDirection: TextDirection.ltr,
-            children: <Widget>[
-              Positioned(
-                left: 6,
-                top: 6,
-                child: Material(
-                  color: scheme.primary,
-                  shape: const CircleBorder(),
-                  elevation: 4,
-                  child: SizedBox(
-                    width: diameter,
-                    height: diameter,
-                    child: Center(
-                      child: Text(
-                        'J',
-                        style: TextStyle(
-                          color: scheme.onPrimary,
-                          fontWeight: FontWeight.bold,
-                          fontSize: diameter * 0.4,
+      builder:
+          (
+            BuildContext context,
+            AsyncSnapshot<List<NetworkCallEntry>> snapshot,
+          ) {
+            final List<NetworkCallEntry> entries =
+                snapshot.data ?? const <NetworkCallEntry>[];
+            final int pending = entries
+                .where(
+                  (NetworkCallEntry e) => e.status == JalaCallStatus.pending,
+                )
+                .length;
+            final int errors = entries
+                .where(
+                  (NetworkCallEntry e) =>
+                      e.status == JalaCallStatus.error ||
+                      (e.statusCode != null && e.statusCode! >= 500),
+                )
+                .length;
+            final ColorScheme scheme = Theme.of(context).colorScheme;
+            return SizedBox(
+              width: diameter + 12,
+              height: diameter + 12,
+              child: Stack(
+                clipBehavior: Clip.none,
+                textDirection: TextDirection.ltr,
+                children: <Widget>[
+                  Positioned(
+                    left: 6,
+                    top: 6,
+                    child: Material(
+                      color: scheme.primary,
+                      shape: const CircleBorder(),
+                      elevation: 4,
+                      child: SizedBox(
+                        width: diameter,
+                        height: diameter,
+                        child: Center(
+                          child: Text(
+                            'J',
+                            style: TextStyle(
+                              color: scheme.onPrimary,
+                              fontWeight: FontWeight.bold,
+                              fontSize: diameter * 0.4,
+                            ),
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
+                  if (errors > 0)
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      child: _CountBadge(
+                        count: errors,
+                        color: JalaTheme.serverErrorColor,
+                      ),
+                    )
+                  else if (pending > 0)
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      child: _PendingBadge(count: pending),
+                    ),
+                ],
               ),
-              if (errors > 0)
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  child: _CountBadge(
-                    count: errors,
-                    color: JalaTheme.serverErrorColor,
-                  ),
-                )
-              else if (pending > 0)
-                Positioned(right: 0, top: 0, child: _PendingBadge(count: pending)),
-            ],
-          ),
-        );
-      },
+            );
+          },
     );
   }
 }

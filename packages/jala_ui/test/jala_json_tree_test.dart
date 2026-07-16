@@ -58,10 +58,7 @@ void main() {
       const MaterialApp(
         home: Scaffold(
           body: JalaJsonTree(
-            data: <String, dynamic>{
-              'alpha': 'keep me',
-              'beta': 'drop me',
-            },
+            data: <String, dynamic>{'alpha': 'keep me', 'beta': 'drop me'},
           ),
         ),
       ),

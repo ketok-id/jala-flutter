@@ -13,9 +13,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Stack(
-          children: <Widget>[
-            JalaOverlayButton(onTap: () => tapped = true),
-          ],
+          children: <Widget>[JalaOverlayButton(onTap: () => tapped = true)],
         ),
       ),
     );

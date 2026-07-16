@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:jala_core/jala_core.dart';
 import 'package:test/test.dart';
@@ -19,7 +20,10 @@ void main() {
     });
 
     test('plain string -> text', () {
-      final body = CapturedBody.capture('hello world', contentType: 'text/plain');
+      final body = CapturedBody.capture(
+        'hello world',
+        contentType: 'text/plain',
+      );
       expect(body.kind, BodyKind.text);
       expect(body.text, 'hello world');
       expect(body.originalSize, utf8.encode('hello world').length);
@@ -146,6 +150,102 @@ void main() {
         CapturedBody.capture('x', contentType: 'text/plain'),
         CapturedBody.capture('x', contentType: 'text/plain'),
       );
+    });
+  });
+
+  group('CapturedBody.image', () {
+    test('wraps bytes as BodyKind.image', () {
+      final bytes = Uint8List.fromList(List<int>.generate(10, (i) => i));
+      final body = CapturedBody.image(
+        bytes,
+        originalSize: 10,
+        truncated: false,
+        contentType: 'image/png',
+      );
+      expect(body.kind, BodyKind.image);
+      expect(body.bytes, same(bytes));
+      expect(body.originalSize, 10);
+      expect(body.truncated, isFalse);
+      expect(body.contentType, 'image/png');
+      expect(body.text, isNull);
+    });
+  });
+
+  group('CapturedBody.captureBytes', () {
+    test('image within cap is kept as BodyKind.image', () {
+      final bytes = List<int>.generate(67, (i) => i % 256);
+      final body = CapturedBody.captureBytes(
+        bytes,
+        contentType: 'image/png',
+        maxBytes: 1024,
+        captureImages: true,
+      );
+      expect(body.kind, BodyKind.image);
+      expect(body.bytes, isNotNull);
+      expect(body.bytes, bytes);
+      expect(body.originalSize, 67);
+      expect(body.contentType, 'image/png');
+    });
+
+    test('image over the cap falls back to metadata-only bytes', () {
+      final bytes = List<int>.generate(200, (i) => i % 256);
+      final body = CapturedBody.captureBytes(
+        bytes,
+        contentType: 'image/png',
+        maxBytes: 100,
+        captureImages: true,
+      );
+      expect(body.kind, BodyKind.bytes);
+      expect(body.bytes, isNull);
+      expect(body.originalSize, 200);
+    });
+
+    test('captureImages: false keeps images metadata-only', () {
+      final bytes = List<int>.generate(20, (i) => i);
+      final body = CapturedBody.captureBytes(
+        bytes,
+        contentType: 'image/jpeg',
+        maxBytes: 1024,
+        captureImages: false,
+      );
+      expect(body.kind, BodyKind.bytes);
+      expect(body.bytes, isNull);
+      expect(body.originalSize, 20);
+    });
+
+    test('non-image bytes are unaffected (still metadata-only)', () {
+      final bytes = List<int>.generate(20, (i) => i);
+      final body = CapturedBody.captureBytes(
+        bytes,
+        contentType: 'application/octet-stream',
+        maxBytes: 1024,
+        captureImages: true,
+      );
+      expect(body.kind, BodyKind.bytes);
+      expect(body.bytes, isNull);
+      expect(body.originalSize, 20);
+    });
+
+    test('null content type never becomes an image capture', () {
+      final bytes = List<int>.generate(10, (i) => i);
+      final body = CapturedBody.captureBytes(
+        bytes,
+        maxBytes: 1024,
+        captureImages: true,
+      );
+      expect(body.kind, BodyKind.bytes);
+      expect(body.bytes, isNull);
+    });
+
+    test('bytes at exactly maxBytes are still captured as image', () {
+      final bytes = List<int>.generate(50, (i) => i);
+      final body = CapturedBody.captureBytes(
+        bytes,
+        contentType: 'image/gif',
+        maxBytes: 50,
+        captureImages: true,
+      );
+      expect(body.kind, BodyKind.image);
     });
   });
 }

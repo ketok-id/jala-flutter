@@ -30,6 +30,10 @@ jobs:
         run: dart test
         working-directory: packages/jala_dio
 
+      - name: Test jala_http
+        run: dart test
+        working-directory: packages/jala_http
+
       - name: Test jala_ui
         run: flutter test
         working-directory: packages/jala_ui

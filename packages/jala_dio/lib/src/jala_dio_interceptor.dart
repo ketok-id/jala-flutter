@@ -39,10 +39,7 @@ class JalaDioInterceptor extends Interceptor {
   static const String replayOfExtraKey = 'jala_replay_of';
 
   @override
-  void onRequest(
-    RequestOptions options,
-    RequestInterceptorHandler handler,
-  ) {
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     if (!JalaBinding.instance.isEnabled) {
       handler.next(options);
       return;
@@ -73,10 +70,7 @@ class JalaDioInterceptor extends Interceptor {
   }
 
   @override
-  void onError(
-    DioException err,
-    ErrorInterceptorHandler handler,
-  ) {
+  void onError(DioException err, ErrorInterceptorHandler handler) {
     if (!JalaBinding.instance.isEnabled) {
       handler.next(err);
       return;
@@ -99,8 +93,9 @@ class JalaDioInterceptor extends Interceptor {
       for (final MapEntry<String, dynamic> entry in options.headers.entries)
         entry.key: '${entry.value}',
     };
-    final Map<String, String> headers = binding.config.redactor
-        .redactHeaders(rawHeaders);
+    final Map<String, String> headers = binding.config.redactor.redactHeaders(
+      rawHeaders,
+    );
 
     final _BodyCapture capture = _captureRequestBody(
       options.data,
@@ -192,10 +187,7 @@ class JalaDioInterceptor extends Interceptor {
       body = _captureResponseBody(
         response.data,
         responseType: options.responseType,
-        contentType: _headerValue(
-          response.headers,
-          Headers.contentTypeHeader,
-        ),
+        contentType: _headerValue(response.headers, Headers.contentTypeHeader),
         maxBytes: binding.config.maxBodyBytes,
         redactor: binding.config.redactor,
       ).body;
@@ -256,6 +248,24 @@ class JalaDioInterceptor extends Interceptor {
       return _BodyCapture(body, null);
     }
     if (responseType == ResponseType.bytes) {
+      // SPEC-NOTE: unlike the metadata-only default below, image bytes
+      // within cap are retained (as `BodyKind.image`) when
+      // `JalaConfig.captureImageBodies` is enabled — see B2 in
+      // docs/plans/track-b-v0.2.md. Every other content-type keeps the
+      // original behavior: metadata only, regardless of what the header
+      // reports. `data` is only ever something other than `List<int>` for
+      // a malformed/manually-built response, which the original code also
+      // didn't special-case — fall back to the pre-image-preview capture
+      // path so that stays true.
+      if (data is List<int>) {
+        final CapturedBody body = CapturedBody.captureBytes(
+          data,
+          contentType: contentType,
+          maxBytes: maxBytes,
+          captureImages: JalaBinding.instance.config.captureImageBodies,
+        );
+        return _BodyCapture(body, body.originalSize);
+      }
       final CapturedBody body = CapturedBody.capture(data, maxBytes: maxBytes);
       return _BodyCapture(body, body.originalSize);
     }
@@ -281,7 +291,9 @@ class JalaDioInterceptor extends Interceptor {
     // fields cannot be set independently post-capture — only produced via
     // `CapturedBody.capture`). Non-string bodies (Map/List/bytes) are
     // captured as-is; only header redaction applies to them.
-    final dynamic redactable = data is String ? redactor.redactBody(data) : data;
+    final dynamic redactable = data is String
+        ? redactor.redactBody(data)
+        : data;
     return CapturedBody.capture(
       redactable,
       contentType: contentType,

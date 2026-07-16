@@ -1,3 +1,4 @@
+import '../model/captured_body.dart';
 import '../model/network_call_entry.dart';
 import '../redact/jala_redactor.dart';
 
@@ -41,13 +42,26 @@ class CurlExporter {
       lines.add('--compressed');
     }
 
-    final String? body = entry.requestBody.text;
-    if (body != null && body.isNotEmpty) {
-      lines.add('-d ${_quote(body)}');
+    // SPEC-NOTE: image bodies are never inlined as `-d` (that would mean
+    // base64-encoding raw bytes into the command); emit a size/mime
+    // placeholder comment instead so the exported command stays runnable
+    // and text-safe.
+    if (entry.requestBody.kind == BodyKind.image) {
+      lines.add(
+        '# request body omitted: ${_imagePlaceholder(entry.requestBody)}',
+      );
+    } else {
+      final String? body = entry.requestBody.text;
+      if (body != null && body.isNotEmpty) {
+        lines.add('-d ${_quote(body)}');
+      }
     }
 
     return lines.join(' \\\n  ');
   }
+
+  static String _imagePlaceholder(CapturedBody body) =>
+      '${body.contentType ?? 'image'}, ${body.originalSize ?? '?'} bytes';
 
   static String _quote(String value) => "'${value.replaceAll("'", r"'\''")}'";
 }

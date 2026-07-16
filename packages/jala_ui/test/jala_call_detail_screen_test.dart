@@ -24,10 +24,7 @@ void main() {
     );
     await flush();
 
-    await pumpJalaApp(
-      tester,
-      const JalaCallDetailScreen(entryId: 'call-1'),
-    );
+    await pumpJalaApp(tester, const JalaCallDetailScreen(entryId: 'call-1'));
     await pumpJalaSettle(tester);
 
     await tester.tap(find.text('Request'));
@@ -47,22 +44,16 @@ void main() {
       responseHeaders: const <String, String>{
         'content-type': 'application/json',
       },
-      responseBody: CapturedBody.capture(
-        <String, dynamic>{
-          'user': <String, dynamic>{
-            'name': 'Ada',
-            'roles': <String>['admin', 'dev'],
-          },
+      responseBody: CapturedBody.capture(<String, dynamic>{
+        'user': <String, dynamic>{
+          'name': 'Ada',
+          'roles': <String>['admin', 'dev'],
         },
-        contentType: 'application/json',
-      ),
+      }, contentType: 'application/json'),
     );
     await flush();
 
-    await pumpJalaApp(
-      tester,
-      const JalaCallDetailScreen(entryId: 'call-2'),
-    );
+    await pumpJalaApp(tester, const JalaCallDetailScreen(entryId: 'call-2'));
     await pumpJalaSettle(tester);
 
     await tester.tap(find.text('Response'));
@@ -103,10 +94,7 @@ void main() {
       ),
     );
 
-    await pumpJalaApp(
-      tester,
-      const JalaCallDetailScreen(entryId: 'call-3'),
-    );
+    await pumpJalaApp(tester, const JalaCallDetailScreen(entryId: 'call-3'));
     await pumpJalaSettle(tester);
 
     await tester.tap(find.widgetWithText(TextButton, 'cURL'));
@@ -121,10 +109,7 @@ void main() {
   ) async {
     initJalaBinding();
 
-    await pumpJalaApp(
-      tester,
-      const JalaCallDetailScreen(entryId: 'missing'),
-    );
+    await pumpJalaApp(tester, const JalaCallDetailScreen(entryId: 'missing'));
     await pumpJalaSettle(tester);
 
     expect(find.text('This call is no longer available.'), findsOneWidget);

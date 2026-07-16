@@ -105,90 +105,94 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
       child: StreamBuilder<List<NetworkCallEntry>>(
         stream: JalaBinding.instance.store.watch,
         initialData: JalaBinding.instance.store.entries,
-        builder: (
-          BuildContext context,
-          AsyncSnapshot<List<NetworkCallEntry>> snapshot,
-        ) {
-          final List<NetworkCallEntry> all =
-              snapshot.data ?? const <NetworkCallEntry>[];
-          final List<NetworkCallEntry> filtered = _filter.isEmpty
-              ? all
-              : all.where(_filter.matches).toList();
-          return Scaffold(
-            appBar: AppBar(
-              leading: widget.onClose == null
-                  ? null
-                  : IconButton(
-                      icon: const Icon(Icons.close),
-                      tooltip: 'Close inspector',
-                      onPressed: widget.onClose,
-                    ),
-              title: const Text('Jala'),
-              actions: <Widget>[
-                IconButton(
-                  icon: const Icon(Icons.delete_outline),
-                  tooltip: 'Clear',
-                  onPressed: all.isEmpty ? null : () => _confirmClear(context),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.ios_share),
-                  tooltip: 'Copy session as HAR',
-                  onPressed: all.isEmpty
+        builder:
+            (
+              BuildContext context,
+              AsyncSnapshot<List<NetworkCallEntry>> snapshot,
+            ) {
+              final List<NetworkCallEntry> all =
+                  snapshot.data ?? const <NetworkCallEntry>[];
+              final List<NetworkCallEntry> filtered = _filter.isEmpty
+                  ? all
+                  : all.where(_filter.matches).toList();
+              return Scaffold(
+                appBar: AppBar(
+                  leading: widget.onClose == null
                       ? null
-                      : () => _copySessionHar(context, all),
-                ),
-                const _ThemeToggleButton(),
-              ],
-            ),
-            body: Column(
-              children: <Widget>[
-                Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: TextField(
-                    controller: _filterController,
-                    onChanged: _onFilterChanged,
-                    decoration: InputDecoration(
-                      hintText: 'method:get status:4xx host:api.* …',
-                      prefixIcon: const Icon(Icons.filter_alt_outlined),
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.help_outline),
-                        tooltip: 'Filter grammar',
-                        onPressed: () => _openHelp(context),
-                      ),
-                      border: const OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: all.isEmpty
-                      ? const _EmptyState(
-                          message: 'No network calls captured yet.',
-                        )
-                      : filtered.isEmpty
-                      ? _EmptyState(
-                          message:
-                              'No calls match "${_filterController.text}".',
-                        )
-                      : ListView.separated(
-                          itemCount: filtered.length,
-                          separatorBuilder: (BuildContext context, int index) =>
-                              const Divider(height: 1),
-                          itemBuilder: (BuildContext context, int index) {
-                            final NetworkCallEntry entry = filtered[index];
-                            return JalaCallListTile(
-                              entry: entry,
-                              onTap: () => Navigator.of(context).push(
-                                JalaCallDetailScreen.route(entry.id),
-                              ),
-                            );
-                          },
+                      : IconButton(
+                          icon: const Icon(Icons.close),
+                          tooltip: 'Close inspector',
+                          onPressed: widget.onClose,
                         ),
+                  title: const Text('Jala'),
+                  actions: <Widget>[
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline),
+                      tooltip: 'Clear',
+                      onPressed: all.isEmpty
+                          ? null
+                          : () => _confirmClear(context),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.ios_share),
+                      tooltip: 'Copy session as HAR',
+                      onPressed: all.isEmpty
+                          ? null
+                          : () => _copySessionHar(context, all),
+                    ),
+                    const _ThemeToggleButton(),
+                  ],
                 ),
-              ],
-            ),
-          );
-        },
+                body: Column(
+                  children: <Widget>[
+                    Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: TextField(
+                        controller: _filterController,
+                        onChanged: _onFilterChanged,
+                        decoration: InputDecoration(
+                          hintText: 'method:get status:4xx host:api.* …',
+                          prefixIcon: const Icon(Icons.filter_alt_outlined),
+                          suffixIcon: IconButton(
+                            icon: const Icon(Icons.help_outline),
+                            tooltip: 'Filter grammar',
+                            onPressed: () => _openHelp(context),
+                          ),
+                          border: const OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: all.isEmpty
+                          ? const _EmptyState(
+                              message: 'No network calls captured yet.',
+                            )
+                          : filtered.isEmpty
+                          ? _EmptyState(
+                              message:
+                                  'No calls match "${_filterController.text}".',
+                            )
+                          : ListView.separated(
+                              itemCount: filtered.length,
+                              separatorBuilder:
+                                  (BuildContext context, int index) =>
+                                      const Divider(height: 1),
+                              itemBuilder: (BuildContext context, int index) {
+                                final NetworkCallEntry entry = filtered[index];
+                                return JalaCallListTile(
+                                  entry: entry,
+                                  onTap: () => Navigator.of(
+                                    context,
+                                  ).push(JalaCallDetailScreen.route(entry.id)),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              );
+            },
       ),
     );
   }

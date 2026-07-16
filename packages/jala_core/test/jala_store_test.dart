@@ -41,8 +41,10 @@ void main() {
         statusMessage: 'Created',
         size: 42,
         duration: const Duration(milliseconds: 77),
-        body: CapturedBody.capture('{"ok":true}',
-            contentType: 'application/json'),
+        body: CapturedBody.capture(
+          '{"ok":true}',
+          contentType: 'application/json',
+        ),
       );
       await pump();
 
@@ -53,7 +55,10 @@ void main() {
       expect(entry.responseSize, 42);
       expect(entry.duration, const Duration(milliseconds: 77));
       expect(entry.responseBody.kind, BodyKind.json);
-      expect(entry.responseHeaders, containsPair('content-type', 'application/json'));
+      expect(
+        entry.responseHeaders,
+        containsPair('content-type', 'application/json'),
+      );
     });
 
     test('error event marks entry as error and keeps message', () async {
@@ -95,9 +100,7 @@ void main() {
 
     test('cancel event marks entry cancelled', () async {
       emitRequest(bus, 'a');
-      bus.emit(
-        NetworkCancelEvent(callId: 'a', timestamp: DateTime.utc(2026)),
-      );
+      bus.emit(NetworkCancelEvent(callId: 'a', timestamp: DateTime.utc(2026)));
       await pump();
 
       expect(store.byId('a')!.status, JalaCallStatus.cancelled);
@@ -126,8 +129,7 @@ void main() {
   });
 
   group('eviction', () {
-    test('oldest completed entries are evicted before pending ones',
-        () async {
+    test('oldest completed entries are evicted before pending ones', () async {
       // 5 = maxEntries. c1/c2 completed; p1..p3 pending.
       emitRequest(bus, 'c1');
       emitResponse(bus, 'c1');
@@ -153,17 +155,19 @@ void main() {
       expect(store.entries.map((e) => e.id), ['p5', 'p4', 'p3', 'p2', 'p1']);
     });
 
-    test('oldest pending is evicted when no completed entries remain',
-        () async {
-      for (var i = 1; i <= 6; i++) {
-        emitRequest(bus, 'p$i');
-      }
-      await pump();
+    test(
+      'oldest pending is evicted when no completed entries remain',
+      () async {
+        for (var i = 1; i <= 6; i++) {
+          emitRequest(bus, 'p$i');
+        }
+        await pump();
 
-      expect(store.entries, hasLength(5));
-      expect(store.byId('p1'), isNull, reason: 'p1 is the oldest pending');
-      expect(store.byId('p6'), isNotNull);
-    });
+        expect(store.entries, hasLength(5));
+        expect(store.byId('p1'), isNull, reason: 'p1 is the oldest pending');
+        expect(store.byId('p6'), isNotNull);
+      },
+    );
 
     test('late response for an evicted id is ignored safely', () async {
       for (var i = 1; i <= 6; i++) {
@@ -194,14 +198,16 @@ void main() {
       expect(() => store.entries.clear(), throwsUnsupportedError);
     });
 
-    test('watch immediately replays the current snapshot to new listeners',
-        () async {
-      emitRequest(bus, 'a');
-      await pump();
+    test(
+      'watch immediately replays the current snapshot to new listeners',
+      () async {
+        emitRequest(bus, 'a');
+        await pump();
 
-      final first = await store.watch.first;
-      expect(first.map((e) => e.id), ['a']);
-    });
+        final first = await store.watch.first;
+        expect(first.map((e) => e.id), ['a']);
+      },
+    );
 
     test('watch emits on every change', () async {
       final snapshots = <List<NetworkCallEntry>>[];
@@ -217,9 +223,7 @@ void main() {
       expect(snapshots.first, isEmpty, reason: 'initial snapshot');
       expect(snapshots.last, isEmpty, reason: 'after clear');
       expect(
-        snapshots.any(
-          (s) => s.any((e) => e.status == JalaCallStatus.success),
-        ),
+        snapshots.any((s) => s.any((e) => e.status == JalaCallStatus.success)),
         isTrue,
       );
     });

@@ -32,7 +32,10 @@ class JalaFilterHelpSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text('Filter grammar', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Filter grammar',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 4),
             Text(
               'Space-separated terms are ANDed together. All matching is '

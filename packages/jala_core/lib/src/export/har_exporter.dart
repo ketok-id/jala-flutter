@@ -35,11 +35,7 @@ class HarExporter {
       'cache': <String, Object?>{},
       // Sub-phases Jala does not measure are -1 per the HAR spec; the
       // whole measured duration is attributed to `wait`.
-      'timings': <String, Object?>{
-        'send': -1,
-        'wait': timeMs,
-        'receive': -1,
-      },
+      'timings': <String, Object?>{'send': -1, 'wait': timeMs, 'receive': -1},
     };
   }
 
@@ -58,7 +54,7 @@ class HarExporter {
       'headersSize': -1,
       'bodySize': e.requestSize ?? e.requestBody.originalSize ?? -1,
     };
-    final String? bodyText = e.requestBody.text;
+    final String? bodyText = _bodyText(e.requestBody);
     if (bodyText != null) {
       request['postData'] = <String, Object?>{
         'mimeType': e.requestBody.contentType ?? 'application/octet-stream',
@@ -74,7 +70,7 @@ class HarExporter {
       'size': e.responseSize ?? body.originalSize ?? -1,
       'mimeType': body.contentType ?? _headerValue(e, 'content-type') ?? '',
     };
-    final String? bodyText = body.text;
+    final String? bodyText = _bodyText(body);
     if (bodyText != null) {
       content['text'] = bodyText;
     }
@@ -89,6 +85,17 @@ class HarExporter {
       'headersSize': -1,
       'bodySize': e.responseSize ?? body.originalSize ?? -1,
     };
+  }
+
+  // SPEC-NOTE: image bodies never surface as base64 in HAR `text` fields —
+  // a size/mime placeholder is emitted instead so the exported document
+  // stays small and reviewable.
+  static String? _bodyText(CapturedBody body) {
+    if (body.kind == BodyKind.image) {
+      return '[${body.contentType ?? 'image'}, ${body.originalSize ?? '?'} '
+          'bytes — binary content not exported]';
+    }
+    return body.text;
   }
 
   static List<Map<String, Object?>> _headers(Map<String, String> headers) => [

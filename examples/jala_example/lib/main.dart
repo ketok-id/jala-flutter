@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:jala/jala.dart';
 import 'package:jala_dio/jala_dio.dart';
+import 'package:jala_http/jala_http.dart';
 
 /// Manual QA rig for Jala v0.1.
 ///
@@ -25,16 +27,27 @@ void main() {
     ),
   );
   JalaDio.attach(dio);
-  runApp(JalaOverlay(child: JalaExampleApp(dio: dio)));
+  // Note: registering both JalaDio.attach and JalaHttp.wrap means the
+  // most-recently-wired one (this http client) becomes the active
+  // replayer — see JalaHttp.wrap's doc comment.
+  final http.Client httpClient = JalaHttp.wrap(http.Client());
+  runApp(
+    JalaOverlay(child: JalaExampleApp(dio: dio, httpClient: httpClient)),
+  );
 }
 
 /// Root of the example app.
 class JalaExampleApp extends StatelessWidget {
-  /// Creates the example app bound to [dio].
-  const JalaExampleApp({required this.dio, super.key});
+  /// Creates the example app bound to [dio] and, optionally, [httpClient]
+  /// (a fresh `JalaHttp.wrap(http.Client())` when omitted).
+  JalaExampleApp({required this.dio, http.Client? httpClient, super.key})
+    : httpClient = httpClient ?? JalaHttp.wrap(http.Client());
 
   /// Shared Dio instance with Jala attached.
   final Dio dio;
+
+  /// Shared package:http client with Jala attached.
+  final http.Client httpClient;
 
   @override
   Widget build(BuildContext context) {
@@ -44,15 +57,16 @@ class JalaExampleApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
         useMaterial3: true,
       ),
-      home: _DemoHome(dio: dio),
+      home: _DemoHome(dio: dio, httpClient: httpClient),
     );
   }
 }
 
 class _DemoHome extends StatefulWidget {
-  const _DemoHome({required this.dio});
+  const _DemoHome({required this.dio, required this.httpClient});
 
   final Dio dio;
+  final http.Client httpClient;
 
   @override
   State<_DemoHome> createState() => _DemoHomeState();
@@ -166,6 +180,28 @@ class _DemoHomeState extends State<_DemoHome> {
           _btn('Backup GET (jsonplaceholder)', () => _run('backup GET', () async {
             await dio.get<dynamic>(
               'https://jsonplaceholder.typicode.com/todos/1',
+            );
+          })),
+          const Divider(height: 32),
+          Text(
+            'via package:http (jala_http)',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: 8),
+          _btn('HTTP: GET json', () => _run('http GET json', () async {
+            await widget.httpClient.get(
+              Uri.parse('https://httpbin.org/json'),
+            );
+          })),
+          _btn('HTTP: 404', () => _run('http 404', () async {
+            await widget.httpClient.get(
+              Uri.parse('https://httpbin.org/status/404'),
+            );
+          })),
+          _btn('HTTP: Large (~1MB)', () => _run('http large', () async {
+            // 1 MiB of bytes — proves body truncation for package:http too.
+            await widget.httpClient.get(
+              Uri.parse('https://httpbin.org/bytes/1048576'),
             );
           })),
         ],

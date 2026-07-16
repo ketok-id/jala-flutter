@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:jala_core/jala_core.dart';
@@ -7,6 +8,16 @@ import 'package:jala_dio/jala_dio.dart';
 import 'package:test/test.dart';
 
 import 'support/fake_http_client_adapter.dart';
+
+/// A valid, minimal 1x1 transparent PNG (68 bytes) — small enough to stay
+/// under any reasonable `maxBodyBytes` cap in tests while still being real
+/// image data `Image.memory` can decode.
+final Uint8List onePixelPng = Uint8List.fromList(
+  base64Decode(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+A8AAQUBAScY'
+    '42YAAAAASUVORK5CYII=',
+  ),
+);
 
 /// A value whose [toString] blows up — used to simulate a bug in Jala's
 /// own capture logic (e.g. a header value that can't be stringified)
@@ -38,10 +49,8 @@ void main() {
     test('captures a successful JSON GET request and response', () async {
       JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
       final harness = buildDio(
-        (options) async => jsonResponseBody(<String, dynamic>{
-          'id': 1,
-          'name': 'ada',
-        }),
+        (options) async =>
+            jsonResponseBody(<String, dynamic>{'id': 1, 'name': 'ada'}),
       );
 
       final Response<dynamic> response = await harness.dio.get<dynamic>(
@@ -50,8 +59,7 @@ void main() {
       expect(response.statusCode, 200);
       await pump();
 
-      final List<NetworkCallEntry> entries = JalaBinding.instance.store
-          .entries;
+      final List<NetworkCallEntry> entries = JalaBinding.instance.store.entries;
       expect(entries, hasLength(1));
       final NetworkCallEntry entry = entries.single;
       expect(entry.method, 'GET');
@@ -68,8 +76,9 @@ void main() {
     test('captures a successful JSON POST with a request body', () async {
       JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
       final harness = buildDio(
-        (options) async =>
-            jsonResponseBody(<String, dynamic>{'created': true}, statusCode: 201),
+        (options) async => jsonResponseBody(<String, dynamic>{
+          'created': true,
+        }, statusCode: 201),
       );
 
       final Response<dynamic> response = await harness.dio.post<dynamic>(
@@ -79,8 +88,7 @@ void main() {
       expect(response.statusCode, 201);
       await pump();
 
-      final NetworkCallEntry entry = JalaBinding.instance.store.entries
-          .single;
+      final NetworkCallEntry entry = JalaBinding.instance.store.entries.single;
       expect(entry.method, 'POST');
       expect(entry.statusCode, 201);
       expect(entry.requestBody.kind, BodyKind.json);
@@ -99,8 +107,7 @@ void main() {
       );
       await pump();
 
-      final NetworkCallEntry entry = JalaBinding.instance.store.entries
-          .single;
+      final NetworkCallEntry entry = JalaBinding.instance.store.entries.single;
       final String redacted = entry.requestHeaders.entries
           .firstWhere((e) => e.key.toLowerCase() == 'authorization')
           .value;
@@ -137,8 +144,7 @@ void main() {
       );
       await pump();
 
-      final NetworkCallEntry entry = JalaBinding.instance.store.entries
-          .single;
+      final NetworkCallEntry entry = JalaBinding.instance.store.entries.single;
       expect(entry.status, JalaCallStatus.error);
       expect(entry.statusCode, 500);
       expect(entry.errorMessage, isNotNull);
@@ -161,8 +167,7 @@ void main() {
       );
       await pump();
 
-      final NetworkCallEntry entry = JalaBinding.instance.store.entries
-          .single;
+      final NetworkCallEntry entry = JalaBinding.instance.store.entries.single;
       expect(entry.status, JalaCallStatus.cancelled);
     });
 
@@ -187,11 +192,100 @@ void main() {
         );
         await pump();
 
-        final NetworkCallEntry entry = JalaBinding.instance.store.entries
-            .single;
+        final NetworkCallEntry entry =
+            JalaBinding.instance.store.entries.single;
         expect(entry.responseBody.kind, BodyKind.bytes);
         expect(entry.responseBody.text, isNull);
         expect(entry.responseBody.originalSize, bytes.length);
+      },
+    );
+
+    test(
+      'captures an image ResponseType.bytes response as BodyKind.image',
+      () async {
+        JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+        final harness = buildDio(
+          (options) async => ResponseBody.fromBytes(
+            onePixelPng,
+            200,
+            headers: <String, List<String>>{
+              'content-type': <String>['image/png'],
+            },
+          ),
+        );
+
+        await harness.dio.get<dynamic>(
+          '/pixel.png',
+          options: Options(responseType: ResponseType.bytes),
+        );
+        await pump();
+
+        final NetworkCallEntry entry =
+            JalaBinding.instance.store.entries.single;
+        expect(entry.responseBody.kind, BodyKind.image);
+        expect(entry.responseBody.bytes, onePixelPng);
+        expect(entry.responseBody.originalSize, onePixelPng.length);
+        expect(entry.responseBody.contentType, 'image/png');
+      },
+    );
+
+    test(
+      'an image response over maxBodyBytes falls back to metadata-only',
+      () async {
+        JalaBinding.instance.initialize(
+          config: JalaConfig(enabled: true, maxBodyBytes: 10),
+        );
+        final harness = buildDio(
+          (options) async => ResponseBody.fromBytes(
+            onePixelPng,
+            200,
+            headers: <String, List<String>>{
+              'content-type': <String>['image/png'],
+            },
+          ),
+        );
+
+        await harness.dio.get<dynamic>(
+          '/pixel.png',
+          options: Options(responseType: ResponseType.bytes),
+        );
+        await pump();
+
+        final NetworkCallEntry entry =
+            JalaBinding.instance.store.entries.single;
+        expect(entry.responseBody.kind, BodyKind.bytes);
+        expect(entry.responseBody.bytes, isNull);
+        expect(entry.responseBody.originalSize, onePixelPng.length);
+      },
+    );
+
+    test(
+      'captureImageBodies: false keeps image responses metadata-only',
+      () async {
+        JalaBinding.instance.initialize(
+          config: JalaConfig(enabled: true, captureImageBodies: false),
+        );
+        final harness = buildDio(
+          (options) async => ResponseBody.fromBytes(
+            onePixelPng,
+            200,
+            headers: <String, List<String>>{
+              'content-type': <String>['image/png'],
+            },
+          ),
+        );
+
+        await harness.dio.get<dynamic>(
+          '/pixel.png',
+          options: Options(responseType: ResponseType.bytes),
+        );
+        await pump();
+
+        final NetworkCallEntry entry =
+            JalaBinding.instance.store.entries.single;
+        expect(entry.responseBody.kind, BodyKind.bytes);
+        expect(entry.responseBody.bytes, isNull);
+        expect(entry.responseBody.originalSize, onePixelPng.length);
       },
     );
 
@@ -208,8 +302,7 @@ void main() {
       );
       await pump();
 
-      final NetworkCallEntry entry = JalaBinding.instance.store.entries
-          .single;
+      final NetworkCallEntry entry = JalaBinding.instance.store.entries.single;
       expect(entry.responseBody.kind, BodyKind.stream);
       expect(entry.responseBody.text, isNull);
     });
@@ -226,107 +319,93 @@ void main() {
       await harness.dio.get<dynamic>('/large');
       await pump();
 
-      final NetworkCallEntry entry = JalaBinding.instance.store.entries
-          .single;
+      final NetworkCallEntry entry = JalaBinding.instance.store.entries.single;
       expect(entry.responseBody.kind, BodyKind.truncated);
       expect(entry.responseBody.truncated, isTrue);
       expect(entry.responseBody.originalSize, greaterThan(64));
     });
 
-    test(
-      'disabled binding: interceptor emits nothing and the request '
-      'still succeeds',
-      () async {
-        JalaBinding.instance.initialize(config: JalaConfig(enabled: false));
-        final harness = buildDio(
-          (options) async => jsonResponseBody(<String, dynamic>{'ok': true}),
-        );
+    test('disabled binding: interceptor emits nothing and the request '
+        'still succeeds', () async {
+      JalaBinding.instance.initialize(config: JalaConfig(enabled: false));
+      final harness = buildDio(
+        (options) async => jsonResponseBody(<String, dynamic>{'ok': true}),
+      );
 
-        final Response<dynamic> response = await harness.dio.get<dynamic>(
-          '/ping',
-        );
-        expect(response.statusCode, 200);
-        await pump();
-        expect(JalaBinding.instance.store.entries, isEmpty);
-      },
-    );
+      final Response<dynamic> response = await harness.dio.get<dynamic>(
+        '/ping',
+      );
+      expect(response.statusCode, 200);
+      await pump();
+      expect(JalaBinding.instance.store.entries, isEmpty);
+    });
 
-    test(
-      'never-initialized binding: request still succeeds with zero '
-      'capture work',
-      () async {
-        // Deliberately never call JalaBinding.instance.initialize().
-        final harness = buildDio(
-          (options) async => jsonResponseBody(<String, dynamic>{'ok': true}),
-        );
+    test('never-initialized binding: request still succeeds with zero '
+        'capture work', () async {
+      // Deliberately never call JalaBinding.instance.initialize().
+      final harness = buildDio(
+        (options) async => jsonResponseBody(<String, dynamic>{'ok': true}),
+      );
 
-        final Response<dynamic> response = await harness.dio.get<dynamic>(
-          '/ping',
-        );
-        expect(response.statusCode, 200);
-        expect(JalaBinding.instance.isInitialized, isFalse);
-      },
-    );
+      final Response<dynamic> response = await harness.dio.get<dynamic>(
+        '/ping',
+      );
+      expect(response.statusCode, 200);
+      expect(JalaBinding.instance.isInitialized, isFalse);
+    });
 
-    test(
-      'a capture bug (header value whose toString() throws) does not '
-      'break the request',
-      () async {
-        JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
-        final harness = buildDio(
-          (options) async => jsonResponseBody(<String, dynamic>{'ok': true}),
-        );
+    test('a capture bug (header value whose toString() throws) does not '
+        'break the request', () async {
+      JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+      final harness = buildDio(
+        (options) async => jsonResponseBody(<String, dynamic>{'ok': true}),
+      );
 
-        final Response<dynamic> response = await harness.dio.get<dynamic>(
-          '/ping',
-          options: Options(
-            headers: <String, dynamic>{'x-weird': const _ThrowsOnToString()},
+      final Response<dynamic> response = await harness.dio.get<dynamic>(
+        '/ping',
+        options: Options(
+          headers: <String, dynamic>{'x-weird': const _ThrowsOnToString()},
+        ),
+      );
+
+      expect(response.statusCode, 200);
+      await pump();
+      // The request-side capture blew up before the request event was
+      // emitted, so nothing landed in the store for this call — the
+      // important part is that the app's networking was unaffected.
+      expect(JalaBinding.instance.store.entries, isEmpty);
+    });
+
+    test('summarizes FormData fields and file metadata without reading '
+        'file bytes', () async {
+      JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+      final FormData formData = FormData()
+        ..fields.add(const MapEntry<String, String>('name', 'ada'))
+        ..files.add(
+          MapEntry<String, MultipartFile>(
+            'avatar',
+            MultipartFile.fromString('binarydata', filename: 'avatar.png'),
           ),
         );
 
-        expect(response.statusCode, 200);
-        await pump();
-        // The request-side capture blew up before the request event was
-        // emitted, so nothing landed in the store for this call — the
-        // important part is that the app's networking was unaffected.
-        expect(JalaBinding.instance.store.entries, isEmpty);
-      },
-    );
+      final harness = buildDio(
+        (options) async => jsonResponseBody(<String, dynamic>{'ok': true}),
+      );
+      await harness.dio.post<dynamic>('/upload', data: formData);
+      await pump();
 
-    test(
-      'summarizes FormData fields and file metadata without reading '
-      'file bytes',
-      () async {
-        JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
-        final FormData formData = FormData()
-          ..fields.add(const MapEntry<String, String>('name', 'ada'))
-          ..files.add(
-            MapEntry<String, MultipartFile>(
-              'avatar',
-              MultipartFile.fromString('binarydata', filename: 'avatar.png'),
-            ),
-          );
-
-        final harness = buildDio(
-          (options) async => jsonResponseBody(<String, dynamic>{'ok': true}),
-        );
-        await harness.dio.post<dynamic>('/upload', data: formData);
-        await pump();
-
-        final NetworkCallEntry entry = JalaBinding.instance.store.entries
-            .single;
-        expect(entry.requestBody.kind, BodyKind.json);
-        final Map<String, dynamic> decoded =
-            jsonDecode(entry.requestBody.text!) as Map<String, dynamic>;
-        expect(decoded['fields'], <Map<String, String>>[
-          {'name': 'name', 'value': 'ada'},
-        ]);
-        final List<dynamic> files = decoded['files'] as List<dynamic>;
-        expect(files, hasLength(1));
-        final Map<String, dynamic> file = files.single as Map<String, dynamic>;
-        expect(file['filename'], 'avatar.png');
-        expect(file['length'], 'binarydata'.length);
-      },
-    );
+      final NetworkCallEntry entry = JalaBinding.instance.store.entries.single;
+      expect(entry.requestBody.kind, BodyKind.json);
+      final Map<String, dynamic> decoded =
+          jsonDecode(entry.requestBody.text!) as Map<String, dynamic>;
+      expect(decoded['fields'], <Map<String, String>>[
+        {'name': 'name', 'value': 'ada'},
+      ]);
+      final List<dynamic> files = decoded['files'] as List<dynamic>;
+      expect(files, hasLength(1));
+      final Map<String, dynamic> file = files.single as Map<String, dynamic>;
+      expect(file['filename'], 'avatar.png');
+      expect(file['length'], 'binarydata'.length);
+    });
   });
 }
