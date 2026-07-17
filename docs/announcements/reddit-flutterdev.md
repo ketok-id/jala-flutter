@@ -1,117 +1,137 @@
 # r/FlutterDev post (draft — user posts, do not submit)
 
 **Subreddit:** r/FlutterDev  
-**Flair:** Package / Tool / Showoff (use whatever matches the sub’s current flairs)  
-**Format:** Self-text post (not a bare link). Prefer **few links in the OP** — Reddit’s site-wide spam filter often removes link-heavy package posts (“removed by Reddit’s filters”). Put extra URLs in the **first comment** after the post is live.
-
-**Optional media:** attach `docs/screenshots/demo.gif` or a short screen recording if the sub allows images.
+**Problem:** Reddit’s site-wide spam filter may remove package posts even with few links (“Sorry, this post was removed by Reddit’s filters”). That is **not** usually a human mod. After **two** removals, do **not** keep reposting the same shape — it makes the filter worse.
 
 ---
 
-## Title options (pick one)
+## Immediate recovery (after 2nd filter)
 
-1. **(Recommended)** I built an in-app network inspector for Flutter (replay, mocking, Slow 3G) — feedback welcome  
-2. Jala 0.5 — in-app Flutter network inspector with throttling, session share, and live-client replay  
-3. Showoff: Chrome DevTools–style network tab inside your Flutter app  
+1. **Stop reposting** for 24–48 hours on this account in this sub (or use the steps below once, carefully).  
+2. **Modmail r/FlutterDev** (best path for a real package):
 
-Avoid ALL CAPS, “best ever”, or dunking hard on Alice in the title.
+   ```text
+   Hi mods — twice my Showoff/self-promo style post about an open-source
+   Flutter network inspector (Jala) was removed by Reddit’s site-wide
+   filters, not by you. It’s a real pub.dev package under publisher ketok.id.
 
----
+   Could you either:
+   (a) approve a filtered post if you still see it, or
+   (b) advise if self-posts about open-source packages need a different
+       flair / process in this sub?
 
-## Body — filter-safe (copy-paste)
+   Account: <your username>
+   Post URL(s) if still visible to me: <url>
+   Package: https://pub.dev/packages/jala
+   ```
 
-Use this version first. **One main link** in the OP; rest go in a comment.
+3. **Check account signals**  
+   - New account / low karma / email not verified → filter is much harsher  
+   - Verify email, wait, build a little non-promo karma (helpful comments)  
+   - Don’t use VPN/datacenter IP if you can avoid it for the post  
 
-```text
-I'm the author of Jala — an in-app network inspector for Flutter (Chrome DevTools–style Network tab inside your app). Just shipped 0.5.
-
-Things I couldn't get cleanly from Alice / a desktop proxy alone:
-- One-tap replay through the live Dio / package:http client
-- Rule-based mocking ("Mock this") + edit-and-resend
-- On-device throttling (Slow 3G / Flaky / Offline)
-- Session export/import (clipboard JSON for QA → eng)
-- GraphQL + WebSocket in the same list
-- Redaction at capture time; off by default in release (kDebugMode)
-
-Minimal wire-up: Jala.initialize() + JalaDio.attach(dio) + JalaOverlay.
-
-Requires Flutter ≥3.35. Happy to take feedback, especially on multi-Dio apps or real QA use of throttle/session share.
-
-Main link: https://pub.dev/packages/jala
-```
+4. **Optional:** Reddit help → “My post was removed by the filters” appeal (slow, hit-or-miss).
 
 ---
 
-## First comment (post immediately after OP is live)
+## Why you got filtered (likely)
 
-```text
-Links:
-- Live demo: https://ketok-id.github.io/jala-flutter/
-- Existing-app guide (multi-Dio, GraphQL double-capture, Alice migration): https://github.com/ketok-id/jala-flutter/blob/main/docs/ADOPTION.md
-- Repo: https://github.com/ketok-id/jala-flutter
-
-Why not just Alice / a proxy?
-Alice is still fine for many apps. I wanted live-client replay, capture-time redaction, and (in 0.5) on-device throttle + session share without Charles. If a desktop proxy already works for you, you may not need this — that's OK.
-```
-
----
-
-## Longer body (only if the short post survives)
-
-If the filter-safe post is fine and you want a follow-up comment with install snippet:
-
-```text
-Quick start (Dio):
-
-dependencies:
-  jala: ^0.5.1
-  jala_dio: ^0.5.1
-  dio: ^5.9.0
-
-Jala.initialize(); // enabled: kDebugMode
-JalaDio.attach(dio);
-runApp(JalaOverlay(child: MyApp(dio: dio)));
-
-Lockstep the Jala packages on the same 0.5.x. Dart ^3.11 / Flutter ≥3.35.
-```
-
-Do **not** put four+ outbound links in the OP again unless you’ve confirmed the account isn’t filter-sensitive.
-
----
-
-## If Reddit removes the post (“removed by Reddit’s filters”)
-
-That message is usually **site-wide anti-spam**, not a human mod.
-
-1. Confirm: only you see the post + the red filter banner → filter; “removed by moderators” → mod action.  
-2. **Modmail r/FlutterDev** (polite, short):
-
-   > Hi — my package/Showoff post about an open-source Flutter network inspector was removed by Reddit’s filters (not a mod removal). Could you approve it if it looks fine?  
-   > Link: &lt;post URL&gt;
-
-3. Repost later with the **filter-safe body** (one link). Don’t spam the same multi-link text repeatedly.  
-4. Optional: appeal via Reddit’s help flow for filtered content.
-
----
-
-## Posting checklist
-
-- [ ] Self-text post, filter-safe body (one main link)  
-- [ ] Correct flair  
-- [ ] Optional: demo.gif  
-- [ ] First comment with demo + ADOPTION + repo (+ “why not Alice”)  
-- [ ] Stay for the first hour to answer comments  
-- [ ] Disclose you’re the author (already in the body)  
-
-| Do | Don’t |
+| Risk | Mitigation |
 |---|---|
-| Disclose authorship | Fake “found this cool package” |
-| One primary link in OP | 4+ links + YAML wall in OP |
-| Extra links in first comment | Argue with Alice fans |
-| Invite specific feedback | Dump full CHANGELOG |
+| Account new / low karma | Comment helpfully for a few days first |
+| “I built a package + install” pattern | Frame as **discussion / feedback**, not launch |
+| Any outbound link in OP | **Zero links** in OP; links only after it’s live |
+| Code / yaml / domain-looking text | No code fences; no pub.dev / github in OP |
+| Same post twice | Completely different title + body on retry |
+| Image + promo text | Text-only first; image in comment later |
 
 ---
 
-## Note on the live demo
+## Attempt 3 — zero-link OP (strongest filter dodge)
 
-If [ketok-id.github.io/jala-flutter](https://ketok-id.github.io/jala-flutter/) still feels pre–0.5, either rebuild gh-pages first or say in a comment that full power tools (throttle / session) are in the package and the hosted demo may lag.
+**Title (pick one — must differ from previous titles):**
+
+1. **(Recommended)** How do you inspect HTTP on a real device without Charles? I open-sourced my approach  
+2. Looking for feedback: in-app network inspector for Flutter (replay + Slow 3G + session share)  
+3. What would make you try another network inspector if you already use Alice?  
+
+**Body (copy-paste — NO urls, NO code blocks):**
+
+```text
+I'm the author (disclosure). I got tired of needing a laptop proxy to debug
+Flutter networking on a physical phone, so I built an in-app inspector
+(Chrome DevTools Network–style list, filters, detail panes).
+
+What it does that I still don't get from Alice alone:
+• Replay a captured call through the live Dio / package:http client
+• Mock this / edit-and-resend without the network
+• On-device throttle (Slow 3G, flaky, offline) — new for me vs other Flutter inspectors
+• Export a session as JSON so QA can hand eng a failing capture
+• GraphQL + WebSocket in the same list
+• Redact secrets at capture time; off by default in release builds
+
+I'll drop the pub.dev / demo / docs links in a comment if this post is
+allowed to stay up (Reddit filtered my earlier posts that had links).
+
+Questions for people who've tried in-app inspectors:
+1) Multi-Dio apps — how do you want attach / replay to work?
+2) Is on-device throttle actually useful vs just using a proxy?
+3) Anything that would block you from adding this to a brownfield app?
+
+Happy to answer design questions here either way.
+```
+
+**Wait until the post is visible to logged-out / another account**, then:
+
+**First comment (links OK once OP survived):**
+
+```text
+Links (posted after the OP so Reddit's filter is less angry):
+
+• Package: https://pub.dev/packages/jala  (0.5.1)
+• Live demo: https://ketok-id.github.io/jala-flutter/
+• Brownfield guide: https://github.com/ketok-id/jala-flutter/blob/main/docs/ADOPTION.md
+• Repo: https://github.com/ketok-id/jala-flutter
+
+Minimal wire-up if anyone wants to try: Jala.initialize() + JalaDio.attach(dio) + wrap with JalaOverlay. Flutter ≥3.35; lockstep 0.5.x packages.
+```
+
+---
+
+## If zero-link still dies
+
+Then it’s almost certainly **account/reputation**, not the text:
+
+1. Modmail only — ask mods to **approve** or to say if new accounts can’t self-promo.  
+2. Post from an **older account** if you have one (still disclose authorship).  
+3. Skip Reddit for a bit; use **X / LinkedIn / Flutter Weekly / Discord** from `docs/announcements/`.  
+4. Comment on *other* networking threads with useful answers and a soft “I open-sourced X for this” later.  
+
+Do **not** create a brand-new throwaway just to spam the same post.
+
+---
+
+## Alternate channel if Reddit keeps blocking
+
+| Channel | Draft |
+|---|---|
+| Flutter Weekly | `docs/announcements/flutter-weekly.md` |
+| X / LinkedIn | `docs/announcements/x-linkedin.md` |
+| Discord Flutter / community servers | Short version of zero-link body + one link |
+
+---
+
+## Posting checklist (attempt 3)
+
+- [ ] Different title than both failed posts  
+- [ ] Zero URLs and zero code fences in OP  
+- [ ] Discussion questions at the end (not pure launch pitch)  
+- [ ] Author disclosure once  
+- [ ] Wait for post to stay up → then first comment with links  
+- [ ] Modmail if filtered again — no 4th identical try  
+
+---
+
+## Older variants (do not use if already filtered)
+
+Filter-safe one-link and multi-link versions were tried and filtered for some accounts. Prefer **zero-link OP** above after two removals.
