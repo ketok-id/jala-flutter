@@ -2,7 +2,7 @@
 
 Dio integration for Jala, the in-app Flutter network inspector: captures
 every request, response, error, and cancellation made through a `Dio`
-instance, and supports one-tap in-app replay.
+instance, and supports one-tap in-app replay and network throttling.
 
 See the [repo README](../../README.md) for what Jala is and why (replay,
 filter grammar, redaction-by-default) and the [`jala`](../jala) package
@@ -12,7 +12,7 @@ for the facade that wires this up in an app.
 
 ```yaml
 dependencies:
-  jala_dio: ^0.3.0   # requires jala_core ^0.2.0
+  jala_dio: ^0.5.0   # requires jala_core ^0.5.0
 ```
 
 ## Attach

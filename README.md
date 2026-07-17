@@ -221,6 +221,9 @@ dart analyze
 (cd packages/jala_websocket && dart test)
 (cd packages/jala_ui && flutter test)
 (cd packages/jala && flutter test)
+(cd examples/jala_example && flutter test)
+# optional store-only smokes (macOS/iOS/Android host):
+# (cd examples/jala_example && flutter test integration_test/track_e_smoke_test.dart)
 cd examples/jala_example && flutter run -d macos
 ```
 

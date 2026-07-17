@@ -2,8 +2,9 @@
 
 Pure-Dart core for [Jala](https://github.com/ketok-id/jala-flutter), the in-app
 Flutter network inspector: the captured-call model, event bus, ring-buffer
-store, capture-time redaction, DevTools-style filter grammar, and exporters
-(cURL, Dart/Dio snippet, HAR 1.2).
+store, capture-time redaction, DevTools-style filter grammar, exporters
+(cURL, Dart/Dio snippet, HAR 1.2), network throttling, and session
+export/import.
 
 **Zero Flutter dependency.** This package only depends on `dart:core` /
 `dart:convert` and is tested with `dart test`, so it can be reused outside
@@ -19,17 +20,21 @@ Flutter (CLI tooling, server-side log tooling, etc.) as well as inside it.
 
 | Class | Role |
 |---|---|
-| `JalaBinding` | Process-wide singleton wiring config, event bus, store, and replay registry. Client integrations read `JalaBinding.instance` instead of taking constructor parameters. |
+| `JalaBinding` | Process-wide singleton wiring config, event bus, store, replay registry, mock registry, and throttle registry. Client integrations read `JalaBinding.instance` instead of taking constructor parameters. |
 | `JalaReplayRegistry` / `JalaReplayer` | Connects the inspector UI's Replay action to whichever client integration can re-issue a call. |
-| `JalaEvent` / `JalaEventBus` | Sealed event types (`NetworkRequestEvent`, `NetworkResponseEvent`, `NetworkErrorEvent`, `NetworkCancelEvent`, `NetworkProgressEvent`) and the broadcast bus clients emit them into. A true no-op (no allocation) when Jala is disabled. |
-| `JalaStore` | Ring-buffer store (default 300 entries) that correlates request/response/error/progress events by call id into immutable `NetworkCallEntry` values, exposed as `entries` and a `watch` stream. |
-| `NetworkCallEntry` / `CapturedBody` | The immutable model of one captured call, and its request/response bodies with a hard 512 KB capture cap (including `BodyKind.image` bytes and structured `@multipart` parts). |
+| `JalaMockRegistry` / `JalaMockRule` | Ordered mock rules (first enabled match wins) for canned responses / failures / delays. |
+| `JalaThrottleRegistry` / `JalaThrottleProfile` | Active network-condition profile (latency, jitter, bandwidth, drop rate) with presets `slow3g` / `fast3g` / `flaky` / `offline`. Active only while the binding is enabled. |
+| `JalaEvent` / `JalaEventBus` | Sealed event types (HTTP request/response/error/cancel/progress, GraphQL subscription payloads, WebSocket lifecycle/frames) and the broadcast bus clients emit them into. A true no-op when Jala is disabled. |
+| `JalaStore` | Ring-buffer store (default 300 HTTP entries + parallel WS connections) that correlates events into immutable `NetworkCallEntry` / `WsConnectionEntry` values, plus `importSession` / `isViewingImport`. |
+| `NetworkCallEntry` / `CapturedBody` | One captured HTTP/GraphQL call (incl. `throttledBy`, `imported`, GraphQL metadata, subscription `payloads` ring) and its request/response bodies with a hard 512 KB capture cap. |
+| `WsConnectionEntry` / `WsFrame` | WebSocket connection + frame timeline (direction, size, redacted text preview). |
+| `JalaSessionCodec` / `JalaSession` | Versioned JSON session export/import (`format: "jala-session"`, v1). Round-trips entries and WS connections; progress is dropped as transient. |
 | `JalaRedactor` | Case-insensitive header redaction (`Authorization`, `Cookie`, `X-Api-Key`, etc. by default) and body pattern redaction, meant to run **at capture time** so secrets never enter the store. |
-| `JalaFilter` | `JalaFilter.parse(query)` compiles a DevTools-style query into a `matches(NetworkCallEntry)` predicate. |
+| `JalaFilter` | `JalaFilter.parse(query)` compiles a DevTools-style query into a `matches(NetworkCallEntry)` predicate (and `matchesWs` for WebSocket entries). |
 | `CurlExporter` | Renders an entry as a runnable, shell-escaped `curl` command. |
 | `DartSnippetExporter` | Renders an entry as a runnable `dio.request(...)` snippet. |
 | `HarExporter` | Renders one call or a whole session as HAR 1.2 JSON. |
-| `JalaConfig` | `enabled`, `maxEntries`, `maxBodyBytes`, `captureImageBodies`, `redactor` — passed to `JalaBinding.instance.initialize(config: ...)`. |
+| `JalaConfig` | `enabled`, `maxEntries`, `maxBodyBytes`, `captureImageBodies`, `maxWsConnections`, `maxWsFramesPerConnection`, `maxSubscriptionPayloads`, `redactor` — passed to `JalaBinding.instance.initialize(config: ...)`. |
 
 ## Filter grammar
 
@@ -49,6 +54,11 @@ throwing.
 | `larger-than:10k` | `responseSize` greater than n bytes (`k`/`m` suffixes supported) |
 | `slower-than:500` | Duration greater than n milliseconds |
 | `is:replay` | Entry is a replay of another call (`replayOf != null`) |
+| `is:mocked` | Entry was served by a mock rule |
+| `is:graphql` | Entry carries GraphQL operation metadata |
+| `is:subscription` | `operationType == 'subscription'` |
+| `is:ws` | WebSocket connection entries (`matchesWs` only) |
+| `op:<name>` | GraphQL `operationName`; `*` wildcard allowed |
 | `body:token` | Substring of the captured request or response body text |
 | bare word | Substring of `method + " " + full URL` |
 | `-<any term above>` | Negates that term |
@@ -63,6 +73,8 @@ import 'package:jala_core/jala_core.dart';
 final config = JalaConfig(enabled: true);
 JalaBinding.instance.initialize(config: config);
 
+JalaBinding.instance.throttleRegistry.setActive(JalaThrottleProfile.slow3g);
+
 JalaBinding.instance.bus.emit(NetworkRequestEvent(/* ... */));
 // ...
 final entries = JalaBinding.instance.store.entries;
@@ -71,6 +83,11 @@ final matches = entries.where(filter.matches);
 
 print(CurlExporter.export(matches.first));
 print(HarExporter.exportSession(entries));
+
+// Session share (same codec the inspector clipboard uses)
+final encoded = JalaSessionCodec.encode(JalaBinding.instance.store);
+JalaBinding.instance.store.importSession(JalaSessionCodec.decode(encoded));
 ```
 
-See [docs/SPEC-v0.1.md](../../docs/SPEC-v0.1.md) for the full v0.1 contract.
+See [docs/SPEC-v0.1.md](../../docs/SPEC-v0.1.md) for the original v0.1
+contract; later tracks extend the model without breaking those defaults.

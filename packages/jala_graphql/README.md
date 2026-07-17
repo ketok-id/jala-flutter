@@ -4,7 +4,8 @@ GraphQL integration for Jala, the in-app Flutter network inspector: captures
 every GraphQL operation (query/mutation/subscription) sent through any
 `gql_link`-based client — including `graphql_flutter` and `ferry`, both of
 which are built on `gql_link` — with operation name, pretty-printed query
-text, variables, and the response's `data`/`errors`.
+text, variables, the response's `data`/`errors`, and a per-payload
+subscription timeline.
 
 See the [repo README](../../README.md) for what Jala is and why (replay,
 filter grammar, redaction-by-default) and the [`jala`](../jala) package
@@ -14,7 +15,7 @@ for the facade that wires this up in an app.
 
 ```yaml
 dependencies:
-  jala_graphql: ^0.4.0   # requires jala_core ^0.3.0
+  jala_graphql: ^0.5.0   # requires jala_core ^0.5.0
 ```
 
 ## Attach
@@ -79,7 +80,8 @@ in the inspector that the real endpoint wasn't provided.
   `JalaConfig.maxSubscriptionPayloads` (default 50; `payloadCount` always
   reflects the true total, even once older payloads have been evicted).
   Filter the inspector list with `is:subscription` to see only these
-  entries.
+  entries; the Response tab shows the timeline (tap a payload for the
+  body view).
 - A single response event still fires when the subscription's stream
   closes — not on every payload. Its body uses the **first** payload's
   `data`/`errors`, with `statusMessage: 'subscription completed'`.

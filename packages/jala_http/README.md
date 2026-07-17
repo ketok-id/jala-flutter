@@ -2,7 +2,8 @@
 
 `package:http` integration for Jala, the in-app Flutter network inspector:
 captures every request, response, and error made through a `http.Client`,
-and supports one-tap in-app replay.
+and supports one-tap in-app replay and full network throttling (latency,
+drop, upload + download pacing).
 
 See the [repo README](../../README.md) for what Jala is and why (replay,
 filter grammar, redaction-by-default) and the [`jala`](../jala) package
@@ -12,7 +13,7 @@ for the facade that wires this up in an app.
 
 ```yaml
 dependencies:
-  jala_http: ^0.3.0
+  jala_http: ^0.5.0   # requires jala_core ^0.5.0
 ```
 
 ## Wrap

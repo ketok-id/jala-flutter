@@ -12,7 +12,7 @@ facade that wires this up in an app.
 
 ```yaml
 dependencies:
-  jala_websocket: ^0.4.0   # requires jala_core ^0.3.0
+  jala_websocket: ^0.5.0   # requires jala_core ^0.5.0
 ```
 
 ## Wrap
@@ -68,6 +68,13 @@ A `WsConnectionEntry` (see `jala_core`) tracks, per connection:
   true total ever observed. Connections themselves are capped at
   `JalaConfig.maxWsConnections` (default 20), oldest-closed evicted first.
 
+## Throttling
+
+WebSocket frames are **not** throttled. `JalaThrottleRegistry` applies to
+HTTP adapters (`jala_dio`, `jala_http`) only — frames still pass through
+`JalaWebSocketChannel` at full speed regardless of the active profile.
+(WS throttling is intentionally out of scope for v0.5.)
+
 ## Production safety
 
 - `wrap()` checks `JalaBinding.instance.isEnabled` once, up front. When
@@ -87,6 +94,8 @@ A `WsConnectionEntry` (see `jala_core`) tracks, per connection:
 ## Limitations
 
 - Frame-level mocking (intercepting/replaying individual WS frames) is out
-  of scope for this release — a candidate for a future one.
+  of scope — a candidate for a future release.
 - There is no HAR export for WebSocket connections — no standard format
   exists for representing a frame timeline.
+- Network-condition simulation (latency / drop / bandwidth) does not apply
+  to WebSocket frames — see [Throttling](#throttling) above.
