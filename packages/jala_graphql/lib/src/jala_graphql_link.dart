@@ -45,17 +45,15 @@ import 'package:jala_core/jala_core.dart';
 ///
 /// ### Subscriptions
 ///
-/// Subscription payload streaming is out of scope for this release (see
-/// docs/plans/track-d-v0.4.md D3) — only the subscription's start and its
-/// eventual completion are captured as entries, not every payload. The
-/// entry's request event fires immediately (`operationType: 'subscription'`,
-/// status pending); when the underlying stream closes, a single response
-/// event is emitted using the **first** payload's `data`/`errors` as the
-/// response body, with the total payload count tagged in the body JSON as
-/// `{"@subscription": {"payloads": N}}` and `statusMessage: 'subscription
-/// completed'`. Per-payload frame-level capture belongs to the WebSocket
-/// frame model and needs `jala_graphql`<->`jala_websocket` coordination —
-/// a v0.5 candidate.
+/// Every payload delivered on an open subscription is captured as a
+/// [NetworkSubscriptionPayloadEvent] (`seq` incrementing from 0), appended
+/// to the entry's `payloads` ring buffer (see docs/plans/track-e-v0.5.md
+/// E1/E2) — superseding the v0.4 `{"@subscription": {"payloads": N}}` body
+/// convention. The entry's request event still fires immediately
+/// (`operationType: 'subscription'`, status pending); when the underlying
+/// stream closes, a single completion response event is still emitted
+/// using the **first** payload's `data`/`errors` as the response body, with
+/// `statusMessage: 'subscription completed'`.
 ///
 /// ### Production safety
 ///
@@ -177,9 +175,10 @@ class JalaGraphQLLink extends Link {
     }
   }
 
-  /// Taps a subscription stream: forwards every payload untouched but only
-  /// emits a single completion [NetworkResponseEvent] once the stream
-  /// closes — see the "Subscriptions" section in the class docs.
+  /// Taps a subscription stream: forwards every payload untouched, emits a
+  /// [NetworkSubscriptionPayloadEvent] per payload (`seq` incrementing from
+  /// 0), and emits a single completion [NetworkResponseEvent] once the
+  /// stream closes — see the "Subscriptions" section in the class docs.
   Stream<Response> _tapSubscription(
     JalaBinding binding,
     String callId,
@@ -190,18 +189,18 @@ class JalaGraphQLLink extends Link {
     int payloadCount = 0;
     try {
       await for (final Response response in upstream) {
+        final int seq = payloadCount;
         payloadCount++;
         firstPayload ??= response;
+        try {
+          _emitSubscriptionPayload(binding, callId, seq, response);
+        } catch (_) {
+          // Ignore capture failures.
+        }
         yield response;
       }
       try {
-        _emitSubscriptionCompletion(
-          binding,
-          callId,
-          stopwatch,
-          firstPayload,
-          payloadCount,
-        );
+        _emitSubscriptionCompletion(binding, callId, stopwatch, firstPayload);
       } catch (_) {
         // Ignore capture failures.
       }
@@ -267,24 +266,7 @@ class JalaGraphQLLink extends Link {
   ) {
     final bool hasErrors =
         response.errors != null && response.errors!.isNotEmpty;
-    // SPEC-NOTE: `response.data` is already a decoded `Map`/`null`, not a
-    // `String` — like `JalaDioInterceptor`'s response capture, only
-    // `String` bodies go through `JalaRedactor.redactBody` (pattern-based
-    // redaction needs text to match against); a `Map` here is captured
-    // as-is, same as the non-string branch of `_redactedCapture`.
-    final Map<String, dynamic> payload = <String, dynamic>{
-      'data': response.data,
-      if (hasErrors)
-        'errors': <Map<String, dynamic>>[
-          for (final GraphQLError error in response.errors!)
-            _errorToJson(error),
-        ],
-    };
-    final CapturedBody body = CapturedBody.capture(
-      payload,
-      contentType: 'application/json',
-      maxBytes: binding.config.maxBodyBytes,
-    );
+    final CapturedBody body = _capturePayload(binding, response);
 
     binding.bus.emit(
       NetworkResponseEvent(
@@ -302,31 +284,39 @@ class JalaGraphQLLink extends Link {
     );
   }
 
+  /// Emits one [NetworkSubscriptionPayloadEvent] for [response], the
+  /// [seq]-th payload delivered on this subscription (see
+  /// docs/plans/track-e-v0.5.md E1/E2 — supersedes the v0.4
+  /// `{"@subscription": {"payloads": N}}` body convention).
+  void _emitSubscriptionPayload(
+    JalaBinding binding,
+    String callId,
+    int seq,
+    Response response,
+  ) {
+    binding.bus.emit(
+      NetworkSubscriptionPayloadEvent(
+        callId: callId,
+        timestamp: DateTime.now(),
+        seq: seq,
+        body: _capturePayload(binding, response),
+      ),
+    );
+  }
+
   void _emitSubscriptionCompletion(
     JalaBinding binding,
     String callId,
     Stopwatch stopwatch,
     Response? firstPayload,
-    int payloadCount,
   ) {
-    final bool hasErrors =
-        firstPayload != null &&
-        firstPayload.errors != null &&
-        firstPayload.errors!.isNotEmpty;
-    final Map<String, dynamic> payload = <String, dynamic>{
-      if (firstPayload != null) 'data': firstPayload.data,
-      if (hasErrors)
-        'errors': <Map<String, dynamic>>[
-          for (final GraphQLError error in firstPayload.errors!)
-            _errorToJson(error),
-        ],
-      '@subscription': <String, dynamic>{'payloads': payloadCount},
-    };
-    final CapturedBody body = CapturedBody.capture(
-      payload,
-      contentType: 'application/json',
-      maxBytes: binding.config.maxBodyBytes,
-    );
+    final CapturedBody body = firstPayload == null
+        ? CapturedBody.capture(
+            const <String, dynamic>{},
+            contentType: 'application/json',
+            maxBytes: binding.config.maxBodyBytes,
+          )
+        : _capturePayload(binding, firstPayload);
 
     binding.bus.emit(
       NetworkResponseEvent(
@@ -340,6 +330,33 @@ class JalaGraphQLLink extends Link {
         // request was issued to the moment its stream closed.
         duration: stopwatch.elapsed,
       ),
+    );
+  }
+
+  /// Captures a GraphQL response's `data`/`errors` as the standard
+  /// `{"data": ..., "errors": [...]}` shape shared by [_emitResponse],
+  /// [_emitSubscriptionPayload], and [_emitSubscriptionCompletion].
+  ///
+  /// SPEC-NOTE: `response.data` is already a decoded `Map`/`null`, not a
+  /// `String` — like `JalaDioInterceptor`'s response capture, only
+  /// `String` bodies go through `JalaRedactor.redactBody` (pattern-based
+  /// redaction needs text to match against); a `Map` here is captured
+  /// as-is, same as the non-string branch of `_redactedCapture`.
+  CapturedBody _capturePayload(JalaBinding binding, Response response) {
+    final bool hasErrors =
+        response.errors != null && response.errors!.isNotEmpty;
+    final Map<String, dynamic> payload = <String, dynamic>{
+      'data': response.data,
+      if (hasErrors)
+        'errors': <Map<String, dynamic>>[
+          for (final GraphQLError error in response.errors!)
+            _errorToJson(error),
+        ],
+    };
+    return CapturedBody.capture(
+      payload,
+      contentType: 'application/json',
+      maxBytes: binding.config.maxBodyBytes,
     );
   }
 

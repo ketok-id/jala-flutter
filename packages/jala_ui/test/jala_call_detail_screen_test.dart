@@ -296,4 +296,129 @@ void main() {
     expect(find.text('HAR'), findsOneWidget);
     expect(find.text('Replay'), findsOneWidget);
   });
+
+  // --- Subscription payload timeline (E3) ---------------------------------
+
+  testWidgets(
+    'Response tab renders a subscription payload timeline, opens a payload '
+    'on tap, and shows the trimmed-count note',
+    (WidgetTester tester) async {
+      JalaBinding.instance.initialize(
+        config: JalaConfig(enabled: true, maxSubscriptionPayloads: 2),
+      );
+      final JalaBinding binding = JalaBinding.instance;
+      emitPendingRequest(
+        binding.bus,
+        'sub-1',
+        method: 'POST',
+        url: 'https://api.example.com/graphql',
+        operationName: 'OnTick',
+        operationType: 'subscription',
+      );
+      emitSubscriptionPayload(binding.bus, 'sub-1', seq: 0, data: '{"tick":0}');
+      emitSubscriptionPayload(binding.bus, 'sub-1', seq: 1, data: '{"tick":1}');
+      emitSubscriptionPayload(binding.bus, 'sub-1', seq: 2, data: '{"tick":2}');
+      await flush();
+
+      await pumpJalaApp(tester, const JalaCallDetailScreen(entryId: 'sub-1'));
+      await pumpJalaSettle(tester);
+
+      await tester.tap(find.text('Response'));
+      await pumpJalaSettle(tester);
+
+      expect(find.text('Subscription payloads'), findsOneWidget);
+      // Ring-capped at 2: the oldest payload (seq 0) fell out.
+      expect(find.textContaining('Showing last 2 of 3 payloads'), findsOneWidget);
+      expect(find.text('{"tick":1}'), findsOneWidget);
+      expect(find.text('{"tick":2}'), findsOneWidget);
+      expect(find.text('{"tick":0}'), findsNothing);
+
+      await tester.tap(find.text('{"tick":2}'));
+      await pumpJalaSettle(tester);
+
+      expect(find.text('Payload #1'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'Response tab has no subscription payload timeline for a plain call',
+    (WidgetTester tester) async {
+      final JalaBinding binding = initJalaBinding();
+      emitCompletedCall(binding.bus, 'plain-3');
+      await flush();
+
+      await pumpJalaApp(tester, const JalaCallDetailScreen(entryId: 'plain-3'));
+      await pumpJalaSettle(tester);
+
+      await tester.tap(find.text('Response'));
+      await pumpJalaSettle(tester);
+
+      expect(find.text('Subscription payloads'), findsNothing);
+    },
+  );
+
+  // --- Imported entries (E3) -----------------------------------------------
+
+  testWidgets(
+    'imported entries disable Replay/Mock this/Edit & resend with an '
+    'explanatory tooltip',
+    (WidgetTester tester) async {
+      final JalaBinding binding = initJalaBinding();
+      emitCompletedCall(binding.bus, 'orig-1', method: 'GET', statusCode: 200);
+      await flush();
+      final JalaSession session = JalaSessionCodec.decode(
+        JalaSessionCodec.encode(binding.store),
+      );
+      binding.store.importSession(session);
+      await flush();
+
+      await pumpJalaApp(tester, const JalaCallDetailScreen(entryId: 'orig-1'));
+      await pumpJalaSettle(tester);
+
+      final FilledButton replayButton = tester.widget<FilledButton>(
+        find.ancestor(
+          of: find.text('Replay'),
+          matching: find.byType(FilledButton),
+        ),
+      );
+      expect(replayButton.onPressed, isNull);
+      final Tooltip replayTooltip = tester.widget<Tooltip>(
+        find.ancestor(
+          of: find.text('Replay'),
+          matching: find.byType(Tooltip),
+        ),
+      );
+      expect(replayTooltip.message, contains("can't be replayed"));
+
+      final TextButton mockButton = tester.widget<TextButton>(
+        find.ancestor(
+          of: find.text('Mock this'),
+          matching: find.byType(TextButton),
+        ),
+      );
+      expect(mockButton.onPressed, isNull);
+      final Tooltip mockTooltip = tester.widget<Tooltip>(
+        find.ancestor(
+          of: find.text('Mock this'),
+          matching: find.byType(Tooltip),
+        ),
+      );
+      expect(mockTooltip.message, contains("can't be mocked"));
+
+      final TextButton editButton = tester.widget<TextButton>(
+        find.ancestor(
+          of: find.text('Edit & resend'),
+          matching: find.byType(TextButton),
+        ),
+      );
+      expect(editButton.onPressed, isNull);
+      final Tooltip editTooltip = tester.widget<Tooltip>(
+        find.ancestor(
+          of: find.text('Edit & resend'),
+          matching: find.byType(Tooltip),
+        ),
+      );
+      expect(editTooltip.message, contains("can't be edited"));
+    },
+  );
 }

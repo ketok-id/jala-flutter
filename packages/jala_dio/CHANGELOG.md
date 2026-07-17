@@ -1,3 +1,19 @@
+## Unreleased (0.5.0)
+
+- Network throttling: `onRequest` consults `JalaBinding.instance
+  .throttleRegistry` — a 100%-drop profile rejects with a connection-error
+  `DioException` (captured as a normal error entry, tagged
+  `throttledBy: <profileId>`); otherwise the configured latency (+ jitter)
+  delays the request before it's forwarded. Only applied when a profile is
+  active and the request's host matches the profile's host pattern.
+- Bandwidth pacing (`downloadBytesPerSec`) delays each chunk of a
+  `ResponseType.stream` response. Dio's default (buffered) response types
+  resolve to bytes entirely inside Dio's own transformer, off a stream
+  this interceptor never sees — those responses get latency/drop only,
+  never pacing (documented in the README).
+- Zero overhead when no profile is active: the throttle check is a cheap
+  null/host-pattern check on the existing hot path, no behavior change.
+
 ## 0.4.0
 
 - Lockstep release; no functional changes. Bumped for the `jala_core`

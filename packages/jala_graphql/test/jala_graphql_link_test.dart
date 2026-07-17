@@ -331,9 +331,79 @@ void main() {
         expect(responseJson['data'], <String, dynamic>{
           'messageAdded': <String, dynamic>{'id': '1'},
         });
+        // The `{"@subscription": {"payloads": N}}` body convention is gone
+        // — superseded by the per-payload timeline below.
+        expect(responseJson.containsKey('@subscription'), isFalse);
+
+        // Every payload was captured on `entry.payloads`, in order, none
+        // evicted (well under the default `maxSubscriptionPayloads: 50`
+        // ring cap).
+        expect(entry.payloadCount, 3);
+        expect(entry.payloads, hasLength(3));
         expect(
-          responseJson['@subscription'],
-          <String, dynamic>{'payloads': 3},
+          decodeBody(entry.payloads[0])['data'],
+          <String, dynamic>{
+            'messageAdded': <String, dynamic>{'id': '1'},
+          },
+        );
+        expect(
+          decodeBody(entry.payloads[1])['data'],
+          <String, dynamic>{
+            'messageAdded': <String, dynamic>{'id': '2'},
+          },
+        );
+        expect(
+          decodeBody(entry.payloads[2])['data'],
+          <String, dynamic>{
+            'messageAdded': <String, dynamic>{'id': '3'},
+          },
+        );
+      },
+    );
+
+    test(
+      'payload ring cap: payloadCount keeps the true total while payloads '
+      'evicts the oldest beyond maxSubscriptionPayloads',
+      () async {
+        JalaBinding.instance.initialize(
+          config: JalaConfig(enabled: true, maxSubscriptionPayloads: 2),
+        );
+        final FakeTerminatingLink terminating = FakeTerminatingLink()
+          ..respondWith(<Response>[
+            gqlResponse(<String, dynamic>{
+              'tick': <String, dynamic>{'n': 1},
+            }),
+            gqlResponse(<String, dynamic>{
+              'tick': <String, dynamic>{'n': 2},
+            }),
+            gqlResponse(<String, dynamic>{
+              'tick': <String, dynamic>{'n': 3},
+            }),
+            gqlResponse(<String, dynamic>{
+              'tick': <String, dynamic>{'n': 4},
+            }),
+          ]);
+        final JalaGraphQLLink link = JalaGraphQLLink();
+
+        final Request request = buildRequest(
+          'subscription OnTick { tick { n } }',
+          operationName: 'OnTick',
+        );
+        await link.request(request, terminating.request).toList();
+        await pump();
+
+        final NetworkCallEntry entry =
+            JalaBinding.instance.store.entries.single;
+        expect(entry.payloadCount, 4);
+        expect(entry.payloads, hasLength(2));
+        // Oldest two (n: 1, n: 2) evicted; the ring keeps the most recent.
+        expect(
+          decodeBody(entry.payloads[0])['data'],
+          <String, dynamic>{'tick': <String, dynamic>{'n': 3}},
+        );
+        expect(
+          decodeBody(entry.payloads[1])['data'],
+          <String, dynamic>{'tick': <String, dynamic>{'n': 4}},
         );
       },
     );

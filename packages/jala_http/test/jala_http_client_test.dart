@@ -533,4 +533,201 @@ void main() {
       expect(entry.status, JalaCallStatus.error);
     });
   });
+
+  group('JalaHttpClient throttling', () {
+    test(
+      'a 100% drop-rate profile throws ClientException, tagged '
+      'throttledBy, and never reaches the inner client',
+      () async {
+        JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+        JalaBinding.instance.throttleRegistry.setActive(
+          const JalaThrottleProfile(
+            id: 'test-offline',
+            name: 'Test Offline',
+            latencyMs: 0,
+            dropRate: 1,
+          ),
+        );
+        var hits = 0;
+        final FakeHttpClient fake = FakeHttpClient((request) async {
+          hits++;
+          return jsonStreamedResponse(<String, dynamic>{});
+        });
+        final JalaHttpClient client = JalaHttpClient(inner: fake);
+
+        await expectLater(
+          client.get(Uri.parse('https://api.example.com/x')),
+          throwsA(isA<http.ClientException>()),
+        );
+        await pump();
+
+        expect(hits, 0);
+        final NetworkCallEntry entry = JalaBinding.instance.store.entries
+            .single;
+        expect(entry.status, JalaCallStatus.error);
+        expect(entry.throttledBy, 'test-offline');
+      },
+    );
+
+    test(
+      'latency measurably delays the request before it reaches the inner '
+      'client',
+      () async {
+        JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+        JalaBinding.instance.throttleRegistry.setActive(
+          const JalaThrottleProfile(
+            id: 'test-slow',
+            name: 'Test Slow',
+            latencyMs: 200,
+          ),
+        );
+        final FakeHttpClient fake = FakeHttpClient(
+          (request) async => jsonStreamedResponse(<String, dynamic>{
+            'ok': true,
+          }),
+        );
+        final JalaHttpClient client = JalaHttpClient(inner: fake);
+
+        final Stopwatch sw = Stopwatch()..start();
+        await client.get(Uri.parse('https://api.example.com/x'));
+        sw.stop();
+        await pump();
+
+        expect(sw.elapsed.inMilliseconds, greaterThanOrEqualTo(150));
+        final NetworkCallEntry entry = JalaBinding.instance.store.entries
+            .single;
+        expect(entry.throttledBy, 'test-slow');
+        expect(entry.status, JalaCallStatus.success);
+      },
+    );
+
+    test(
+      'download bandwidth pacing delays each teed response chunk',
+      () async {
+        JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+        JalaBinding.instance.throttleRegistry.setActive(
+          const JalaThrottleProfile(
+            id: 'test-pace-download',
+            name: 'Test Pace Download',
+            latencyMs: 0,
+            downloadBytesPerSec: 500,
+          ),
+        );
+        final List<List<int>> chunks = <List<int>>[
+          List<int>.filled(100, 1),
+          List<int>.filled(100, 2),
+        ];
+        final FakeHttpClient fake = FakeHttpClient(
+          (request) async => chunkedStreamedResponse(chunks),
+        );
+        final JalaHttpClient client = JalaHttpClient(inner: fake);
+
+        final http.StreamedResponse streamed = await client.send(
+          http.Request(
+            'GET',
+            Uri.parse('https://api.example.com/download'),
+          ),
+        );
+
+        final Stopwatch sw = Stopwatch()..start();
+        final List<Duration> arrivals = <Duration>[];
+        await for (final List<int> _ in streamed.stream) {
+          arrivals.add(sw.elapsed);
+        }
+
+        expect(arrivals, hasLength(2));
+        // Each 100-byte chunk at 500 bytes/sec paces ~200ms; the gap
+        // between arrivals must reflect that, not arrive back-to-back.
+        final int gapMs =
+            arrivals[1].inMilliseconds - arrivals[0].inMilliseconds;
+        expect(gapMs, greaterThanOrEqualTo(150));
+      },
+    );
+
+    test('upload bandwidth pacing delays a streamed request body', () async {
+      JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+      JalaBinding.instance.throttleRegistry.setActive(
+        const JalaThrottleProfile(
+          id: 'test-pace-upload',
+          name: 'Test Pace Upload',
+          latencyMs: 0,
+          uploadBytesPerSec: 500,
+        ),
+      );
+      final FakeHttpClient fake = FakeHttpClient(
+        (request) async => jsonStreamedResponse(<String, dynamic>{
+          'ok': true,
+        }),
+      );
+      final JalaHttpClient client = JalaHttpClient(inner: fake);
+
+      final http.StreamedRequest request = http.StreamedRequest(
+        'POST',
+        Uri.parse('https://api.example.com/upload'),
+      );
+      request.sink.add(List<int>.filled(100, 1));
+      request.sink.add(List<int>.filled(100, 2));
+      unawaited(request.sink.close());
+
+      final Stopwatch sw = Stopwatch()..start();
+      await client.send(request);
+      sw.stop();
+
+      // 200 bytes total at 500 bytes/sec paces ~400ms.
+      expect(sw.elapsed.inMilliseconds, greaterThanOrEqualTo(300));
+      expect(fake.requestBodies.single, hasLength(200));
+    });
+
+    test('an inactive registry adds no latency', () async {
+      JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+      final FakeHttpClient fake = FakeHttpClient(
+        (request) async => jsonStreamedResponse(<String, dynamic>{
+          'ok': true,
+        }),
+      );
+      final JalaHttpClient client = JalaHttpClient(inner: fake);
+
+      final Stopwatch sw = Stopwatch()..start();
+      await client.get(Uri.parse('https://api.example.com/x'));
+      sw.stop();
+
+      expect(sw.elapsed.inMilliseconds, lessThan(100));
+      final NetworkCallEntry entry = JalaBinding.instance.store.entries
+          .single;
+      expect(entry.throttledBy, isNull);
+    });
+
+    test(
+      'a host pattern that does not match the request is not applied',
+      () async {
+        JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+        JalaBinding.instance.throttleRegistry.setActive(
+          const JalaThrottleProfile(
+            id: 'test-offline',
+            name: 'Test Offline',
+            latencyMs: 0,
+            dropRate: 1,
+          ),
+          hostPattern: 'other.example.com',
+        );
+        final FakeHttpClient fake = FakeHttpClient(
+          (request) async => jsonStreamedResponse(<String, dynamic>{
+            'ok': true,
+          }),
+        );
+        final JalaHttpClient client = JalaHttpClient(inner: fake);
+
+        final http.Response response = await client.get(
+          Uri.parse('https://api.example.com/x'),
+        );
+        expect(response.statusCode, 200);
+        await pump();
+
+        final NetworkCallEntry entry = JalaBinding.instance.store.entries
+            .single;
+        expect(entry.throttledBy, isNull);
+        expect(entry.status, JalaCallStatus.success);
+      },
+    );
+  });
 }

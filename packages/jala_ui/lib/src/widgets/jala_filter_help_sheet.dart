@@ -21,6 +21,7 @@ class JalaFilterHelpSheet extends StatelessWidget {
     ('is:mocked', 'the call was handled by a mock rule'),
     ('op:', 'GraphQL operationName match; * wildcard allowed (op:Get*)'),
     ('is:graphql', 'the call carries GraphQL operation metadata'),
+    ('is:subscription', 'the call is a GraphQL subscription operation'),
     ('is:ws', 'WebSocket connection entries (merged list only)'),
     ('body:', 'substring in captured request or response body'),
     ('bare text', 'substring of method + full URL'),

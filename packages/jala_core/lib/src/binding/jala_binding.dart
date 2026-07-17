@@ -81,6 +81,7 @@ class JalaBinding {
       maxEntries: effective.maxEntries,
       maxWsConnections: effective.maxWsConnections,
       maxWsFramesPerConnection: effective.maxWsFramesPerConnection,
+      maxSubscriptionPayloads: effective.maxSubscriptionPayloads,
     );
   }
 

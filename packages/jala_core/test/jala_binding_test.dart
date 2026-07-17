@@ -37,12 +37,19 @@ void main() {
 
     test('initialize wires config, bus, and store', () {
       final binding = JalaBinding.instance
-        ..initialize(config: JalaConfig(enabled: true, maxEntries: 7));
+        ..initialize(
+          config: JalaConfig(
+            enabled: true,
+            maxEntries: 7,
+            maxSubscriptionPayloads: 3,
+          ),
+        );
 
       expect(binding.isInitialized, isTrue);
       expect(binding.isEnabled, isTrue);
       expect(binding.config.maxEntries, 7);
       expect(binding.store.maxEntries, 7);
+      expect(binding.store.maxSubscriptionPayloads, 3);
       expect(binding.bus, isA<JalaEventBus>());
     });
 

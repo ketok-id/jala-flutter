@@ -52,6 +52,13 @@ class JalaDioInterceptor extends Interceptor {
   /// same [NetworkProgressEvent] — see B4 in docs/plans/track-b-v0.2.md.
   static const String _progressStateExtraKey = 'jala_progress_state';
 
+  /// `RequestOptions.extra` key holding this call's throttle-time
+  /// `downloadBytesPerSec` (nullable), captured once in [onRequest] so a
+  /// `ResponseType.stream` response can be paced consistently with the
+  /// profile that was active when the request was made — see
+  /// [_wireDownloadPacing].
+  static const String _throttleDownloadBpsExtraKey = 'jala_throttle_dl_bps';
+
   /// Cadence for [NetworkProgressEvent] emission on either side of a call:
   /// every ~64 KB transferred, plus unconditionally on the first and last
   /// chunk of whichever side an interceptor can actually observe.
@@ -96,18 +103,101 @@ class JalaDioInterceptor extends Interceptor {
       bodyText: bodyCapture.body.text,
     );
 
+    // Throttle decision: computed once here (request time) so the
+    // NetworkRequestEvent's `throttledBy` tag, the drop/latency behavior,
+    // and any download pacing (see `_wireDownloadPacing`) all agree on the
+    // same profile — even if the active profile changes mid-flight. See
+    // docs/plans/track-e-v0.5.md E2.
+    String? throttledBy;
+    bool shouldDrop = false;
+    Duration latency = Duration.zero;
     try {
-      _emitRequest(options, bodyCapture, mockRuleId: rule?.id);
+      final JalaThrottleRegistry throttle = binding.throttleRegistry;
+      final JalaThrottleProfile? profile = throttle.activeProfile;
+      if (profile != null && throttle.hostMatches(options.uri.host)) {
+        throttledBy = profile.id;
+        options.extra[_throttleDownloadBpsExtraKey] = profile.downloadBytesPerSec;
+        shouldDrop = throttle.shouldDrop();
+        if (!shouldDrop) {
+          latency = throttle.latencyFor();
+        }
+      }
+    } catch (_) {
+      // A capture bug must never break the app's networking.
+    }
+
+    try {
+      _emitRequest(
+        options,
+        bodyCapture,
+        mockRuleId: rule?.id,
+        throttledBy: throttledBy,
+      );
     } catch (_) {
       // Continue even if emit fails.
     }
 
-    if (rule == null) {
-      handler.next(options);
+    if (throttledBy != null && shouldDrop) {
+      // A dropped call never reaches the network at all. Emit the error
+      // event here (same pattern as MockFailure) because rejecting from
+      // onRequest does not reliably re-enter this interceptor's onError —
+      // so we must not depend on _captureError for the entry status.
+      // Mark mockHandledExtraKey so a later onError (if Dio does call it)
+      // does not double-capture.
+      options.extra[mockHandledExtraKey] = true;
+      final Stopwatch? stopwatch =
+          options.extra[startExtraKey] as Stopwatch?;
+      final DioException err = DioException.connectionError(
+        requestOptions: options,
+        reason: 'Jala throttle: dropped by profile "$throttledBy"',
+      );
+      try {
+        JalaBinding.instance.bus.emit(
+          NetworkErrorEvent(
+            callId: options.extra[idExtraKey] as String,
+            timestamp: DateTime.now(),
+            errorMessage: err.message ?? err.toString(),
+            duration: stopwatch?.elapsed,
+          ),
+        );
+      } catch (_) {}
+      handler.reject(err);
       return;
     }
 
-    unawaited(_applyMock(rule, options, handler));
+    if (rule == null) {
+      if (latency > Duration.zero) {
+        unawaited(_delayThenNext(options, handler, latency));
+      } else {
+        handler.next(options);
+      }
+      return;
+    }
+
+    if (latency > Duration.zero) {
+      unawaited(_delayThenApplyMock(rule, options, handler, latency));
+    } else {
+      unawaited(_applyMock(rule, options, handler));
+    }
+  }
+
+  Future<void> _delayThenNext(
+    RequestOptions options,
+    RequestInterceptorHandler handler,
+    Duration latency,
+  ) async {
+    await Future<void>.delayed(latency);
+    handler.next(options);
+  }
+
+  Future<void> _delayThenApplyMock(
+    JalaMockRule rule,
+    RequestOptions options,
+    RequestInterceptorHandler handler,
+    Duration latency,
+  ) async {
+    await Future<void>.delayed(latency);
+    await _applyMock(rule, options, handler);
   }
 
   @override
@@ -182,6 +272,7 @@ class JalaDioInterceptor extends Interceptor {
     RequestOptions options,
     _BodyCapture capture, {
     String? mockRuleId,
+    String? throttledBy,
   }) {
     final JalaBinding binding = JalaBinding.instance;
     final Map<String, String> rawHeaders = <String, String>{
@@ -205,6 +296,7 @@ class JalaDioInterceptor extends Interceptor {
         client: 'dio',
         replayOf: replayOf,
         mockRuleId: mockRuleId,
+        throttledBy: throttledBy,
       ),
     );
   }
@@ -373,6 +465,7 @@ class JalaDioInterceptor extends Interceptor {
         binding: binding,
         state: progressState,
       );
+      _wireDownloadPacing(response, options: options, binding: binding);
     }
 
     final Map<String, String> headers = binding.config.redactor.redactHeaders(
@@ -630,6 +723,39 @@ class JalaDioInterceptor extends Interceptor {
         },
       ),
     );
+  }
+
+  /// Paces a `ResponseType.stream` response's [ResponseBody.stream] so each
+  /// chunk is delayed per `JalaThrottleRegistry.paceFor`, simulating the
+  /// active profile's `downloadBytesPerSec` cap — see
+  /// docs/plans/track-e-v0.5.md E2. A no-op when this call wasn't throttled
+  /// or the profile has no download cap.
+  ///
+  /// SPEC-NOTE: bandwidth pacing only applies to `ResponseType.stream`
+  /// responses — Dio's default (buffered) response types resolve to bytes
+  /// entirely inside Dio's own transformer, off a stream this interceptor
+  /// never sees, so they only ever get latency+drop treatment, never
+  /// pacing. Document this honestly in the README rather than pretending
+  /// full-body responses are paced too.
+  void _wireDownloadPacing(
+    Response<dynamic> response, {
+    required RequestOptions options,
+    required JalaBinding binding,
+  }) {
+    final int? perSec = options.extra[_throttleDownloadBpsExtraKey] as int?;
+    if (perSec == null || perSec <= 0) return;
+    final dynamic data = response.data;
+    if (data is! ResponseBody) return;
+    data.stream = data.stream.asyncMap((Uint8List chunk) async {
+      final Duration delay = binding.throttleRegistry.paceFor(
+        chunk.length,
+        perSec,
+      );
+      if (delay > Duration.zero) {
+        await Future<void>.delayed(delay);
+      }
+      return chunk;
+    });
   }
 
   void _emitProgress(JalaBinding binding, String callId, _ProgressState state) {

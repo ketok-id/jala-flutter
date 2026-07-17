@@ -42,6 +42,31 @@ is captured as a fresh entry with `replayOf` set to the original call's id.
 Headers that were redacted at capture time (e.g. `Authorization`) are never
 resent — Jala never retains the real secret to resend in the first place.
 
+## Throttling
+
+`JalaDioInterceptor.onRequest` consults `JalaBinding.instance
+.throttleRegistry` (configured from the inspector UI or directly via
+`JalaThrottleRegistry.setActive`) whenever a profile is active and the
+request's host matches the profile's host pattern:
+
+- A 100% drop-rate profile (e.g. the `offline` preset) rejects the request
+  with a connection-error `DioException` **before it ever reaches your
+  `HttpClientAdapter`** — captured as a normal error entry, tagged
+  `throttledBy: <profileId>`.
+- Otherwise the profile's latency (± jitter) delays the request before
+  it's forwarded.
+- Bandwidth pacing (`downloadBytesPerSec`) is honored **only** for
+  `ResponseType.stream` responses — each chunk of the response stream is
+  delayed to simulate the cap. Dio's default (buffered) response types
+  resolve to bytes entirely inside Dio's own transformer, off a stream
+  this interceptor never sees, so they get latency/drop treatment only,
+  never bandwidth pacing. Request a streamed response
+  (`Options(responseType: ResponseType.stream)`) if you need to see a
+  download visibly slow down.
+
+No profile active (the common case) costs a cheap null/host-pattern check
+on the existing hot path — no measurable overhead.
+
 ## Production safety
 
 - Every interceptor hook checks `JalaBinding.instance.isEnabled` first and

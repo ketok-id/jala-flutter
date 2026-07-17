@@ -54,6 +54,29 @@ through the same wrapped client, so it's captured as a fresh entry with
 capture time (e.g. `Authorization`) are never resent — Jala never retains
 the real secret to resend in the first place.
 
+## Throttling
+
+`JalaHttpClient.send` consults `JalaBinding.instance.throttleRegistry`
+(configured from the inspector UI or directly via
+`JalaThrottleRegistry.setActive`) whenever a profile is active and the
+request's host matches the profile's host pattern:
+
+- A 100% drop-rate profile (e.g. the `offline` preset) throws
+  `http.ClientException` **before the request ever reaches your wrapped
+  client** — captured as a normal error entry, tagged
+  `throttledBy: <profileId>`.
+- Otherwise the profile's latency (± jitter) delays the request before
+  it's forwarded.
+- Bandwidth pacing is applied in **both** directions — unlike `jala_dio`,
+  which can only pace `ResponseType.stream` responses, `JalaHttpClient`
+  sees every request/response byte, so it gets the complete treatment:
+  `downloadBytesPerSec` delays each chunk of the response stream tee (see
+  above), and `uploadBytesPerSec` delays each chunk of the finalized
+  request byte stream.
+
+No profile active (the common case) costs a cheap null/host-pattern check
+on the existing hot path — no measurable overhead.
+
 ## Production safety
 
 - `send()` checks `JalaBinding.instance.isEnabled` first and forwards

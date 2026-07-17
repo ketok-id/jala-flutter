@@ -11,7 +11,12 @@ import '../widgets/jala_themed_page.dart';
 import '../widgets/jala_ws_list_tile.dart';
 import 'jala_call_detail_screen.dart';
 import 'jala_mocks_screen.dart';
+import 'jala_throttle_screen.dart';
 import 'jala_ws_detail_screen.dart';
+
+/// Session actions offered from the inspector AppBar overflow menu (see
+/// docs/plans/track-e-v0.5.md E3).
+enum _SessionAction { export, import }
 
 /// One row of the chronologically-interleaved merged list: either a
 /// [NetworkCallEntry] or a [WsConnectionEntry], ordered newest-first by
@@ -131,6 +136,41 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
     );
   }
 
+  Future<void> _exportSession(BuildContext context) async {
+    final JalaStore store = JalaBinding.instance.store;
+    final int count = store.entries.length;
+    final String json = JalaSessionCodec.encode(store);
+    await Clipboard.setData(ClipboardData(text: json));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Exported session — $count ${count == 1 ? 'entry' : 'entries'} '
+          'copied to clipboard',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _importSession(BuildContext context) async {
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext ctx) => const _ImportSessionDialog(),
+    );
+  }
+
+  Future<void> _handleSessionAction(
+    BuildContext context,
+    _SessionAction action,
+  ) async {
+    switch (action) {
+      case _SessionAction.export:
+        await _exportSession(context);
+      case _SessionAction.import:
+        await _importSession(context);
+    }
+  }
+
   void _openHelp(BuildContext context) {
     unawaited(
       showModalBottomSheet<void>(
@@ -248,6 +288,46 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
                   );
                 },
           ),
+          StreamBuilder<JalaThrottleProfile?>(
+            stream: JalaBinding.instance.throttleRegistry.watch,
+            initialData: JalaBinding.instance.throttleRegistry.activeProfile,
+            builder:
+                (
+                  BuildContext context,
+                  AsyncSnapshot<JalaThrottleProfile?> snap,
+                ) {
+                  final JalaThrottleProfile? active = snap.data;
+                  return IconButton(
+                    tooltip: active != null
+                        ? 'Throttling: ${active.name}'
+                        : 'Throttle',
+                    onPressed: () {
+                      Navigator.of(context).push(JalaThrottleScreen.route());
+                    },
+                    // Avoid Badge animations that hang pumpAndSettle.
+                    icon: active != null
+                        ? Stack(
+                            clipBehavior: Clip.none,
+                            children: <Widget>[
+                              const Icon(Icons.speed),
+                              Positioned(
+                                right: -2,
+                                top: -2,
+                                child: Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).colorScheme.error,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        : const Icon(Icons.speed),
+                  );
+                },
+          ),
           IconButton(
             icon: const Icon(Icons.delete_outline),
             tooltip: 'Clear',
@@ -259,6 +339,22 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
             onPressed: calls.isEmpty
                 ? null
                 : () => _copySessionHar(context, calls),
+          ),
+          PopupMenuButton<_SessionAction>(
+            tooltip: 'Session',
+            onSelected: (_SessionAction action) =>
+                _handleSessionAction(context, action),
+            itemBuilder: (BuildContext context) =>
+                const <PopupMenuEntry<_SessionAction>>[
+                  PopupMenuItem<_SessionAction>(
+                    value: _SessionAction.export,
+                    child: Text('Export session'),
+                  ),
+                  PopupMenuItem<_SessionAction>(
+                    value: _SessionAction.import,
+                    child: Text('Import session'),
+                  ),
+                ],
           ),
           const _ThemeToggleButton(),
         ],
@@ -283,6 +379,9 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
               ),
             ),
           ),
+          const _ThrottleBanner(),
+          if (JalaBinding.instance.store.isViewingImport)
+            _ImportBanner(entryCount: calls.length),
           Expanded(
             child: all.isEmpty
                 ? const _EmptyState(message: 'No network calls captured yet.')
@@ -367,6 +466,189 @@ class _EmptyState extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Persistent banner shown below the filter field while a throttle profile
+/// is active — tapping it opens [JalaThrottleScreen] (see
+/// docs/plans/track-e-v0.5.md E3).
+class _ThrottleBanner extends StatelessWidget {
+  const _ThrottleBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<JalaThrottleProfile?>(
+      stream: JalaBinding.instance.throttleRegistry.watch,
+      initialData: JalaBinding.instance.throttleRegistry.activeProfile,
+      builder:
+          (BuildContext context, AsyncSnapshot<JalaThrottleProfile?> snap) {
+            final JalaThrottleProfile? active = snap.data;
+            if (active == null) return const SizedBox.shrink();
+            final ColorScheme scheme = Theme.of(context).colorScheme;
+            return Material(
+              color: scheme.tertiaryContainer,
+              child: InkWell(
+                onTap: () {
+                  Navigator.of(context).push(JalaThrottleScreen.route());
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      Icon(Icons.speed, size: 18, color: scheme.onTertiaryContainer),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Throttling: ${active.name} — tap to change',
+                          style: TextStyle(color: scheme.onTertiaryContainer),
+                        ),
+                      ),
+                      Icon(
+                        Icons.chevron_right,
+                        size: 18,
+                        color: scheme.onTertiaryContainer,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+    );
+  }
+}
+
+/// Banner shown below the filter field (and below [_ThrottleBanner], if
+/// also active) while `JalaStore.isViewingImport` is true — offers a way
+/// back to live capture via [JalaStore.clear].
+class _ImportBanner extends StatelessWidget {
+  const _ImportBanner({required this.entryCount});
+
+  final int entryCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.secondaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        child: Row(
+          children: <Widget>[
+            Icon(
+              Icons.upload_file,
+              size: 18,
+              color: scheme.onSecondaryContainer,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Imported session ($entryCount '
+                '${entryCount == 1 ? 'entry' : 'entries'}) — Clear to '
+                'return to live capture',
+                style: TextStyle(color: scheme.onSecondaryContainer),
+              ),
+            ),
+            TextButton(
+              onPressed: JalaBinding.instance.store.clear,
+              child: const Text('Clear'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Dialog for [_SessionAction.import]: paste-JSON field, Replace/Append
+/// choice, and inline decode-error text (never a crash — see
+/// `JalaSessionFormatException`).
+class _ImportSessionDialog extends StatefulWidget {
+  const _ImportSessionDialog();
+
+  @override
+  State<_ImportSessionDialog> createState() => _ImportSessionDialogState();
+}
+
+class _ImportSessionDialogState extends State<_ImportSessionDialog> {
+  final TextEditingController _controller = TextEditingController();
+  bool _append = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _import() {
+    final String text = _controller.text.trim();
+    if (text.isEmpty) {
+      setState(() => _error = 'Paste a session JSON to import');
+      return;
+    }
+    try {
+      final JalaSession session = JalaSessionCodec.decode(text);
+      JalaBinding.instance.store.importSession(session, append: _append);
+      Navigator.of(context).pop();
+    } on JalaSessionFormatException catch (e) {
+      setState(() => _error = e.message);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Import session'),
+      content: SizedBox(
+        width: 480,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            TextField(
+              controller: _controller,
+              minLines: 6,
+              maxLines: 12,
+              decoration: const InputDecoration(
+                hintText: 'Paste exported session JSON here…',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (_) {
+                if (_error != null) setState(() => _error = null);
+              },
+            ),
+            if (_error != null) ...<Widget>[
+              const SizedBox(height: 8),
+              Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
+            const SizedBox(height: 12),
+            SegmentedButton<bool>(
+              segments: const <ButtonSegment<bool>>[
+                ButtonSegment<bool>(value: false, label: Text('Replace')),
+                ButtonSegment<bool>(value: true, label: Text('Append')),
+              ],
+              selected: <bool>{_append},
+              onSelectionChanged: (Set<bool> s) =>
+                  setState(() => _append = s.first),
+            ),
+          ],
+        ),
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(onPressed: _import, child: const Text('Import')),
+      ],
     );
   }
 }

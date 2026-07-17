@@ -1,3 +1,13 @@
+## Unreleased (0.5.0)
+
+- Subscription payload timeline: every payload delivered on an open
+  subscription is now captured as a `NetworkSubscriptionPayloadEvent`
+  (`seq` incrementing from 0), appended to the entry's `payloads` ring
+  buffer (`JalaConfig.maxSubscriptionPayloads`, default 50) — superseding
+  the v0.4 `{"@subscription": {"payloads": N}}` body convention, which is
+  now removed. The completion response event (first payload as body,
+  `statusMessage: 'subscription completed'`) is unchanged.
+
 ## 0.4.0
 
 - Initial release: `JalaGraphQLLink extends Link` — a `gql_link` link that

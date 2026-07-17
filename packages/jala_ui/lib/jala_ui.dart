@@ -12,6 +12,7 @@ export 'src/screens/jala_inspector_screen.dart';
 export 'src/screens/jala_mock_editor_screen.dart';
 export 'src/screens/jala_mocks_screen.dart';
 export 'src/screens/jala_request_composer_screen.dart';
+export 'src/screens/jala_throttle_screen.dart';
 export 'src/screens/jala_ws_detail_screen.dart';
 export 'src/theme/jala_theme.dart';
 export 'src/theme/jala_theme_controller.dart';

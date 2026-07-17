@@ -94,6 +94,7 @@ class _JalaCallDetailScreenState extends State<JalaCallDetailScreen>
               }
               final bool hasReplayer =
                   JalaBinding.instance.replayRegistry.hasReplayer;
+              final bool imported = entry.imported;
               return Scaffold(
                 appBar: AppBar(
                   title: Text(
@@ -122,6 +123,9 @@ class _JalaCallDetailScreenState extends State<JalaCallDetailScreen>
                       headers: entry.responseHeaders,
                       body: entry.responseBody,
                       errorMessage: entry.errorMessage,
+                      operationType: entry.operationType,
+                      payloads: entry.payloads,
+                      payloadCount: entry.payloadCount,
                     ),
                   ],
                 ),
@@ -173,32 +177,51 @@ class _JalaCallDetailScreenState extends State<JalaCallDetailScreen>
                           icon: const Icon(Icons.description, size: 18),
                           label: const Text('HAR'),
                         ),
-                        TextButton.icon(
-                          onPressed: () {
-                            Navigator.of(
-                              context,
-                            ).push(JalaMockEditorScreen.routeFromEntry(entry));
-                          },
-                          icon: const Icon(Icons.bolt, size: 18),
-                          label: const Text('Mock this'),
-                        ),
-                        TextButton.icon(
-                          onPressed: hasReplayer
-                              ? () {
-                                  Navigator.of(context).push(
-                                    JalaRequestComposerScreen.route(entry),
-                                  );
-                                }
-                              : null,
-                          icon: const Icon(Icons.edit_note, size: 18),
-                          label: const Text('Edit & resend'),
+                        Tooltip(
+                          message: imported
+                              ? "Imported entries can't be mocked from"
+                              : 'Prefill a mock rule from this call',
+                          child: TextButton.icon(
+                            onPressed: imported
+                                ? null
+                                : () {
+                                    Navigator.of(context).push(
+                                      JalaMockEditorScreen.routeFromEntry(
+                                        entry,
+                                      ),
+                                    );
+                                  },
+                            icon: const Icon(Icons.bolt, size: 18),
+                            label: const Text('Mock this'),
+                          ),
                         ),
                         Tooltip(
-                          message: hasReplayer
-                              ? 'Replay this call'
-                              : 'No replayer attached — use JalaDio.attach(dio)',
+                          message: imported
+                              ? "Imported entries can't be edited & resent"
+                              : (hasReplayer
+                                    ? 'Edit and resend this call'
+                                    : 'No replayer attached'),
+                          child: TextButton.icon(
+                            onPressed: (!imported && hasReplayer)
+                                ? () {
+                                    Navigator.of(context).push(
+                                      JalaRequestComposerScreen.route(entry),
+                                    );
+                                  }
+                                : null,
+                            icon: const Icon(Icons.edit_note, size: 18),
+                            label: const Text('Edit & resend'),
+                          ),
+                        ),
+                        Tooltip(
+                          message: imported
+                              ? "Imported entries can't be replayed"
+                              : (hasReplayer
+                                    ? 'Replay this call'
+                                    : 'No replayer attached — use '
+                                          'JalaDio.attach(dio)'),
                           child: FilledButton.icon(
-                            onPressed: hasReplayer
+                            onPressed: (!imported && hasReplayer)
                                 ? () => _replay(context, entry)
                                 : null,
                             icon: const Icon(Icons.replay, size: 18),
@@ -384,6 +407,9 @@ class _HeadersBodyTab extends StatelessWidget {
     required this.body,
     this.errorMessage,
     this.graphQlRequest,
+    this.operationType,
+    this.payloads = const <CapturedBody>[],
+    this.payloadCount = 0,
   });
 
   final Map<String, String> headers;
@@ -394,9 +420,21 @@ class _HeadersBodyTab extends StatelessWidget {
   /// sections rendered from this parsed GraphQL payload.
   final _GraphQlRequest? graphQlRequest;
 
+  /// `NetworkCallEntry.operationType` — only populated for the Response
+  /// tab, to drive the subscription payload timeline below.
+  final String? operationType;
+
+  /// `NetworkCallEntry.payloads` — see [operationType].
+  final List<CapturedBody> payloads;
+
+  /// `NetworkCallEntry.payloadCount` — see [operationType].
+  final int payloadCount;
+
   @override
   Widget build(BuildContext context) {
     final _GraphQlRequest? graphQl = graphQlRequest;
+    final bool showSubscriptionPayloads =
+        operationType == 'subscription' && payloads.isNotEmpty;
     return ListView(
       padding: const EdgeInsets.all(12),
       children: <Widget>[
@@ -411,6 +449,17 @@ class _HeadersBodyTab extends StatelessWidget {
         Text('Headers', style: Theme.of(context).textTheme.titleSmall),
         JalaHeadersTable(headers: headers),
         const Divider(),
+        if (showSubscriptionPayloads) ...<Widget>[
+          Text(
+            'Subscription payloads',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          _SubscriptionPayloadList(
+            payloads: payloads,
+            payloadCount: payloadCount,
+          ),
+          const Divider(),
+        ],
         if (graphQl != null) ...<Widget>[
           Text('Query', style: Theme.of(context).textTheme.titleSmall),
           Padding(
@@ -434,6 +483,93 @@ class _HeadersBodyTab extends StatelessWidget {
           JalaBodyView(body: body),
         ],
       ],
+    );
+  }
+}
+
+/// Renders `NetworkCallEntry.payloads` for a GraphQL subscription (see
+/// docs/plans/track-e-v0.5.md E1/E3): index within the (possibly
+/// ring-buffer-trimmed) list and size, tapping into a body view sheet that
+/// reuses [JalaBodyView] — mirroring the WS frame list/preview-sheet
+/// pattern in `JalaWsDetailScreen`.
+class _SubscriptionPayloadList extends StatelessWidget {
+  const _SubscriptionPayloadList({
+    required this.payloads,
+    required this.payloadCount,
+  });
+
+  final List<CapturedBody> payloads;
+  final int payloadCount;
+
+  void _showPayload(BuildContext context, int index, CapturedBody body) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (BuildContext _) => _PayloadSheet(index: index, body: body),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        if (payloadCount > payloads.length)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Text(
+              'Showing last ${payloads.length} of $payloadCount payloads',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+        for (int i = 0; i < payloads.length; i++)
+          ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: SizedBox(width: 32, child: Text('#$i')),
+            title: Text(
+              payloads[i].text ?? '(binary)',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+            ),
+            trailing: Text(humanizeBytes(payloads[i].originalSize)),
+            onTap: () => _showPayload(context, i, payloads[i]),
+          ),
+      ],
+    );
+  }
+}
+
+/// Bottom sheet showing a single subscription payload's body, reusing
+/// [JalaBodyView] (which already handles JSON/text/binary rendering).
+class _PayloadSheet extends StatelessWidget {
+  const _PayloadSheet({required this.index, required this.body});
+
+  final int index;
+  final CapturedBody body;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Text(
+              'Payload #$index',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const Divider(),
+            Flexible(
+              child: SingleChildScrollView(child: JalaBodyView(body: body)),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -37,6 +37,10 @@ void main() {
       find.textContaining('is:graphql', findRichText: true),
       findsOneWidget,
     );
+    expect(
+      find.textContaining('is:subscription', findRichText: true),
+      findsOneWidget,
+    );
     expect(find.textContaining('is:ws', findRichText: true), findsOneWidget);
   });
 

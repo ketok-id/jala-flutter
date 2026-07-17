@@ -1,3 +1,20 @@
+## Unreleased (0.5.0)
+
+- Network throttling: `send()` consults `JalaBinding.instance
+  .throttleRegistry` — a 100%-drop profile throws `http.ClientException`
+  (captured as a normal error entry, tagged `throttledBy: <profileId>`)
+  before ever reaching the inner client; otherwise the configured latency
+  (+ jitter) delays the request first. Only applied when a profile is
+  active and the request's host matches the profile's host pattern.
+- Full bandwidth pacing, both directions: download pacing
+  (`downloadBytesPerSec`) delays each chunk of the response stream tee
+  before it reaches the caller; upload pacing (`uploadBytesPerSec`) delays
+  each chunk of the finalized request byte stream. `package:http` gets the
+  complete throttle treatment (unlike `jala_dio`, which can only pace
+  `ResponseType.stream` responses).
+- Zero overhead when no profile is active: the throttle check is a cheap
+  null/host-pattern check on the existing hot path, no behavior change.
+
 ## 0.4.0
 
 - Lockstep release; no functional changes. Bumped for the `jala_core`

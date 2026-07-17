@@ -70,24 +70,24 @@ in the inspector that the real endpoint wasn't provided.
 
 ## Subscriptions
 
-Subscription **payload streaming is out of scope for v0.4** (tracked for a
-future release, pending `jala_graphql`<->`jala_websocket` coordination —
-subscriptions are frequently transported over WebSocket, and per-payload
-capture belongs to the WS frame model, not a single request/response
-pair).
-
-What v0.4 *does* capture for a subscription:
-
 - The request event fires immediately when the subscription starts
   (`operationType: 'subscription'`), so the entry appears right away in
   the inspector, pending.
-- A single response event fires when the subscription's stream closes —
-  not on every payload. Its body uses the **first** payload's
-  `data`/`errors`, with the total number of payloads observed tagged as
-  `{"@subscription": {"payloads": N}}` in the same JSON, and
-  `statusMessage: 'subscription completed'`. `duration` is the total time
-  the subscription was open (start to close), not the time to the first
-  payload.
+- Every payload delivered on the subscription is captured as a
+  `NetworkSubscriptionPayloadEvent` (`seq` incrementing from 0) and
+  appended to the entry's `payloads` timeline — a ring buffer capped at
+  `JalaConfig.maxSubscriptionPayloads` (default 50; `payloadCount` always
+  reflects the true total, even once older payloads have been evicted).
+  Filter the inspector list with `is:subscription` to see only these
+  entries.
+- A single response event still fires when the subscription's stream
+  closes — not on every payload. Its body uses the **first** payload's
+  `data`/`errors`, with `statusMessage: 'subscription completed'`.
+  `duration` is the total time the subscription was open (start to
+  close), not the time to the first payload.
+- v0.4 tagged the total payload count in the completion body as
+  `{"@subscription": {"payloads": N}}`; that convention is **removed** as
+  of v0.5 — superseded by the payload timeline above.
 
 ## Double-capture
 

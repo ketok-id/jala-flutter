@@ -1,3 +1,26 @@
+## Unreleased (0.5.0)
+
+- `JalaThrottleScreen` (inspector AppBar speed icon): preset radio list
+  (Off + Slow 3G/Fast 3G/Flaky/Offline, humanized), a custom profile
+  editor (latency/jitter/download/upload fields, drop-rate slider), and a
+  host-pattern scope field. Applies via
+  `JalaBinding.instance.throttleRegistry.setActive`/`clear`.
+- Active-throttle banner above the inspector list ("Throttling: <name> —
+  tap to change"); AppBar speed icon gets a dot badge while active.
+- Session actions in an inspector AppBar overflow menu: **Export
+  session** (copies `JalaSessionCodec.encode` output to the clipboard with
+  an entry-count snackbar) and **Import session** (paste-JSON dialog with
+  a Replace/Append choice; malformed input shows an inline error instead
+  of crashing). While `JalaStore.isViewingImport`: a banner offers
+  **Clear** back to live capture, and imported entries disable
+  Replay/Mock this/Edit & resend on the detail screen with an explanatory
+  tooltip.
+- Call detail Response tab renders a subscription payload timeline (index,
+  size; tap opens a body view reusing the WS frame preview-sheet pattern)
+  above the regular body section for `is:subscription` entries, with a
+  trimmed-count note when the ring buffer has dropped older payloads.
+- Filter help documents `is:subscription`.
+
 ## 0.4.0
 
 - Merged inspector list: `NetworkCallEntry` and `WsConnectionEntry`

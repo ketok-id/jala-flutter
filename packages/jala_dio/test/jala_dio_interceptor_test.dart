@@ -595,4 +595,168 @@ void main() {
       expect(JalaBinding.instance.store.entries, isEmpty);
     });
   });
+
+  group('throttling', () {
+    test(
+      'a 100% drop-rate profile rejects with a connection error, tagged '
+      'throttledBy, and never reaches the adapter',
+      () async {
+        JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+        JalaBinding.instance.throttleRegistry.setActive(
+          const JalaThrottleProfile(
+            id: 'test-offline',
+            name: 'Test Offline',
+            latencyMs: 0,
+            dropRate: 1,
+          ),
+        );
+        var adapterHits = 0;
+        final harness = buildDio((options) async {
+          adapterHits++;
+          return jsonResponseBody(<String, dynamic>{});
+        });
+
+        await expectLater(
+          harness.dio.get<dynamic>('/x'),
+          throwsA(isA<DioException>()),
+        );
+        await pump();
+
+        expect(adapterHits, 0);
+        final NetworkCallEntry entry = JalaBinding.instance.store.entries.single;
+        expect(entry.status, JalaCallStatus.error);
+        expect(entry.throttledBy, 'test-offline');
+      },
+    );
+
+    test('latency measurably delays the request before it reaches the adapter', () async {
+      JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+      JalaBinding.instance.throttleRegistry.setActive(
+        const JalaThrottleProfile(
+          id: 'test-slow',
+          name: 'Test Slow',
+          latencyMs: 200,
+        ),
+      );
+      final harness = buildDio(
+        (options) async => jsonResponseBody(<String, dynamic>{'ok': true}),
+      );
+
+      final Stopwatch sw = Stopwatch()..start();
+      await harness.dio.get<dynamic>('/x');
+      sw.stop();
+      await pump();
+
+      expect(sw.elapsed.inMilliseconds, greaterThanOrEqualTo(150));
+      final NetworkCallEntry entry = JalaBinding.instance.store.entries.single;
+      expect(entry.throttledBy, 'test-slow');
+      expect(entry.status, JalaCallStatus.success);
+    });
+
+    test(
+      'bandwidth pacing delays each chunk of a ResponseType.stream response',
+      () async {
+        JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+        JalaBinding.instance.throttleRegistry.setActive(
+          const JalaThrottleProfile(
+            id: 'test-pace',
+            name: 'Test Pace',
+            latencyMs: 0,
+            downloadBytesPerSec: 500,
+          ),
+        );
+        final Uint8List chunk1 = Uint8List.fromList(List<int>.filled(100, 1));
+        final Uint8List chunk2 = Uint8List.fromList(List<int>.filled(100, 2));
+        final harness = buildDio(
+          (options) async => ResponseBody(
+            Stream<Uint8List>.fromIterable(<Uint8List>[chunk1, chunk2]),
+            200,
+          ),
+        );
+
+        final Response<ResponseBody> response = await harness.dio
+            .get<ResponseBody>(
+              '/download',
+              options: Options(responseType: ResponseType.stream),
+            );
+
+        final Stopwatch sw = Stopwatch()..start();
+        final List<Duration> arrivals = <Duration>[];
+        await for (final Uint8List _ in response.data!.stream) {
+          arrivals.add(sw.elapsed);
+        }
+
+        expect(arrivals, hasLength(2));
+        // Each 100-byte chunk at 500 bytes/sec paces ~200ms; the gap
+        // between arrivals must reflect that, not arrive back-to-back.
+        final int gapMs = arrivals[1].inMilliseconds - arrivals[0].inMilliseconds;
+        expect(gapMs, greaterThanOrEqualTo(150));
+      },
+    );
+
+    test(
+      'a non-stream response is not paced — only latency/drop apply '
+      '(documented limitation)',
+      () async {
+        JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+        JalaBinding.instance.throttleRegistry.setActive(
+          const JalaThrottleProfile(
+            id: 'test-pace-buffered',
+            name: 'Test Pace Buffered',
+            latencyMs: 0,
+            downloadBytesPerSec: 1, // Would take ~seconds if paced.
+          ),
+        );
+        final harness = buildDio(
+          (options) async =>
+              jsonResponseBody(<String, dynamic>{'hello': 'world'}),
+        );
+
+        final Stopwatch sw = Stopwatch()..start();
+        await harness.dio.get<dynamic>('/x');
+        sw.stop();
+
+        expect(sw.elapsed.inMilliseconds, lessThan(500));
+      },
+    );
+
+    test('an inactive registry adds no latency', () async {
+      JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+      final harness = buildDio(
+        (options) async => jsonResponseBody(<String, dynamic>{'ok': true}),
+      );
+
+      final Stopwatch sw = Stopwatch()..start();
+      await harness.dio.get<dynamic>('/x');
+      sw.stop();
+
+      expect(sw.elapsed.inMilliseconds, lessThan(100));
+      final NetworkCallEntry entry = JalaBinding.instance.store.entries.single;
+      expect(entry.throttledBy, isNull);
+    });
+
+    test('a host pattern that does not match the request is not applied', () async {
+      JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+      JalaBinding.instance.throttleRegistry.setActive(
+        const JalaThrottleProfile(
+          id: 'test-offline',
+          name: 'Test Offline',
+          latencyMs: 0,
+          dropRate: 1,
+        ),
+        hostPattern: 'other.example.com',
+      );
+      final harness = buildDio(
+        (options) async => jsonResponseBody(<String, dynamic>{'ok': true}),
+      );
+
+      final Response<dynamic> response = await harness.dio.get<dynamic>('/x');
+      expect(response.statusCode, 200);
+      await pump();
+
+      final NetworkCallEntry entry = JalaBinding.instance.store.entries.single;
+      expect(entry.throttledBy, isNull);
+      expect(entry.status, JalaCallStatus.success);
+    });
+  });
 }

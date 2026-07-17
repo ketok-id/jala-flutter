@@ -92,6 +92,31 @@ class JalaHttpClient extends http.BaseClient {
       bodyText: bodyCapture.body.text,
     );
 
+    // Throttle decision: computed once here (request time) so the
+    // NetworkRequestEvent's `throttledBy` tag and the drop/latency/pacing
+    // behavior below all agree on the same profile — even if the active
+    // profile changes mid-flight. See docs/plans/track-e-v0.5.md E2.
+    String? throttledBy;
+    bool shouldDrop = false;
+    Duration latency = Duration.zero;
+    int? downloadBytesPerSec;
+    int? uploadBytesPerSec;
+    try {
+      final JalaThrottleRegistry throttle = binding.throttleRegistry;
+      final JalaThrottleProfile? profile = throttle.activeProfile;
+      if (profile != null && throttle.hostMatches(request.url.host)) {
+        throttledBy = profile.id;
+        downloadBytesPerSec = profile.downloadBytesPerSec;
+        uploadBytesPerSec = profile.uploadBytesPerSec;
+        shouldDrop = throttle.shouldDrop();
+        if (!shouldDrop) {
+          latency = throttle.latencyFor();
+        }
+      }
+    } catch (_) {
+      // A capture bug must never break the app's networking.
+    }
+
     try {
       final Map<String, String> headers = binding.config.redactor
           .redactHeaders(request.headers);
@@ -107,10 +132,35 @@ class JalaHttpClient extends http.BaseClient {
           client: 'http',
           replayOf: replayOf,
           mockRuleId: rule?.id,
+          throttledBy: throttledBy,
         ),
       );
     } catch (_) {
       // Continue even if emit fails.
+    }
+
+    if (throttledBy != null && shouldDrop) {
+      final http.ClientException dropped = http.ClientException(
+        'Jala throttle: dropped by profile "$throttledBy"',
+        request.url,
+      );
+      try {
+        binding.bus.emit(
+          NetworkErrorEvent(
+            callId: callId,
+            timestamp: DateTime.now(),
+            errorMessage: dropped.message,
+            duration: sw.elapsed,
+          ),
+        );
+      } catch (_) {
+        // A capture bug must never break the app's networking.
+      }
+      throw dropped;
+    }
+
+    if (latency > Duration.zero) {
+      await Future<void>.delayed(latency);
     }
 
     if (rule != null) {
@@ -137,6 +187,7 @@ class JalaHttpClient extends http.BaseClient {
         callId: callId,
         binding: binding,
         state: progressState,
+        uploadBytesPerSec: uploadBytesPerSec,
       );
     } catch (_) {
       // A bug in the upload-progress wrapper must never break the app's
@@ -153,6 +204,7 @@ class JalaHttpClient extends http.BaseClient {
         stopwatch: sw,
         binding: binding,
         progressState: progressState,
+        downloadBytesPerSec: downloadBytesPerSec,
       );
     } catch (error) {
       try {
@@ -315,14 +367,29 @@ class JalaHttpClient extends http.BaseClient {
     required Stopwatch? stopwatch,
     required JalaBinding binding,
     required _ProgressState progressState,
+    int? downloadBytesPerSec,
   }) {
     final int maxBytes = binding.config.maxBodyBytes;
     final String? contentType = _headerValue(response.headers, 'content-type');
     progressState.receivedTotal = response.contentLength;
     int lastEmittedAt = 0;
 
+    // Bandwidth pacing (see docs/plans/track-e-v0.5.md E2): applied to the
+    // *source* stream, before the capture tee, so both the inspector's
+    // progress events and the app's own chunk-by-chunk consumption see the
+    // same throttled timing — a no-op when this call wasn't throttled or
+    // the profile has no download cap.
+    Stream<List<int>> source = response.stream;
+    if (downloadBytesPerSec != null && downloadBytesPerSec > 0) {
+      source = _paceStream(
+        source,
+        perSec: downloadBytesPerSec,
+        throttle: binding.throttleRegistry,
+      );
+    }
+
     final Stream<List<int>> teed = _teeAndCapture(
-      response.stream,
+      source,
       maxBytes: maxBytes,
       onChunk: (int totalSoFar) {
         progressState.receivedBytes = totalSoFar;
@@ -457,8 +524,20 @@ class JalaHttpClient extends http.BaseClient {
     required String callId,
     required JalaBinding binding,
     required _ProgressState state,
+    int? uploadBytesPerSec,
   }) {
-    final Stream<List<int>> original = request.finalize();
+    Stream<List<int>> original = request.finalize();
+    // Bandwidth pacing (see docs/plans/track-e-v0.5.md E2): applied before
+    // the progress transform, so progress events reflect the same
+    // throttled timing the paced bytes are actually sent at — a no-op when
+    // this call wasn't throttled or the profile has no upload cap.
+    if (uploadBytesPerSec != null && uploadBytesPerSec > 0) {
+      original = _paceStream(
+        original,
+        perSec: uploadBytesPerSec,
+        throttle: binding.throttleRegistry,
+      );
+    }
     int sent = 0;
     int lastEmittedAt = 0;
     final Stream<List<int>> teed = original.transform(
@@ -498,6 +577,28 @@ class JalaHttpClient extends http.BaseClient {
     } catch (_) {
       // A capture bug must never break the app's networking.
     }
+  }
+}
+
+/// Paces [source] so each chunk is delayed by
+/// `throttle.paceFor(chunk.length, perSec)` before being forwarded,
+/// simulating a bandwidth cap of [perSec] bytes/sec (see
+/// docs/plans/track-e-v0.5.md E2). Used for both upload
+/// ([JalaHttpClient._wrapForUploadProgress]) and download
+/// ([JalaHttpClient._captureResponse]) pacing — callers only wrap with this
+/// when [perSec] is known positive, so [throttle] itself never needs to be
+/// consulted for the off case.
+Stream<List<int>> _paceStream(
+  Stream<List<int>> source, {
+  required int perSec,
+  required JalaThrottleRegistry throttle,
+}) async* {
+  await for (final List<int> chunk in source) {
+    final Duration delay = throttle.paceFor(chunk.length, perSec);
+    if (delay > Duration.zero) {
+      await Future<void>.delayed(delay);
+    }
+    yield chunk;
   }
 }
 

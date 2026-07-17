@@ -88,6 +88,8 @@ void emitPendingRequest(
   String url = 'https://api.example.com/download',
   Map<String, String> requestHeaders = const <String, String>{},
   CapturedBody? requestBody,
+  String? operationName,
+  String? operationType,
 }) {
   bus.emit(
     NetworkRequestEvent(
@@ -98,6 +100,8 @@ void emitPendingRequest(
       headers: requestHeaders,
       body: requestBody ?? CapturedBody.none,
       client: 'test',
+      operationName: operationName,
+      operationType: operationType,
     ),
   );
 }
@@ -119,6 +123,28 @@ void emitProgress(
       sentTotal: sentTotal,
       receivedBytes: receivedBytes,
       receivedTotal: receivedTotal,
+    ),
+  );
+}
+
+/// Emits a [NetworkSubscriptionPayloadEvent] for [id] on [bus] — mirrors
+/// the WS frame emitters below (jala_core's `NetworkSubscriptionPayloadEvent`
+/// is only appended to a still-pending entry's `payloads`, so callers
+/// typically emit a `NetworkRequestEvent` with `operationType:
+/// 'subscription'` for [id] first and never a matching response).
+void emitSubscriptionPayload(
+  JalaEventBus bus,
+  String id, {
+  required int seq,
+  dynamic data = '{"tick":0}',
+  DateTime? timestamp,
+}) {
+  bus.emit(
+    NetworkSubscriptionPayloadEvent(
+      callId: id,
+      timestamp: timestamp ?? DateTime.utc(2026, 7, 15, 12, 0, 1),
+      seq: seq,
+      body: CapturedBody.capture(data, contentType: 'application/json'),
     ),
   );
 }
