@@ -16,7 +16,7 @@ throttled (HTTP adapters only).
 
 ```yaml
 dependencies:
-  jala_websocket: ^0.5.2   # requires jala_core ^0.5.2
+  jala_websocket: ^0.5.3   # requires jala_core ^0.5.3
 ```
 
 ## Wrap

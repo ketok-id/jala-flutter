@@ -11,12 +11,12 @@ patch). When you depend on more than one, pin them together:
 
 ```yaml
 dependencies:
-  jala: ^0.5.2
-  jala_dio: ^0.5.2
+  jala: ^0.5.3
+  jala_dio: ^0.5.3
   # if used:
-  jala_http: ^0.5.2
-  jala_graphql: ^0.5.2
-  jala_websocket: ^0.5.2
+  jala_http: ^0.5.3
+  jala_graphql: ^0.5.3
+  jala_websocket: ^0.5.3
 ```
 
 Do not mix `0.4.x` adapters with `0.5.x` core/ui.

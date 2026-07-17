@@ -138,7 +138,7 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.more_vert));
     await pumpJalaSettle(tester);
-    await tester.tap(find.text('Export session'));
+    await tester.tap(find.text('Export session (full)'));
     await pumpJalaSettle(tester);
 
     expect(clipboardText, isNotNull);

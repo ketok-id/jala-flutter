@@ -1,3 +1,8 @@
+## 0.5.3
+
+- Session menu: export full / no bodies / headers only; import dialog warns
+  about log-dump sensitivity and size limit (pairs with jala_core 0.5.3).
+
 ## 0.5.2
 
 - Headers: stacked name/value layout (full-width wrapping values) with

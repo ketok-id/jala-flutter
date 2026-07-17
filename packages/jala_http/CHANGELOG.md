@@ -1,3 +1,7 @@
+## 0.5.3
+
+- Lockstep release with jala_core 0.5.3 security defaults.
+
 ## 0.5.2
 
 - Lockstep release; no functional changes.

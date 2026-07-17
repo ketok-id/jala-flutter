@@ -33,8 +33,8 @@ Jala exists because the incumbents each miss something concrete:
 
 ```yaml
 dependencies:
-  jala: ^0.5.2
-  jala_dio: ^0.5.2
+  jala: ^0.5.3
+  jala_dio: ^0.5.3
   dio: ^5.9.0
 ```
 
@@ -63,15 +63,15 @@ GraphQL double-capture, Alice/Chucker migration, debug-only bootstrap,
 flavors, and a production-safety PR checklist.
 
 Using `package:http` instead of Dio? Install
-[`jala_http`](packages/jala_http) (`jala_http: ^0.5.2`) and call
+[`jala_http`](packages/jala_http) (`jala_http: ^0.5.3`) and call
 `JalaHttp.wrap(http.Client())` in place of `JalaDio.attach(dio)` above.
 
 Using GraphQL? Install [`jala_graphql`](packages/jala_graphql)
-(`jala_graphql: ^0.5.2`) and insert `JalaGraphQLLink(endpoint: uri)` before
+(`jala_graphql: ^0.5.3`) and insert `JalaGraphQLLink(endpoint: uri)` before
 your terminating `gql_link` (works with `graphql_flutter` and `ferry`).
 
 Using WebSockets? Install [`jala_websocket`](packages/jala_websocket)
-(`jala_websocket: ^0.5.2`) and wrap your channel with
+(`jala_websocket: ^0.5.3`) and wrap your channel with
 `JalaWebSocketChannel.wrap(channel, uri: uri)`.
 
 **v0.2 capture extras:** image responses (`image/*` within the body cap)
@@ -240,6 +240,7 @@ cd examples/jala_example && flutter run -d macos
 | Doc | Audience |
 |---|---|
 | [docs/ADOPTION.md](docs/ADOPTION.md) | Existing apps — install, migrate, multi-client, team QA |
+| [docs/SECURITY.md](docs/SECURITY.md) | Defaults, redaction, session export, residual risks |
 | [docs/COMPAT.md](docs/COMPAT.md) | 0.x lockstep / breaking-change policy |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | What shipped and what’s next |
 | [docs/SPEC-v0.1.md](docs/SPEC-v0.1.md) | Original v0.1 binding contract |

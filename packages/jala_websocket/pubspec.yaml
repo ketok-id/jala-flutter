@@ -2,7 +2,7 @@ name: jala_websocket
 description: >
   WebSocketChannel wrapper for Jala: connection lifecycle and frame
   timelines (direction, size, preview). Frames are not throttled.
-version: 0.5.2
+version: 0.5.3
 homepage: https://github.com/ketok-id/jala-flutter
 repository: https://github.com/ketok-id/jala-flutter
 issue_tracker: https://github.com/ketok-id/jala-flutter/issues
@@ -18,7 +18,7 @@ environment:
 resolution: workspace
 
 dependencies:
-  jala_core: ^0.5.2
+  jala_core: ^0.5.3
   stream_channel: ^2.1.0
   web_socket_channel: ^3.0.0
 

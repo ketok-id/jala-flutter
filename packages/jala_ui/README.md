@@ -20,11 +20,11 @@ Requires Flutter `>=3.35`. Lockstep `0.5.x` with `jala_core`. Brownfield:
 - `JalaThrottleScreen` — Off / Slow 3G / Fast 3G / Flaky / Offline presets,
   custom profile editor, host-pattern glob. Active profile shows a list
   banner and a badge on the speed icon.
-- Session share (inspector overflow) — **Export session** copies
-  `JalaSessionCodec.encode` JSON to the clipboard; **Import session** is a
-  paste-JSON dialog (replace/append). No `share_plus` / file-picker
-  dependency in this package. While `isViewingImport`, an import banner
-  offers Clear back to live capture.
+- Session share (inspector overflow) — export **full** / **no bodies** /
+  **headers only** (safer for tickets); **Import session** paste-JSON
+  dialog (replace/append, size-capped). Treat exports like log dumps.
+  No `share_plus` / file-picker dependency. While `isViewingImport`, an
+  import banner offers Clear back to live capture.
 - `JalaCallDetailScreen` — Overview / Request / Response tabs, expandable
   JSON tree, image preview, multipart parts, transfer progress, GraphQL
   query/variables panes, subscription payload timeline, and bottom actions

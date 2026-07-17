@@ -16,7 +16,7 @@ import 'jala_ws_detail_screen.dart';
 
 /// Session actions offered from the inspector AppBar overflow menu (see
 /// docs/plans/track-e-v0.5.md E3).
-enum _SessionAction { export, import }
+enum _SessionAction { exportFull, exportHeadersOnly, exportNoBodies, import }
 
 /// One row of the chronologically-interleaved merged list: either a
 /// [NetworkCallEntry] or a [WsConnectionEntry], ordered newest-first by
@@ -160,17 +160,22 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
     );
   }
 
-  Future<void> _exportSession(BuildContext context) async {
+  Future<void> _exportSession(
+    BuildContext context, {
+    required JalaSessionExportOptions options,
+    required String modeLabel,
+  }) async {
     final JalaStore store = JalaBinding.instance.store;
     final int count = store.entries.length;
-    final String json = JalaSessionCodec.encode(store);
+    final String json = JalaSessionCodec.encode(store, options: options);
     await Clipboard.setData(ClipboardData(text: json));
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'Exported session — $count ${count == 1 ? 'entry' : 'entries'} '
-          'copied to clipboard',
+          'Exported session ($modeLabel) — $count '
+          '${count == 1 ? 'entry' : 'entries'} copied. '
+          'May contain personal data; share carefully.',
         ),
       ),
     );
@@ -188,8 +193,24 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
     _SessionAction action,
   ) async {
     switch (action) {
-      case _SessionAction.export:
-        await _exportSession(context);
+      case _SessionAction.exportFull:
+        await _exportSession(
+          context,
+          options: JalaSessionExportOptions.full,
+          modeLabel: 'full',
+        );
+      case _SessionAction.exportHeadersOnly:
+        await _exportSession(
+          context,
+          options: JalaSessionExportOptions.headersOnly,
+          modeLabel: 'headers only',
+        );
+      case _SessionAction.exportNoBodies:
+        await _exportSession(
+          context,
+          options: JalaSessionExportOptions.noBodies,
+          modeLabel: 'no bodies',
+        );
       case _SessionAction.import:
         await _importSession(context);
     }
@@ -378,8 +399,16 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
             itemBuilder: (BuildContext context) =>
                 const <PopupMenuEntry<_SessionAction>>[
                   PopupMenuItem<_SessionAction>(
-                    value: _SessionAction.export,
-                    child: Text('Export session'),
+                    value: _SessionAction.exportFull,
+                    child: Text('Export session (full)'),
+                  ),
+                  PopupMenuItem<_SessionAction>(
+                    value: _SessionAction.exportNoBodies,
+                    child: Text('Export session (no bodies)'),
+                  ),
+                  PopupMenuItem<_SessionAction>(
+                    value: _SessionAction.exportHeadersOnly,
+                    child: Text('Export session (headers only)'),
                   ),
                   PopupMenuItem<_SessionAction>(
                     value: _SessionAction.import,
@@ -702,40 +731,49 @@ class _ImportSessionDialogState extends State<_ImportSessionDialog> {
       title: const Text('Import session'),
       content: SizedBox(
         width: 480,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            TextField(
-              controller: _controller,
-              minLines: 6,
-              maxLines: 12,
-              decoration: const InputDecoration(
-                hintText: 'Paste exported session JSON here…',
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (_) {
-                if (_error != null) setState(() => _error = null);
-              },
-            ),
-            if (_error != null) ...<Widget>[
-              const SizedBox(height: 8),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
               Text(
-                _error!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
+                'Treat pasted JSON like a log dump — it may contain personal '
+                'or business data. Max size '
+                '${JalaSessionCodec.defaultMaxDecodeChars ~/ (1024 * 1024)} MiB.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _controller,
+                minLines: 5,
+                maxLines: 10,
+                decoration: const InputDecoration(
+                  hintText: 'Paste exported session JSON here…',
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (_) {
+                  if (_error != null) setState(() => _error = null);
+                },
+              ),
+              if (_error != null) ...<Widget>[
+                const SizedBox(height: 8),
+                Text(
+                  _error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ],
+              const SizedBox(height: 12),
+              SegmentedButton<bool>(
+                segments: const <ButtonSegment<bool>>[
+                  ButtonSegment<bool>(value: false, label: Text('Replace')),
+                  ButtonSegment<bool>(value: true, label: Text('Append')),
+                ],
+                selected: <bool>{_append},
+                onSelectionChanged: (Set<bool> s) =>
+                    setState(() => _append = s.first),
               ),
             ],
-            const SizedBox(height: 12),
-            SegmentedButton<bool>(
-              segments: const <ButtonSegment<bool>>[
-                ButtonSegment<bool>(value: false, label: Text('Replace')),
-                ButtonSegment<bool>(value: true, label: Text('Append')),
-              ],
-              selected: <bool>{_append},
-              onSelectionChanged: (Set<bool> s) =>
-                  setState(() => _append = s.first),
-            ),
-          ],
+          ),
         ),
       ),
       actions: <Widget>[

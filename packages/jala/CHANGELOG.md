@@ -1,3 +1,8 @@
+## 0.5.3
+
+- Docs: mock persistence security notes; lockstep with core/ui 0.5.3 security
+  hardening.
+
 ## 0.5.2
 
 - Overlay: hide the floating **J** bubble while the inspector is open so

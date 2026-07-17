@@ -32,7 +32,7 @@ Flutter (CLI tooling, server-side log tooling, etc.) as well as inside it.
 | `JalaStore` | Ring-buffer store (default 300 HTTP entries + parallel WS connections) that correlates events into immutable `NetworkCallEntry` / `WsConnectionEntry` values, plus `importSession` / `isViewingImport`. |
 | `NetworkCallEntry` / `CapturedBody` | One captured HTTP/GraphQL call (incl. `throttledBy`, `imported`, GraphQL metadata, subscription `payloads` ring) and its request/response bodies with a hard 512 KB capture cap. |
 | `WsConnectionEntry` / `WsFrame` | WebSocket connection + frame timeline (direction, size, redacted text preview). |
-| `JalaSessionCodec` / `JalaSession` | Versioned JSON session export/import (`format: "jala-session"`, v1). Round-trips entries and WS connections; progress is dropped as transient. |
+| `JalaSessionCodec` / `JalaSession` / `JalaSessionExportOptions` | Versioned JSON session export/import (`format: "jala-session"`, v1). Export can strip bodies/images/WS previews; decode rejects oversized pastes. |
 | `JalaRedactor` | Case-insensitive header redaction (`Authorization`, `Cookie`, `X-Api-Key`, etc. by default) and body pattern redaction, meant to run **at capture time** so secrets never enter the store. |
 | `JalaFilter` | `JalaFilter.parse(query)` compiles a DevTools-style query into a `matches(NetworkCallEntry)` predicate (and `matchesWs` for WebSocket entries). |
 | `CurlExporter` | Renders an entry as a runnable, shell-escaped `curl` command. |
@@ -88,10 +88,13 @@ final matches = entries.where(filter.matches);
 print(CurlExporter.export(matches.first));
 print(HarExporter.exportSession(entries));
 
-// Session share (same codec the inspector clipboard uses)
-final encoded = JalaSessionCodec.encode(JalaBinding.instance.store);
+// Session share — prefer headers-only outside trusted eng channels
+final encoded = JalaSessionCodec.encode(
+  JalaBinding.instance.store,
+  options: JalaSessionExportOptions.headersOnly,
+);
 JalaBinding.instance.store.importSession(JalaSessionCodec.decode(encoded));
 ```
 
-See [docs/SPEC-v0.1.md](../../docs/SPEC-v0.1.md) for the original v0.1
-contract; later tracks extend the model without breaking those defaults.
+Security defaults (redaction, export modes): [docs/SECURITY.md](../../docs/SECURITY.md).  
+Original v0.1 contract: [docs/SPEC-v0.1.md](../../docs/SPEC-v0.1.md).

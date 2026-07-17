@@ -16,7 +16,7 @@ for the facade that wires this up in an app.
 
 ```yaml
 dependencies:
-  jala_http: ^0.5.2   # requires jala_core ^0.5.2
+  jala_http: ^0.5.3   # requires jala_core ^0.5.3
 ```
 
 ## Wrap

@@ -1,3 +1,14 @@
+## 0.5.3
+
+- Security: expanded default redacted headers (CSRF, session, AWS STS, …).
+- Security: default body redaction for common JSON/form secret keys
+  (`password`, `access_token`, `api_key`, …); opt out via
+  `includeDefaultBodyPatterns: false`.
+- Session export: `JalaSessionExportOptions` (full / noBodies / headersOnly /
+  stripImages).
+- Session import: reject pastes larger than 8 MiB
+  (`JalaSessionCodec.defaultMaxDecodeChars`).
+
 ## 0.5.2
 
 - Lockstep release; no functional changes.

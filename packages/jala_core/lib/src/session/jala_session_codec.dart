@@ -1,9 +1,12 @@
 import 'dart:convert';
 
+import '../model/captured_body.dart';
 import '../model/network_call_entry.dart';
 import '../model/ws_connection_entry.dart';
+import '../model/ws_frame.dart';
 import '../store/jala_store.dart';
 import 'jala_session.dart';
+import 'jala_session_export_options.dart';
 
 /// Encodes/decodes a [JalaStore] snapshot to/from a versioned JSON envelope,
 /// so a captured session can be shared between developers (see
@@ -14,6 +17,11 @@ import 'jala_session.dart';
 /// front, rather than failing deep inside field parsing. Every field of
 /// [NetworkCallEntry] round-trips except `progress`, which is transient
 /// live-capture state and is never serialized.
+///
+/// **Security:** exported JSON may still contain personal or business data
+/// that was not covered by header/body redaction. Prefer
+/// [JalaSessionExportOptions.headersOnly] or [JalaSessionExportOptions.noBodies]
+/// when sharing outside a trusted channel. See docs/SECURITY.md.
 class JalaSessionCodec {
   const JalaSessionCodec._();
 
@@ -24,18 +32,31 @@ class JalaSessionCodec {
   /// fully understands (via [decode]).
   static const int currentVersion = 1;
 
+  /// Maximum length of the JSON string accepted by [decode] (characters,
+  /// not bytes). Rejects pathological clipboard pastes that would OOM the
+  /// inspector. 8 MiB of UTF-16 code units is generous for real sessions
+  /// and far below mobile process limits for a one-shot paste.
+  static const int defaultMaxDecodeChars = 8 * 1024 * 1024;
+
   /// Encodes every entry and WebSocket connection currently in [store] into
   /// a versioned JSON string.
-  static String encode(JalaStore store) {
+  ///
+  /// [options] controls body/image/WS-preview inclusion for safer sharing.
+  static String encode(
+    JalaStore store, {
+    JalaSessionExportOptions options = JalaSessionExportOptions.full,
+  }) {
     final Map<String, Object?> envelope = <String, Object?>{
       'format': formatMarker,
       'version': currentVersion,
       'exportedAt': DateTime.now().toUtc().toIso8601String(),
       'entries': store.entries
-          .map((NetworkCallEntry e) => e.toJson())
+          .map((NetworkCallEntry e) => _entryForExport(e, options).toJson())
           .toList(),
       'wsConnections': store.wsConnections
-          .map((WsConnectionEntry w) => w.toJson())
+          .map(
+            (WsConnectionEntry w) => _wsForExport(w, options).toJson(),
+          )
           .toList(),
     };
     return jsonEncode(envelope);
@@ -45,9 +66,20 @@ class JalaSessionCodec {
   /// older version).
   ///
   /// Never throws anything other than [JalaSessionFormatException]:
-  /// malformed JSON, a missing/wrong `format` marker, an unsupported
-  /// `version`, or any other parsing failure is caught here and wrapped.
-  static JalaSession decode(String data) {
+  /// malformed JSON, oversized input ([maxChars]), a missing/wrong
+  /// `format` marker, an unsupported `version`, or any other parsing
+  /// failure is caught here and wrapped.
+  static JalaSession decode(
+    String data, {
+    int maxChars = defaultMaxDecodeChars,
+  }) {
+    if (data.length > maxChars) {
+      throw JalaSessionFormatException(
+        'Session data too large (${data.length} chars; max $maxChars). '
+        'Refuse oversized pastes for safety.',
+      );
+    }
+
     final Object? decoded = _decodeJson(data);
     if (decoded is! Map) {
       throw const JalaSessionFormatException(
@@ -95,6 +127,65 @@ class JalaSessionCodec {
     } on Object catch (e) {
       throw JalaSessionFormatException('Malformed session data: $e');
     }
+  }
+
+  static NetworkCallEntry _entryForExport(
+    NetworkCallEntry e,
+    JalaSessionExportOptions o,
+  ) {
+    CapturedBody requestBody = e.requestBody;
+    CapturedBody responseBody = e.responseBody;
+    List<CapturedBody> payloads = e.payloads;
+
+    if (!o.includeRequestBodies) {
+      requestBody = CapturedBody.none;
+    } else if (!o.includeImages && requestBody.kind == BodyKind.image) {
+      requestBody = CapturedBody.none;
+    }
+
+    if (!o.includeResponseBodies) {
+      responseBody = CapturedBody.none;
+    } else if (!o.includeImages && responseBody.kind == BodyKind.image) {
+      responseBody = CapturedBody.none;
+    }
+
+    if (!o.includePayloads) {
+      payloads = const <CapturedBody>[];
+    } else if (!o.includeImages) {
+      payloads = payloads
+          .map(
+            (CapturedBody p) =>
+                p.kind == BodyKind.image ? CapturedBody.none : p,
+          )
+          .toList();
+    }
+
+    return e.copyWith(
+      requestBody: requestBody,
+      responseBody: responseBody,
+      payloads: payloads,
+      payloadCount: o.includePayloads ? e.payloadCount : 0,
+    );
+  }
+
+  static WsConnectionEntry _wsForExport(
+    WsConnectionEntry w,
+    JalaSessionExportOptions o,
+  ) {
+    if (o.includeWsFramePreviews) return w;
+    return w.copyWith(
+      frames: w.frames
+          .map(
+            (WsFrame f) => WsFrame(
+              timestamp: f.timestamp,
+              direction: f.direction,
+              isBinary: f.isBinary,
+              size: f.size,
+              preview: null,
+            ),
+          )
+          .toList(),
+    );
   }
 
   static Object? _decodeJson(String data) {

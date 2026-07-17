@@ -31,9 +31,13 @@ class Jala {
   /// Attaches a file-backed mock rule store under [directory] and hydrates
   /// rules from disk. No-op when Jala is disabled.
   ///
+  /// Writes plaintext `{directory}/jala_mock_rules.json` (URL patterns and
+  /// canned bodies). Intended for **developer machines / internal builds**,
+  /// not end-user devices. On web this is a no-op store (in-memory only).
+  /// See docs/SECURITY.md.
+  ///
   /// The directory is caller-supplied (e.g. from `path_provider`) so this
-  /// package does not depend on platform path plugins. On web this is a
-  /// no-op store (rules stay in memory only).
+  /// package does not depend on platform path plugins.
   ///
   /// ```dart
   /// Jala.initialize();

@@ -28,6 +28,7 @@ export 'src/model/ws_frame.dart';
 export 'src/redact/jala_redactor.dart';
 export 'src/session/jala_session.dart';
 export 'src/session/jala_session_codec.dart';
+export 'src/session/jala_session_export_options.dart';
 export 'src/store/jala_store.dart';
 export 'src/throttle/jala_throttle_profile.dart';
 export 'src/throttle/jala_throttle_registry.dart';

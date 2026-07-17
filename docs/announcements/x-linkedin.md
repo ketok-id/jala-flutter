@@ -60,7 +60,7 @@ Filter: is:subscription, is:graphql, is:ws, is:mocked
 Brownfield guide (multi-Dio, GraphQL double-capture, Alice):
 https://github.com/ketok-id/jala-flutter/blob/main/docs/ADOPTION.md
 
-pub.dev: https://pub.dev/packages/jala (^0.5.2, Flutter ≥3.35)
+pub.dev: https://pub.dev/packages/jala (^0.5.3, Flutter ≥3.35)
 Repo: https://github.com/ketok-id/jala-flutter
 
 Feedback welcome.

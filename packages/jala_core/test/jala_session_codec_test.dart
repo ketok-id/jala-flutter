@@ -271,6 +271,72 @@ void main() {
           expect(e.toString(), contains('JalaSessionFormatException'));
         }
       });
+
+      test('oversized input is rejected', () {
+        final String huge = 'x' * (JalaSessionCodec.defaultMaxDecodeChars + 1);
+        expect(
+          () => JalaSessionCodec.decode(huge),
+          throwsA(
+            isA<JalaSessionFormatException>().having(
+              (JalaSessionFormatException e) => e.message,
+              'message',
+              contains('too large'),
+            ),
+          ),
+        );
+      });
+    });
+
+    test('headersOnly export strips bodies', () async {
+      emitRequest(bus, 'a', method: 'post', url: 'https://x.dev/p');
+      emitResponse(
+        bus,
+        'a',
+        body: CapturedBody.capture(
+          '{"ok":true}',
+          contentType: 'application/json',
+        ),
+      );
+      await pump();
+
+      final decoded = JalaSessionCodec.decode(
+        JalaSessionCodec.encode(
+          store,
+          options: JalaSessionExportOptions.headersOnly,
+        ),
+      );
+      final entry = decoded.entries.single;
+      expect(entry.responseBody.kind, BodyKind.none);
+      expect(entry.requestBody.kind, BodyKind.none);
+    });
+
+    test('stripImages export removes image bytes', () async {
+      final imageBytes = Uint8List.fromList(List<int>.generate(16, (i) => i));
+      emitRequest(bus, 'img');
+      bus.emit(
+        NetworkResponseEvent(
+          callId: 'img',
+          timestamp: DateTime.utc(2026),
+          statusCode: 200,
+          headers: const <String, String>{},
+          body: CapturedBody.image(
+            imageBytes,
+            originalSize: 16,
+            truncated: false,
+            contentType: 'image/png',
+          ),
+          duration: const Duration(milliseconds: 5),
+        ),
+      );
+      await pump();
+
+      final decoded = JalaSessionCodec.decode(
+        JalaSessionCodec.encode(
+          store,
+          options: JalaSessionExportOptions.stripImages,
+        ),
+      );
+      expect(decoded.entries.single.responseBody.kind, BodyKind.none);
     });
   });
 }

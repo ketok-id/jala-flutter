@@ -34,8 +34,8 @@ never need on-device inspection, you may not need Jala. That’s fine.
 
 ```yaml
 dependencies:
-  jala: ^0.5.2
-  jala_dio: ^0.5.2
+  jala: ^0.5.3
+  jala_dio: ^0.5.3
   # dio: you already have this
 ```
 
@@ -89,7 +89,7 @@ migration.
 
 ## Which packages do I need?
 
-Install **only** what you use. All versions lockstep at `^0.5.2`.
+Install **only** what you use. All versions lockstep at `^0.5.3`.
 
 | You use… | Add | Setup |
 |---|---|---|
@@ -310,14 +310,20 @@ different jobs — not a 1:1 swap.
 
 ## Production safety checklist (paste into the PR)
 
+Full model: [SECURITY.md](SECURITY.md).
+
 - [ ] `Jala.initialize()` uses default or `enabled: kDebugMode` for store builds  
-- [ ] No `enabled: true` on public release flavors  
-- [ ] Sensitive headers rely on default redactor (or your extended
-      `JalaRedactor` patterns) — never log raw tokens in *other* interceptors  
+- [ ] No `enabled: true` on public release flavors without privacy review  
+- [ ] Default redactor covers your auth headers — extend
+      `JalaRedactor.defaultRedactedHeaders` for company-specific names  
+- [ ] Body secrets: defaults mask common `password` / `*_token` / `api_key`
+      JSON + form fields; add org-specific `redactedBodyPatterns` if needed  
 - [ ] Body cap acceptable (`maxBodyBytes`, default 512 KB) for your traffic  
 - [ ] GraphQL transport not double-wrapped (or team accepts double rows)  
+- [ ] Session export: prefer **headers only** / **no bodies** for tickets;
+      treat full export like a log dump  
 - [ ] Optional: `Jala.enableMockPersistence` only on developer machines /
-      internal builds (persisted mocks can surprise QA)
+      internal builds (plaintext `jala_mock_rules.json`)
 
 When disabled, `JalaOverlay` returns `child` unchanged and adapters skip
 capture work on the hot path. Leaving the dependency in `pubspec` for
@@ -341,17 +347,26 @@ optional host glob (`*.example.com`).
 ### Session share (QA → eng)
 
 1. QA reproduces the bug with Jala open.  
-2. Overflow → **Export session** (clipboard JSON).  
-3. Paste into a ticket / chat.  
-4. Eng: Overflow → **Import session** → inspect offline.  
+2. Overflow → export mode:
+   - **full** — complete capture (trusted channels only)  
+   - **no bodies** — metadata + headers  
+   - **headers only** — safest for tickets  
+3. Paste into a ticket / chat (treat as a **log dump**).  
+4. Eng: Overflow → **Import session** → inspect offline
+   (paste max ~8 MiB).  
 5. Imported rows: Replay / Mock / Edit disabled (expected).  
 6. **Clear** on the import banner returns to live capture.
 
-Programmatic (tests / custom tools):
+Programmatic:
 
 ```dart
-final json = JalaSessionCodec.encode(JalaBinding.instance.store);
-// ...
+// Safer for tickets:
+final json = JalaSessionCodec.encode(
+  JalaBinding.instance.store,
+  options: JalaSessionExportOptions.headersOnly,
+);
+// Full fidelity (trusted eng only):
+// JalaSessionCodec.encode(store);
 JalaBinding.instance.store.importSession(JalaSessionCodec.decode(json));
 ```
 
@@ -417,7 +432,7 @@ Help sheet in the inspector documents the full grammar.
 ```text
 Add Jala (in-app network inspector) for debug/QA.
 
-- jala + jala_dio ^0.5.2
+- jala + jala_dio ^0.5.3
 - installJala() in debug bootstrap; JalaOverlay at root
 - Attach primary Dio (and list any secondary clients)
 - Default enabled: kDebugMode (no-op in store release)
