@@ -31,3 +31,5 @@ inspector after firing a few requests.
 | Cancel | cancelled status |
 | Bad host | error entry |
 | Auth header | redacted as `***` in inspector |
+| Throttle: Slow 3G + Large | latency banner + download progress under throttle |
+| Session: export → import | imported banner; Replay disabled on imported rows |

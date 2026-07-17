@@ -1,3 +1,10 @@
+## 0.5.0
+
+- Lockstep release; no functional changes. Bumped for the `jala_core`
+  0.5.0 dependency (throttling / session codec / subscription payloads
+  are orthogonal to this package — WS frames still pass through
+  unthrottled).
+
 ## 0.4.0
 
 - First release of the `package:web_socket_channel` adapter for Jala.

@@ -33,8 +33,8 @@ Jala exists because the incumbents each miss something concrete:
 
 ```yaml
 dependencies:
-  jala: ^0.4.0
-  jala_dio: ^0.4.0
+  jala: ^0.5.0
+  jala_dio: ^0.5.0
   dio: ^5.9.0
 ```
 
@@ -55,15 +55,15 @@ void main() {
 Tap the floating bubble (or call `Jala.open()`) to inspect traffic.
 
 Using `package:http` instead of Dio? Install
-[`jala_http`](packages/jala_http) (`jala_http: ^0.4.0`) and call
+[`jala_http`](packages/jala_http) (`jala_http: ^0.5.0`) and call
 `JalaHttp.wrap(http.Client())` in place of `JalaDio.attach(dio)` above.
 
 Using GraphQL? Install [`jala_graphql`](packages/jala_graphql)
-(`jala_graphql: ^0.4.0`) and insert `JalaGraphQLLink(endpoint: uri)` before
+(`jala_graphql: ^0.5.0`) and insert `JalaGraphQLLink(endpoint: uri)` before
 your terminating `gql_link` (works with `graphql_flutter` and `ferry`).
 
 Using WebSockets? Install [`jala_websocket`](packages/jala_websocket)
-(`jala_websocket: ^0.4.0`) and wrap your channel with
+(`jala_websocket: ^0.5.0`) and wrap your channel with
 `JalaWebSocketChannel.wrap(channel, uri: uri)`.
 
 **v0.2 capture extras:** image responses (`image/*` within the body cap)
@@ -80,6 +80,12 @@ with `is:mocked`, and **Edit & resend** a modified request. Optional
 with a `QUERY`/`MUTATION` chip and a Query/Variables detail pane; WebSocket
 connections appear in the same list with a live status and frame timeline
 you can drill into. Filter with `op:<name>`, `is:graphql`, `is:ws`.
+
+**v0.5 power tools:** in-app network throttling (Slow 3G / Fast 3G / Flaky /
+Offline + custom profiles, host glob), session export/import via a
+versioned JSON codec (clipboard paste in the inspector — no file-picker
+dependency in `jala_ui`), and a GraphQL subscription payload timeline.
+Filter with `is:subscription`.
 
 ## Screenshots
 
@@ -117,6 +123,8 @@ Only claims verified against each package's actual behavior:
 | `package:http` client support | Yes | Yes | Yes | Yes |
 | GraphQL operation-aware capture | Yes | No | Partial — operation names only | No |
 | WebSocket frame inspection | Yes | No | No | No |
+| In-app network throttling | Yes | No | No | No |
+| Session export / import | Yes | No | No | No |
 | What it is | Network inspector | Network inspector | Network inspector | General-purpose logger |
 
 talker is a structured logging/error-tracking library, not a network
@@ -140,7 +148,8 @@ like-for-like competitor to the other three.
 examples/
   jala_example/  Manual QA rig (GET/POST/404/500/slow/redirect/image/
                    large body/gzip/multipart/cancel/error; Dio + http;
-                   WebSocket echo + GraphQL query under "realtime")
+                   WebSocket echo + GraphQL query under "realtime";
+                   Slow 3G + Large + session round-trip under "power tools")
 ```
 
 ## Filter grammar
@@ -159,6 +168,7 @@ examples/
 | `body:token` | Substring of captured request or response body text |
 | `op:<name>` | GraphQL `operationName`; `*` wildcard allowed (`op:Get*`) |
 | `is:graphql` | Entry carries GraphQL operation metadata |
+| `is:subscription` | GraphQL `operationType == subscription` |
 | `is:ws` | WebSocket connection entries (merged list only) |
 | bare word | Substring of method + full URL |
 | `-<term>` | Negates that term |
@@ -191,11 +201,13 @@ structured terms degrade to free text instead of erroring.
 - **v0.2** — `package:http` adapter, image preview, multipart detail,
   upload/download progress.
 - **v0.3** — rule-based mocking + edit-and-resend.
-- **v0.4** (this release) — `jala_graphql` + `jala_websocket`: GraphQL
-  operation-aware capture, WebSocket connection + frame-timeline capture,
-  merged inspector list (see [docs/ROADMAP.md](docs/ROADMAP.md)).
-- **Later** — storage explorers, throttling / network-condition
-  simulation, desktop companion.
+- **v0.4** — `jala_graphql` + `jala_websocket`: GraphQL operation-aware
+  capture, WebSocket connection + frame-timeline capture, merged
+  inspector list.
+- **v0.5** (this release) — network throttling, session export/import,
+  GraphQL subscription payload timeline (see
+  [docs/ROADMAP.md](docs/ROADMAP.md)).
+- **Later** — HAR import, storage explorers, desktop companion.
 
 ## Develop
 

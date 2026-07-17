@@ -132,7 +132,8 @@ class _DemoHomeState extends State<_DemoHome> {
             'Large: Cloudflare speed test (1 MiB)\n'
             'Backup GET: jsonplaceholder.typicode.com\n'
             'WS echo: wss://ws.postman-echo.com/raw\n'
-            'GraphQL: countries.trevorblades.com',
+            'GraphQL: countries.trevorblades.com\n'
+            'Power tools: Slow 3G + Large, session export/import',
           ),
           const Divider(height: 32),
           _btn('GET json', () => _run('GET json', () async {
@@ -312,6 +313,62 @@ class _DemoHomeState extends State<_DemoHome> {
               );
             }
           })),
+          const Divider(height: 32),
+          Text(
+            'Power tools (v0.5 — throttle + session share)',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Slow 3G then Large shows latency + progress under throttling. '
+            'Export/Import round-trips the in-memory session via the same '
+            'codec the inspector clipboard flow uses. Open the inspector '
+            'speed icon / overflow menu for the full UI.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 8),
+          _btn(
+            'Throttle: Slow 3G + Large (~1MB)',
+            () => _run('throttle slow3g large', () async {
+              // Leave Slow 3G on after the request so the inspector banner
+              // stays visible; "Throttle: Off" (or the speed-icon screen)
+              // clears it.
+              JalaBinding.instance.throttleRegistry.setActive(
+                JalaThrottleProfile.slow3g,
+              );
+              await dio.get<dynamic>(
+                'https://speed.cloudflare.com/__down?bytes=1048576',
+                options: Options(responseType: ResponseType.bytes),
+              );
+            }),
+          ),
+          _btn(
+            'Throttle: Off',
+            () => _run('throttle off', () async {
+              JalaBinding.instance.throttleRegistry.clear();
+            }),
+          ),
+          _btn(
+            'Session: export → import (round-trip)',
+            () => _run('session round-trip', () async {
+              final String encoded = JalaSessionCodec.encode(
+                JalaBinding.instance.store,
+              );
+              final JalaSession session = JalaSessionCodec.decode(encoded);
+              JalaBinding.instance.store.importSession(session);
+              if (!mounted) return;
+              final int n = JalaBinding.instance.store.entries.length;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Imported session ($n entries). Open inspector — '
+                    'Replay is disabled on imported rows. Clear banner to '
+                    'return to live capture.',
+                  ),
+                ),
+              );
+            }),
+          ),
         ],
       ),
     );

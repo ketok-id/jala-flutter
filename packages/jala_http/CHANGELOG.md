@@ -1,4 +1,4 @@
-## Unreleased (0.5.0)
+## 0.5.0
 
 - Network throttling: `send()` consults `JalaBinding.instance
   .throttleRegistry` — a 100%-drop profile throws `http.ClientException`

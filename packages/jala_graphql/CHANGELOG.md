@@ -1,4 +1,4 @@
-## Unreleased (0.5.0)
+## 0.5.0
 
 - Subscription payload timeline: every payload delivered on an open
   subscription is now captured as a `NetworkSubscriptionPayloadEvent`

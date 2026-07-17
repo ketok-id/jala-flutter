@@ -1,3 +1,22 @@
+## 0.5.0
+
+- Network throttling model: `JalaThrottleProfile` (latency/jitter/bandwidth/
+  drop rate) with const presets `slow3g` / `fast3g` / `flaky` / `offline`,
+  and `JalaThrottleRegistry` on the binding (`activeProfile`, host-pattern
+  glob, `watch`, `shouldDrop` / `latencyFor` / `paceFor`). Active only while
+  the binding is enabled.
+- Session share codec: `JalaSessionCodec.encode`/`decode` with a versioned
+  JSON envelope (`jala-session` marker, v1). Round-trips `NetworkCallEntry`
+  (incl. captured bodies) and `WsConnectionEntry` + frames; defensive
+  `JalaSessionFormatException` on malformed input.
+- `JalaStore.importSession` (replace/append) + `isViewingImport`; imported
+  entries are tagged `imported: true`.
+- GraphQL subscription payload ring: `NetworkSubscriptionPayloadEvent`,
+  `NetworkCallEntry.payloads` / `payloadCount`, capped by
+  `JalaConfig.maxSubscriptionPayloads` (default 50; wired through
+  `JalaBinding.initialize`).
+- Filter grammar: `is:subscription`.
+
 ## 0.4.0
 
 - GraphQL metadata on the existing call model: `NetworkCallEntry`/

@@ -1,3 +1,11 @@
+## 0.5.0
+
+- Lockstep with 0.5.0 core/ui: network throttling, session export/import,
+  GraphQL subscription payload timeline, `is:subscription` filter. No
+  changes to the `Jala` facade API itself — open the inspector speed icon
+  / overflow menu, or drive `JalaBinding.instance.throttleRegistry` and
+  `JalaSessionCodec` from app code (see the example Power tools section).
+
 ## 0.4.0
 
 - Lockstep with 0.4.0 core/ui: GraphQL operation metadata, merged

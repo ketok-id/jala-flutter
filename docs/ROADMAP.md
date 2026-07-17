@@ -8,11 +8,11 @@ Status as of 2026-07-16. Detailed execution plans live in `docs/plans/`.
 | B | Capture-surface growth (jala_http, image preview, multipart, progress) | 0.2.0 | ✅ DONE — [plan](plans/track-b-v0.2.md) |
 | C | Mocking & edit-and-resend | 0.3.0 | ✅ DONE — [plan](plans/track-c-v0.3-mocking.md) |
 | D | Realtime & GraphQL | 0.4.0 | ✅ DONE — [plan](plans/track-d-v0.4.md) |
-| E | Power tools: throttling, session share, subscription payloads | 0.5.0 | 📝 PLANNED — [plan](plans/track-e-v0.5.md) |
+| E | Power tools: throttling, session share, subscription payloads | 0.5.0 | ✅ DONE — [plan](plans/track-e-v0.5.md) |
 
 All five packages (`jala`, `jala_core`, `jala_dio`, `jala_http`, `jala_ui`)
 plus `jala_graphql` and `jala_websocket` are published on pub.dev at
-**0.4.0** in lockstep, all under the verified publisher `ketok.id`.
+**0.5.0** in lockstep, all under the verified publisher `ketok.id`.
 
 ## Track D — v0.4.0 proposal: GraphQL + WebSocket
 
@@ -32,8 +32,16 @@ Detailed execution plan: [plans/track-d-v0.4.md](plans/track-d-v0.4.md)
 (written 2026-07-16). If launch feedback lands before Track D starts,
 re-check its scope against the actual issues first.
 
-## Horizon (beyond v0.4, unplanned)
+## Track E — v0.5.0: power tools
 
+Stay in the network lane while adoption grows. Three features, no new
+packages: in-app throttling (category-first for Flutter inspectors),
+session export/import (category-first), and GraphQL subscription payload
+timelines. Detailed plan: [plans/track-e-v0.5.md](plans/track-e-v0.5.md).
+
+## Horizon (beyond v0.5, unplanned)
+
+- HAR *import* (export already ships; import is a different beast).
 - Storage explorers (Hive/Isar/Drift/SharedPreferences) — first non-network
   plugin; validates the Ketok plugin ecosystem vision.
 - Desktop companion (remote debug) — after in-app surface saturates.

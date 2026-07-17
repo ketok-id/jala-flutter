@@ -1,4 +1,4 @@
-## Unreleased (0.5.0)
+## 0.5.0
 
 - Network throttling: `onRequest` consults `JalaBinding.instance
   .throttleRegistry` — a 100%-drop profile rejects with a connection-error

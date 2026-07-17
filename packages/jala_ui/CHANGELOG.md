@@ -1,4 +1,4 @@
-## Unreleased (0.5.0)
+## 0.5.0
 
 - `JalaThrottleScreen` (inspector AppBar speed icon): preset radio list
   (Off + Slow 3G/Fast 3G/Flaky/Offline, humanized), a custom profile
