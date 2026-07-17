@@ -1,3 +1,9 @@
+## 0.5.1
+
+- Pub metadata: `homepage`, `issue_tracker`, clearer description.
+- Docs: stronger double-capture callout (GraphQL link + Dio/http on the
+  same transport).
+
 ## 0.5.0
 
 - Subscription payload timeline: every payload delivered on an open

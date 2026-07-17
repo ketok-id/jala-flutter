@@ -12,7 +12,7 @@ Status as of 2026-07-16. Detailed execution plans live in `docs/plans/`.
 
 All five packages (`jala`, `jala_core`, `jala_dio`, `jala_http`, `jala_ui`)
 plus `jala_graphql` and `jala_websocket` are published on pub.dev at
-**0.5.0** in lockstep, all under the verified publisher `ketok.id`.
+**0.5.x** in lockstep, all under the verified publisher `ketok.id`.
 
 ## Track D — v0.4.0 proposal: GraphQL + WebSocket
 

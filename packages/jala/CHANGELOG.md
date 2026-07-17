@@ -1,3 +1,10 @@
+## 0.5.1
+
+- Pub metadata: `homepage`, `issue_tracker`, package screenshots on
+  pub.dev, and a clearer description (throttle + session share).
+- Docs: link brownfield [ADOPTION](https://github.com/ketok-id/jala-flutter/blob/main/docs/ADOPTION.md)
+  guide; note Flutter `>=3.35` and lockstep 0.5.x versions.
+
 ## 0.5.0
 
 - Lockstep with 0.5.0 core/ui: network throttling, session export/import,

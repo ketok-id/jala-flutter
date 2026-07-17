@@ -6,7 +6,8 @@ rewiring the app.
 
 Target readers: mid-level implementers *and* seniors reviewing the PR.
 
-Lockstep version for this doc: **0.5.0**.
+Lockstep version for this doc: **0.5.1** (requires Dart `^3.11`, Flutter
+`>=3.35` for `jala` / `jala_ui`).
 
 ---
 
@@ -33,8 +34,8 @@ never need on-device inspection, you may not need Jala. That’s fine.
 
 ```yaml
 dependencies:
-  jala: ^0.5.0
-  jala_dio: ^0.5.0
+  jala: ^0.5.1
+  jala_dio: ^0.5.1
   # dio: you already have this
 ```
 
@@ -88,7 +89,7 @@ migration.
 
 ## Which packages do I need?
 
-Install **only** what you use. All versions lockstep at `^0.5.0`.
+Install **only** what you use. All versions lockstep at `^0.5.1`.
 
 | You use… | Add | Setup |
 |---|---|---|
@@ -416,7 +417,7 @@ Help sheet in the inspector documents the full grammar.
 ```text
 Add Jala (in-app network inspector) for debug/QA.
 
-- jala + jala_dio ^0.5.0
+- jala + jala_dio ^0.5.1
 - installJala() in debug bootstrap; JalaOverlay at root
 - Attach primary Dio (and list any secondary clients)
 - Default enabled: kDebugMode (no-op in store release)

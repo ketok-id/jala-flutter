@@ -1,3 +1,9 @@
+## 0.5.1
+
+- Pub metadata: `homepage`, `issue_tracker`, clearer description.
+- Docs: multi-client replay ownership (last `JalaDio.attach` wins);
+  lockstep 0.5.x note; link to ADOPTION guide.
+
 ## 0.5.0
 
 - Network throttling: `onRequest` consults `JalaBinding.instance

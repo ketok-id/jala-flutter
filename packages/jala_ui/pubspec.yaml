@@ -1,7 +1,11 @@
 name: jala_ui
-description: Inspector UI for Jala, the in-app Flutter network inspector. Call list with DevTools-style filtering, detail tabs, JSON viewer, and overlay bubble.
-version: 0.5.0
+description: >
+  Inspector UI for Jala: filtered call list, detail tabs, throttle screen,
+  session export/import, JSON viewer, and overlay bubble.
+version: 0.5.1
+homepage: https://github.com/ketok-id/jala-flutter
 repository: https://github.com/ketok-id/jala-flutter
+issue_tracker: https://github.com/ketok-id/jala-flutter/issues
 topics: [network, debugging, devtools, ui]
 
 environment:
@@ -13,7 +17,7 @@ resolution: workspace
 dependencies:
   flutter:
     sdk: flutter
-  jala_core: ^0.5.0
+  jala_core: ^0.5.1
 
 dev_dependencies:
   flutter_lints: ^6.0.0

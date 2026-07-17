@@ -15,6 +15,10 @@ Flutter (CLI tooling, server-side log tooling, etc.) as well as inside it.
 > `JalaOverlay` out of the box. `jala_core` is for people building client
 > integrations or plugins (like `jala_dio`), or anyone who wants the model/
 > store/filter/exporter primitives without any UI.
+>
+> **Apps:** [docs/ADOPTION.md](../../docs/ADOPTION.md). **0.x policy:**
+> [docs/COMPAT.md](../../docs/COMPAT.md). Lockstep with other Jala packages
+> at the same `0.5.x`.
 
 ## Main classes
 

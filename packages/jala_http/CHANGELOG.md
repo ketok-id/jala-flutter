@@ -1,3 +1,7 @@
+## 0.5.1
+
+- Pub metadata: `homepage`, `issue_tracker`, clearer description (docs-only).
+
 ## 0.5.0
 
 - Network throttling: `send()` consults `JalaBinding.instance

@@ -1,10 +1,11 @@
 name: jala_core
 description: >
-  Pure-Dart core for Jala: network call model, event bus, ring-buffer store,
-  redaction, DevTools-style filter grammar, and exporters (cURL, Dart/Dio
-  snippet, HAR 1.2).
-version: 0.5.0
+  Pure-Dart core for Jala: call model, store, redaction, filter grammar,
+  exporters, network throttling, and session export/import. Zero Flutter.
+version: 0.5.1
+homepage: https://github.com/ketok-id/jala-flutter
 repository: https://github.com/ketok-id/jala-flutter
+issue_tracker: https://github.com/ketok-id/jala-flutter/issues
 topics: [network, debugging, devtools, http]
 resolution: workspace
 

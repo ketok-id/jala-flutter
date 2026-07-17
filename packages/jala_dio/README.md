@@ -8,11 +8,17 @@ See the [repo README](../../README.md) for what Jala is and why (replay,
 filter grammar, redaction-by-default) and the [`jala`](../jala) package
 for the facade that wires this up in an app.
 
+**Existing app?** [docs/ADOPTION.md](../../docs/ADOPTION.md).  
+**Lockstep:** use the same `0.5.x` as `jala` / `jala_core` (see
+[docs/COMPAT.md](../../docs/COMPAT.md)). Requires Dart `^3.11`.
+
 ## Install
 
 ```yaml
 dependencies:
-  jala_dio: ^0.5.0   # requires jala_core ^0.5.0
+  jala: ^0.5.1
+  jala_dio: ^0.5.1   # requires jala_core ^0.5.1
+  dio: ^5.0.0
 ```
 
 ## Attach
@@ -41,6 +47,12 @@ through the same `Dio` instance, so it flows through interceptors again and
 is captured as a fresh entry with `replayOf` set to the original call's id.
 Headers that were redacted at capture time (e.g. `Authorization`) are never
 resent — Jala never retains the real secret to resend in the first place.
+
+**Multiple clients:** each `JalaDio.attach` / `JalaHttp.wrap` registers a
+replayer; the **last** registration wins for the inspector’s Replay button.
+Attach every Dio you want **captured**, and attach your **primary** API
+client last (or accept that secondary clients capture but may not replay).
+Details: [ADOPTION — multiple Dio](../../docs/ADOPTION.md#multiple-dio-instances-very-common).
 
 ## Throttling
 

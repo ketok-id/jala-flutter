@@ -1,3 +1,8 @@
+## 0.5.1
+
+- Pub metadata: `homepage`, `issue_tracker`, description notes frames are
+  not throttled (docs-only).
+
 ## 0.5.0
 
 - Lockstep release; no functional changes. Bumped for the `jala_core`

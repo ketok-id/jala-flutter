@@ -11,11 +11,14 @@ See the [repo README](../../README.md) for what Jala is and why (replay,
 filter grammar, redaction-by-default) and the [`jala`](../jala) package
 for the facade that wires this up in an app.
 
+**Lockstep** with `jala` / `jala_core` `0.5.x`. Brownfield:
+[docs/ADOPTION.md](../../docs/ADOPTION.md).
+
 ## Install
 
 ```yaml
 dependencies:
-  jala_graphql: ^0.5.0   # requires jala_core ^0.5.0
+  jala_graphql: ^0.5.1   # requires jala_core ^0.5.1
 ```
 
 ## Attach
@@ -91,19 +94,22 @@ in the inspector that the real endpoint wasn't provided.
   `{"@subscription": {"payloads": N}}`; that convention is **removed** as
   of v0.5 — superseded by the payload timeline above.
 
-## Double-capture
+## Double-capture (read this)
 
-If the app *also* wraps its HTTP transport with `jala_dio`/`jala_http` —
-for example, `HttpLink` internally uses a `Dio`/`http.Client` instance that
-already has a `JalaDioInterceptor`/is already `JalaHttp.wrap`ped — the same
-operation is captured **twice**: once here as a GraphQL entry
-(`operationName`/`operationType` set, `client: 'graphql'`), and once more
-as a raw HTTP POST by the other adapter. Two ways to avoid the duplicate:
+> **#1 footgun:** if the terminating `HttpLink` (or ferry transport) uses a
+> `Dio` / `http.Client` that you **also** passed to `JalaDio.attach` /
+> `JalaHttp.wrap`, each operation appears **twice** — once as GraphQL
+> (`client: 'graphql'`) and once as a raw HTTP POST.
 
-- Don't wrap the transport instance used by the GraphQL client, or
-- Filter the inspector list with `-is:graphql` (hide GraphQL entries, keep
-  the raw POST) or `is:graphql` (hide the raw POST, keep the GraphQL
-  entry).
+**Pick one transport path for that client:**
+
+| Goal | Do this |
+|---|---|
+| GraphQL-aware UI | Use `JalaGraphQLLink`; do **not** attach Jala to that transport’s Dio/http |
+| Raw HTTP only | Attach Dio/http; skip `JalaGraphQLLink` |
+| Both (noise OK) | Keep both; filter with `is:graphql` or `-is:graphql` |
+
+See [ADOPTION — GraphQL](../../docs/ADOPTION.md#graphql).
 
 ## Production safety
 

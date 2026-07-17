@@ -1,3 +1,8 @@
+## 0.5.1
+
+- Pub metadata: `homepage`, `issue_tracker`, and description now mentions
+  throttling + session export/import (docs-only; no API changes).
+
 ## 0.5.0
 
 - Network throttling model: `JalaThrottleProfile` (latency/jitter/bandwidth/

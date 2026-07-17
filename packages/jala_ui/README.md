@@ -9,6 +9,9 @@ See the [repo README](../../README.md) for what Jala is and why, and the
 [`jala`](../jala) package for the facade most apps should install
 instead of depending on this package directly.
 
+Requires Flutter `>=3.35`. Lockstep `0.5.x` with `jala_core`. Brownfield:
+[docs/ADOPTION.md](../../docs/ADOPTION.md).
+
 ## What's here
 
 - `JalaInspectorScreen` — filter bar (DevTools-style grammar, live &

@@ -12,12 +12,16 @@ vs. alice/chucker_flutter/talker, and the roadmap.
 [docs/ADOPTION.md](../../docs/ADOPTION.md) (multi-Dio, GraphQL
 double-capture, Alice/Chucker migration, debug bootstrap, PR checklist).
 
+**Requirements:** Dart `^3.11`, Flutter `>=3.35`. Use **lockstep** versions
+with adapters (`jala` / `jala_dio` / … all `^0.5.1`). Compatibility notes:
+[docs/COMPAT.md](../../docs/COMPAT.md).
+
 ## Quick start
 
 ```yaml
 dependencies:
-  jala: ^0.5.0
-  jala_dio: ^0.5.0   # if you use Dio
+  jala: ^0.5.1
+  jala_dio: ^0.5.1   # if you use Dio
   dio: ^5.0.0
 ```
 
@@ -37,16 +41,16 @@ void main() {
 
 Tap the floating **J** bubble (or call `Jala.open()`) to inspect traffic.
 `enabled` defaults to `kDebugMode`, and `JalaOverlay` returns `child`
-unchanged when disabled — see the [repo README](../../README.md#production-safety)
-for the full production-safety story.
+unchanged when disabled — see [Production safety](#production-safety)
+below and the [repo README](../../README.md#production-safety).
 
 ### Other adapters
 
 | Client | Package | Setup |
 |---|---|---|
-| `package:http` | [`jala_http`](../jala_http) `^0.5.0` | `JalaHttp.wrap(http.Client())` |
-| GraphQL (`gql_link`) | [`jala_graphql`](../jala_graphql) `^0.5.0` | `JalaGraphQLLink(endpoint: uri)` before terminating link |
-| WebSocket | [`jala_websocket`](../jala_websocket) `^0.5.0` | `JalaWebSocketChannel.wrap(channel, uri: uri)` |
+| `package:http` | [`jala_http`](../jala_http) `^0.5.1` | `JalaHttp.wrap(http.Client())` |
+| GraphQL (`gql_link`) | [`jala_graphql`](../jala_graphql) `^0.5.1` | `JalaGraphQLLink(endpoint: uri)` before terminating link |
+| WebSocket | [`jala_websocket`](../jala_websocket) `^0.5.1` | `JalaWebSocketChannel.wrap(channel, uri: uri)` |
 
 ### v0.5 power tools (in the inspector)
 
@@ -57,5 +61,21 @@ for the full production-safety story.
 - **Subscriptions**: GraphQL payload timeline on the Response tab;
   filter with `is:subscription`.
 
-See [docs/SPEC-v0.1.md](../../docs/SPEC-v0.1.md) for the original v0.1
-contract; later tracks extend the model without breaking those defaults.
+## Production safety
+
+- **Off by default in release** — `Jala.initialize()` uses `enabled:
+  kDebugMode` unless you override it.
+- **True no-op when disabled** — overlay returns `child` unchanged;
+  adapters skip capture on the hot path.
+- **Redaction at capture time** — sensitive headers are masked before they
+  enter the in-memory store (nothing to leak in screenshots of the
+  inspector).
+- **Hard body size caps** — default 512 KB per captured body.
+
+Leave the dependency wired in release builds; that is intentional and safe.
+
+## See also
+
+- [docs/ADOPTION.md](../../docs/ADOPTION.md) — existing apps
+- [docs/COMPAT.md](../../docs/COMPAT.md) — 0.x / lockstep policy
+- [docs/SPEC-v0.1.md](../../docs/SPEC-v0.1.md) — original v0.1 contract
