@@ -38,7 +38,76 @@ class NetworkCallEntry {
     this.progress,
     this.operationName,
     this.operationType,
+    this.throttledBy,
+    this.payloads = const <CapturedBody>[],
+    this.payloadCount = 0,
+    this.imported = false,
   });
+
+  /// Deserializes an entry previously produced by [toJson] (used by
+  /// `JalaSessionCodec` — see docs/plans/track-e-v0.5.md E1). `progress` is
+  /// transient and was never serialized, so a decoded entry never has one.
+  ///
+  /// Throws [FormatException] on missing/malformed required fields or an
+  /// unrecognized `status`.
+  factory NetworkCallEntry.fromJson(Map<String, Object?> json) {
+    final String? id = json['id'] as String?;
+    final String? startTimeRaw = json['startTime'] as String?;
+    final String? method = json['method'] as String?;
+    final String? uriRaw = json['uri'] as String?;
+    final String? statusName = json['status'] as String?;
+    final String? client = json['client'] as String?;
+    if (id == null ||
+        startTimeRaw == null ||
+        method == null ||
+        uriRaw == null ||
+        statusName == null ||
+        client == null) {
+      throw const FormatException('NetworkCallEntry missing required field');
+    }
+    JalaCallStatus? status;
+    for (final JalaCallStatus candidate in JalaCallStatus.values) {
+      if (candidate.name == statusName) {
+        status = candidate;
+        break;
+      }
+    }
+    if (status == null) {
+      throw FormatException('Unknown JalaCallStatus: $statusName');
+    }
+    final Object? durationMicros = json['durationMicros'];
+    final Object? payloadsRaw = json['payloads'];
+    return NetworkCallEntry(
+      id: id,
+      startTime: DateTime.parse(startTimeRaw),
+      method: method,
+      uri: Uri.parse(uriRaw),
+      requestHeaders: _stringMapFromJson(json['requestHeaders']),
+      requestBody: _bodyFromJson(json['requestBody']),
+      statusCode: json['statusCode'] as int?,
+      statusMessage: json['statusMessage'] as String?,
+      responseHeaders: _stringMapFromJson(json['responseHeaders']),
+      responseBody: _bodyFromJson(json['responseBody']),
+      duration: durationMicros == null
+          ? null
+          : Duration(microseconds: durationMicros as int),
+      requestSize: json['requestSize'] as int?,
+      responseSize: json['responseSize'] as int?,
+      status: status,
+      errorMessage: json['errorMessage'] as String?,
+      replayOf: json['replayOf'] as String?,
+      mockRuleId: json['mockRuleId'] as String?,
+      client: client,
+      operationName: json['operationName'] as String?,
+      operationType: json['operationType'] as String?,
+      throttledBy: json['throttledBy'] as String?,
+      payloads: payloadsRaw is List
+          ? payloadsRaw.map(_bodyFromJson).toList(growable: false)
+          : const <CapturedBody>[],
+      payloadCount: json['payloadCount'] as int? ?? 0,
+      imported: json['imported'] as bool? ?? false,
+    );
+  }
 
   /// Process-unique id for this call. Also the correlation key
   /// (`callId`) shared by every [JalaEvent] belonging to this call.
@@ -116,6 +185,27 @@ class NetworkCallEntry {
   /// when [operationName] is non-null. Null for plain HTTP calls.
   final String? operationType;
 
+  /// The id of the `JalaThrottleProfile` that throttled this call (see
+  /// `JalaThrottleRegistry`, docs/plans/track-e-v0.5.md E1/E2), or null if
+  /// throttling was off or did not apply to this call.
+  final String? throttledBy;
+
+  /// GraphQL subscription payloads observed for this call, oldest first,
+  /// capped at `JalaConfig.maxSubscriptionPayloads` (a per-call ring
+  /// buffer — see [NetworkSubscriptionPayloadEvent] and
+  /// `JalaStore`). Empty for non-subscription calls.
+  final List<CapturedBody> payloads;
+
+  /// Total number of subscription payloads ever observed for this call —
+  /// unlike [payloads], never reduced by ring-buffer eviction. Mirrors
+  /// `WsConnectionEntry.frameCount`.
+  final int payloadCount;
+
+  /// Whether this entry was produced by `JalaStore.importSession` rather
+  /// than live capture. Set by the store's import path only — never true
+  /// for a freshly captured call.
+  final bool imported;
+
   /// Returns a copy of this entry with the given fields replaced.
   ///
   /// Nullable fields (e.g. [statusCode], [duration], [errorMessage]) use an
@@ -143,6 +233,10 @@ class NetworkCallEntry {
     Object? progress = _unset,
     Object? operationName = _unset,
     Object? operationType = _unset,
+    Object? throttledBy = _unset,
+    List<CapturedBody>? payloads,
+    int? payloadCount,
+    bool? imported,
   }) {
     return NetworkCallEntry(
       id: id ?? this.id,
@@ -188,7 +282,60 @@ class NetworkCallEntry {
       operationType: identical(operationType, _unset)
           ? this.operationType
           : operationType as String?,
+      throttledBy: identical(throttledBy, _unset)
+          ? this.throttledBy
+          : throttledBy as String?,
+      payloads: payloads ?? this.payloads,
+      payloadCount: payloadCount ?? this.payloadCount,
+      imported: imported ?? this.imported,
     );
+  }
+
+  /// Serializes this entry for `JalaSessionCodec` (see
+  /// docs/plans/track-e-v0.5.md E1). [progress] is transient (live-capture
+  /// UI state) and is deliberately never serialized — a decoded entry
+  /// simply has no progress.
+  Map<String, Object?> toJson() => <String, Object?>{
+    'id': id,
+    'startTime': startTime.toIso8601String(),
+    'method': method,
+    'uri': uri.toString(),
+    'requestHeaders': requestHeaders,
+    'requestBody': requestBody.toJson(),
+    if (statusCode != null) 'statusCode': statusCode,
+    if (statusMessage != null) 'statusMessage': statusMessage,
+    'responseHeaders': responseHeaders,
+    'responseBody': responseBody.toJson(),
+    if (duration != null) 'durationMicros': duration!.inMicroseconds,
+    if (requestSize != null) 'requestSize': requestSize,
+    if (responseSize != null) 'responseSize': responseSize,
+    'status': status.name,
+    if (errorMessage != null) 'errorMessage': errorMessage,
+    if (replayOf != null) 'replayOf': replayOf,
+    if (mockRuleId != null) 'mockRuleId': mockRuleId,
+    'client': client,
+    if (operationName != null) 'operationName': operationName,
+    if (operationType != null) 'operationType': operationType,
+    if (throttledBy != null) 'throttledBy': throttledBy,
+    if (payloads.isNotEmpty)
+      'payloads': payloads.map((CapturedBody p) => p.toJson()).toList(),
+    'payloadCount': payloadCount,
+    'imported': imported,
+  };
+
+  static Map<String, String> _stringMapFromJson(Object? raw) {
+    if (raw is! Map) return const <String, String>{};
+    return raw.map(
+      (Object? key, Object? value) => MapEntry<String, String>(
+        key.toString(),
+        value.toString(),
+      ),
+    );
+  }
+
+  static CapturedBody _bodyFromJson(Object? raw) {
+    if (raw is! Map) return CapturedBody.none;
+    return CapturedBody.fromJson(Map<String, Object?>.from(raw));
   }
 
   @override

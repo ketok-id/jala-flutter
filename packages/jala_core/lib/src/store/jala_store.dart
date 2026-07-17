@@ -7,6 +7,7 @@ import '../model/jala_call_status.dart';
 import '../model/network_call_entry.dart';
 import '../model/ws_connection_entry.dart';
 import '../model/ws_frame.dart';
+import '../session/jala_session.dart';
 
 /// An in-memory ring buffer of [NetworkCallEntry] (plus a parallel one of
 /// [WsConnectionEntry]) built by correlating [JalaEvent]s from a
@@ -27,6 +28,7 @@ class JalaStore {
     this.maxEntries = 300,
     this.maxWsConnections = 20,
     this.maxWsFramesPerConnection = 200,
+    this.maxSubscriptionPayloads = 50,
   }) {
     _subscription = bus.events.listen(_onEvent);
   }
@@ -41,6 +43,10 @@ class JalaStore {
   /// Maximum number of frames retained per WebSocket connection.
   final int maxWsFramesPerConnection;
 
+  /// Maximum number of GraphQL subscription payloads retained per call —
+  /// see `NetworkCallEntry.payloads`/`payloadCount`.
+  final int maxSubscriptionPayloads;
+
   StreamSubscription<JalaEvent>? _subscription;
 
   // Newest-first.
@@ -54,6 +60,13 @@ class JalaStore {
 
   final StreamController<List<WsConnectionEntry>> _wsUpdates =
       StreamController<List<WsConnectionEntry>>.broadcast();
+
+  bool _isViewingImport = false;
+
+  /// Whether [entries]/[wsConnections] currently reflect an imported
+  /// session (via [importSession]) rather than pure live capture. Reset to
+  /// false by [clear].
+  bool get isViewingImport => _isViewingImport;
 
   /// Current entries, newest first. A fresh unmodifiable snapshot.
   List<NetworkCallEntry> get entries => List.unmodifiable(_entries);
@@ -111,10 +124,42 @@ class JalaStore {
     return null;
   }
 
-  /// Removes every entry (both [entries] and [wsConnections]).
+  /// Removes every entry (both [entries] and [wsConnections]) and clears
+  /// [isViewingImport] — returns to a live, empty capture state.
   void clear() {
     _entries.clear();
     _wsConnections.clear();
+    _isViewingImport = false;
+    _notify();
+    _notifyWs();
+  }
+
+  /// Loads a previously exported [session] (see `JalaSessionCodec.decode`)
+  /// into this store.
+  ///
+  /// By default ([append] false) this *replaces* the current contents.
+  /// With `append: true`, [session]'s entries/connections are added on top
+  /// of (i.e. newer than) whatever is already present. Either way, every
+  /// entry from [session] is marked `NetworkCallEntry.imported: true`
+  /// (even if it was already true — imports are idempotent about this),
+  /// [isViewingImport] becomes true, and [watch]/[watchWs] notify with the
+  /// merged snapshot. Normal ring-buffer eviction ([maxEntries] etc.) still
+  /// applies afterward.
+  void importSession(JalaSession session, {bool append = false}) {
+    final List<NetworkCallEntry> imported = session.entries
+        .map((NetworkCallEntry e) => e.copyWith(imported: true))
+        .toList();
+
+    if (!append) {
+      _entries.clear();
+      _wsConnections.clear();
+    }
+    _entries.insertAll(0, imported);
+    _enforceCapacity();
+    _wsConnections.insertAll(0, session.wsConnections);
+    _enforceWsCapacity();
+
+    _isViewingImport = true;
     _notify();
     _notifyWs();
   }
@@ -144,6 +189,9 @@ class JalaStore {
         _notify();
       case final NetworkProgressEvent e:
         _onProgress(e);
+        _notify();
+      case final NetworkSubscriptionPayloadEvent e:
+        _onSubscriptionPayload(e);
         _notify();
       case final WsConnectEvent e:
         _onWsConnect(e);
@@ -180,6 +228,7 @@ class JalaStore {
       mockRuleId: e.mockRuleId,
       operationName: e.operationName,
       operationType: e.operationType,
+      throttledBy: e.throttledBy,
     );
     _entries.insert(0, entry);
     _enforceCapacity();
@@ -227,6 +276,25 @@ class JalaStore {
     final int index = _entries.indexWhere((entry) => entry.id == e.callId);
     if (index == -1) return; // evicted or unknown; ignore per spec.
     _entries[index] = _entries[index].copyWith(progress: e);
+  }
+
+  void _onSubscriptionPayload(NetworkSubscriptionPayloadEvent e) {
+    final int index = _entries.indexWhere((entry) => entry.id == e.callId);
+    if (index == -1) return; // evicted or unknown; ignore per spec.
+    final NetworkCallEntry current = _entries[index];
+    // Mirrors the WS frame ring buffer: only a still-in-flight subscription
+    // accumulates payloads — see `NetworkSubscriptionPayloadEvent` doc.
+    if (current.status != JalaCallStatus.pending) return;
+    final List<CapturedBody> payloads = List<CapturedBody>.of(
+      current.payloads,
+    )..add(e.body);
+    if (payloads.length > maxSubscriptionPayloads) {
+      payloads.removeAt(0); // oldest payload falls out of the ring buffer.
+    }
+    _entries[index] = current.copyWith(
+      payloads: List.unmodifiable(payloads),
+      payloadCount: current.payloadCount + 1,
+    );
   }
 
   void _enforceCapacity() {

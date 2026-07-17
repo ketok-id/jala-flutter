@@ -1,6 +1,7 @@
 import '../model/captured_body.dart';
 import '../model/ws_frame.dart';
 
+part 'subscription_event.dart';
 part 'ws_event.dart';
 
 /// Base type for everything flowing through [JalaEventBus].
@@ -34,6 +35,7 @@ class NetworkRequestEvent extends JalaEvent {
     this.mockRuleId,
     this.operationName,
     this.operationType,
+    this.throttledBy,
   });
 
   /// HTTP method, uppercased.
@@ -75,6 +77,11 @@ class NetworkRequestEvent extends JalaEvent {
   /// GraphQL operation type — `query`, `mutation`, or `subscription` —
   /// when [operationName] is non-null. Null for plain HTTP calls.
   final String? operationType;
+
+  /// The id of the `JalaThrottleProfile` that throttled this request (see
+  /// `JalaThrottleRegistry`, docs/plans/track-e-v0.5.md E1/E2), or null if
+  /// throttling was off or did not apply (e.g. host didn't match).
+  final String? throttledBy;
 }
 
 /// Emitted when a response is received for a call.

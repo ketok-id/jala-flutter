@@ -16,6 +16,7 @@ class JalaConfig {
     this.captureImageBodies = true,
     this.maxWsConnections = 20,
     this.maxWsFramesPerConnection = 200,
+    this.maxSubscriptionPayloads = 50,
     JalaRedactor? redactor,
   }) : redactor = redactor ?? JalaRedactor();
 
@@ -36,6 +37,13 @@ class JalaConfig {
   /// reflects the total number of frames ever observed, even once older
   /// frames have been evicted from `WsConnectionEntry.frames`.
   final int maxWsFramesPerConnection;
+
+  /// Maximum number of GraphQL subscription payloads retained per call (a
+  /// per-call ring buffer, mirroring [maxWsFramesPerConnection]).
+  /// `NetworkCallEntry.payloadCount` still reflects the total number of
+  /// payloads ever observed, even once older ones have been evicted from
+  /// `NetworkCallEntry.payloads`.
+  final int maxSubscriptionPayloads;
 
   /// Hard cap, in bytes, on each captured request/response body.
   final int maxBodyBytes;

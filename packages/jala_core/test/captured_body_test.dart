@@ -248,4 +248,89 @@ void main() {
       expect(body.kind, BodyKind.image);
     });
   });
+
+  group('CapturedBody toJson/fromJson', () {
+    test('text round-trips', () {
+      final body = CapturedBody.capture('hello', contentType: 'text/plain');
+      final decoded = CapturedBody.fromJson(body.toJson());
+      expect(decoded, body);
+      expect(decoded.text, 'hello');
+    });
+
+    test('json round-trips', () {
+      final body = CapturedBody.capture('{"a":1}');
+      final decoded = CapturedBody.fromJson(body.toJson());
+      expect(decoded.kind, BodyKind.json);
+      expect(decoded.text, '{"a":1}');
+    });
+
+    test('unicode text round-trips', () {
+      final body = CapturedBody.capture('héllo ✓ 日本語');
+      final decoded = CapturedBody.fromJson(body.toJson());
+      expect(decoded.text, 'héllo ✓ 日本語');
+    });
+
+    test('truncated body round-trips exactly (kind not re-derived)', () {
+      final body = CapturedBody.capture('a' * 100, maxBytes: 10);
+      expect(body.kind, BodyKind.truncated);
+      final decoded = CapturedBody.fromJson(body.toJson());
+      expect(decoded.kind, BodyKind.truncated);
+      expect(decoded.text, 'a' * 10);
+      expect(decoded.originalSize, 100);
+      expect(decoded.truncated, isTrue);
+    });
+
+    test('image bytes round-trip via base64', () {
+      final bytes = Uint8List.fromList(List<int>.generate(32, (i) => i));
+      final body = CapturedBody.image(
+        bytes,
+        originalSize: 32,
+        truncated: false,
+        contentType: 'image/png',
+      );
+      final decoded = CapturedBody.fromJson(body.toJson());
+      expect(decoded.kind, BodyKind.image);
+      expect(decoded.bytes, bytes);
+      expect(decoded.contentType, 'image/png');
+    });
+
+    test('none round-trips', () {
+      final decoded = CapturedBody.fromJson(CapturedBody.none.toJson());
+      expect(decoded.kind, BodyKind.none);
+    });
+
+    test('bytes-only (metadata) round-trips without payload', () {
+      final body = CapturedBody.captureBytes(
+        List<int>.generate(20, (i) => i),
+        contentType: 'application/octet-stream',
+        maxBytes: 1024,
+        captureImages: true,
+      );
+      final decoded = CapturedBody.fromJson(body.toJson());
+      expect(decoded.kind, BodyKind.bytes);
+      expect(decoded.bytes, isNull);
+      expect(decoded.originalSize, 20);
+    });
+
+    test('unknown kind throws FormatException', () {
+      expect(
+        () => CapturedBody.fromJson(<String, Object?>{
+          'kind': 'not-a-real-kind',
+          'truncated': false,
+        }),
+        throwsFormatException,
+      );
+    });
+
+    test('malformed base64 bytes throw FormatException', () {
+      expect(
+        () => CapturedBody.fromJson(<String, Object?>{
+          'kind': 'image',
+          'truncated': false,
+          'bytes': 'not valid base64!!',
+        }),
+        throwsFormatException,
+      );
+    });
+  });
 }

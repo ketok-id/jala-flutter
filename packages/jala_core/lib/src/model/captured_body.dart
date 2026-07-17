@@ -153,6 +153,44 @@ class CapturedBody {
     );
   }
 
+  /// Deserializes a body previously produced by [toJson] (used by
+  /// `JalaSessionCodec` — see docs/plans/track-e-v0.5.md E1). Reconstructs
+  /// the capture exactly, including combinations (e.g. [BodyKind.truncated])
+  /// that [capture] itself would derive rather than accept directly.
+  ///
+  /// Throws [FormatException] on an unrecognized `kind` or malformed
+  /// `bytes` — never silently returns a wrong-shaped body.
+  factory CapturedBody.fromJson(Map<String, Object?> json) {
+    final String? kindName = json['kind'] as String?;
+    BodyKind? kind;
+    for (final BodyKind candidate in BodyKind.values) {
+      if (candidate.name == kindName) {
+        kind = candidate;
+        break;
+      }
+    }
+    if (kind == null) {
+      throw FormatException('Unknown CapturedBody kind: $kindName');
+    }
+    final String? bytesB64 = json['bytes'] as String?;
+    Uint8List? bytes;
+    if (bytesB64 != null) {
+      try {
+        bytes = base64Decode(bytesB64);
+      } on FormatException {
+        throw const FormatException('CapturedBody.bytes is not valid base64');
+      }
+    }
+    return CapturedBody._(
+      kind: kind,
+      text: json['text'] as String?,
+      originalSize: json['originalSize'] as int?,
+      truncated: json['truncated'] as bool? ?? false,
+      contentType: json['contentType'] as String?,
+      bytes: bytes,
+    );
+  }
+
   /// Central capture decision for raw binary bodies (e.g. a Dio
   /// `ResponseType.bytes` response, or a buffered `http` byte response).
   ///
@@ -223,6 +261,19 @@ class CapturedBody {
   /// Raw image bytes, present only when [kind] is [BodyKind.image]; null
   /// for every other kind.
   final Uint8List? bytes;
+
+  /// Serializes this body for `JalaSessionCodec` (see
+  /// docs/plans/track-e-v0.5.md E1). [bytes] (image captures) are
+  /// base64-encoded; [FormatException]-free — every field here is already
+  /// a JSON-safe primitive.
+  Map<String, Object?> toJson() => <String, Object?>{
+    'kind': kind.name,
+    if (text != null) 'text': text,
+    if (originalSize != null) 'originalSize': originalSize,
+    'truncated': truncated,
+    if (contentType != null) 'contentType': contentType,
+    if (bytes != null) 'bytes': base64Encode(bytes!),
+  };
 
   static bool _isTexty(String? contentType) {
     if (contentType == null) return false;

@@ -324,6 +324,251 @@ void main() {
         expect(cleared.operationType, isNull);
       },
     );
+
+    test('throttledBy: omission keeps, explicit null clears', () {
+      final entry = makeEntry(throttledBy: 'slow3g');
+      final kept = entry.copyWith(method: 'PUT');
+      expect(kept.throttledBy, 'slow3g');
+
+      final cleared = entry.copyWith(throttledBy: null);
+      expect(cleared.throttledBy, isNull);
+    });
+
+    test('payloads/payloadCount/imported: omission keeps values', () {
+      final entry = makeEntry(
+        payloads: [CapturedBody.capture('{"n":0}')],
+        payloadCount: 7,
+        imported: true,
+      );
+      final kept = entry.copyWith(method: 'PUT');
+      expect(kept.payloads, hasLength(1));
+      expect(kept.payloadCount, 7);
+      expect(kept.imported, isTrue);
+    });
+  });
+
+  group('throttledBy', () {
+    test('request event with throttledBy lands on the entry', () async {
+      emitRequest(bus, 'thr-1', throttledBy: 'slow3g');
+      await pump();
+      expect(store.byId('thr-1')!.throttledBy, 'slow3g');
+    });
+
+    test('request event without throttledBy leaves it null', () async {
+      emitRequest(bus, 'plain');
+      await pump();
+      expect(store.byId('plain')!.throttledBy, isNull);
+    });
+
+    test('throttledBy survives the response transition', () async {
+      emitRequest(bus, 'thr-2', throttledBy: 'flaky');
+      emitResponse(bus, 'thr-2');
+      await pump();
+      final entry = store.byId('thr-2')!;
+      expect(entry.status, JalaCallStatus.success);
+      expect(entry.throttledBy, 'flaky');
+    });
+  });
+
+  group('subscription payloads', () {
+    late JalaStore subStore;
+
+    setUp(() {
+      subStore = JalaStore(bus: bus, maxSubscriptionPayloads: 3);
+    });
+
+    tearDown(() async {
+      await subStore.dispose();
+    });
+
+    test('payload events accumulate on a pending entry', () async {
+      emitRequest(
+        bus,
+        's',
+        operationName: 'OnMsg',
+        operationType: 'subscription',
+      );
+      emitSubscriptionPayload(bus, 's', seq: 0);
+      emitSubscriptionPayload(bus, 's', seq: 1);
+      await pump();
+
+      final entry = subStore.byId('s')!;
+      expect(entry.payloads, hasLength(2));
+      expect(entry.payloadCount, 2);
+      expect(entry.payloads.first.text, '{"n":0}');
+      expect(entry.payloads.last.text, '{"n":1}');
+    });
+
+    test('ring cap evicts oldest, payloadCount keeps counting', () async {
+      emitRequest(bus, 's');
+      for (var i = 0; i < 5; i++) {
+        emitSubscriptionPayload(bus, 's', seq: i);
+      }
+      await pump();
+
+      final entry = subStore.byId('s')!;
+      expect(entry.payloadCount, 5, reason: 'total ever observed');
+      expect(entry.payloads, hasLength(3), reason: 'ring buffer cap');
+      expect(
+        entry.payloads.map((p) => p.text),
+        ['{"n":2}', '{"n":3}', '{"n":4}'],
+        reason: 'oldest payloads fall out first',
+      );
+    });
+
+    test('payloads for a non-pending entry are ignored', () async {
+      emitRequest(bus, 's');
+      emitResponse(bus, 's');
+      emitSubscriptionPayload(bus, 's', seq: 0);
+      await pump();
+
+      final entry = subStore.byId('s')!;
+      expect(entry.payloads, isEmpty);
+      expect(entry.payloadCount, 0);
+    });
+
+    test('payloads for unknown or evicted id are ignored', () async {
+      emitSubscriptionPayload(bus, 'ghost');
+      await pump();
+      expect(subStore.entries, isEmpty);
+    });
+
+    test('watch emits on every payload', () async {
+      final snapshots = <List<NetworkCallEntry>>[];
+      final sub = subStore.watch.listen(snapshots.add);
+
+      emitRequest(bus, 's');
+      emitSubscriptionPayload(bus, 's');
+      await pump();
+      await sub.cancel();
+
+      expect(
+        snapshots.last.single.payloadCount,
+        1,
+        reason: 'payload arrival notifies watchers',
+      );
+    });
+  });
+
+  group('importSession', () {
+    JalaSession sessionWith({
+      List<NetworkCallEntry> entries = const <NetworkCallEntry>[],
+      List<WsConnectionEntry> wsConnections = const <WsConnectionEntry>[],
+    }) {
+      return JalaSession(
+        version: 1,
+        exportedAt: DateTime.utc(2026, 7, 16),
+        entries: entries,
+        wsConnections: wsConnections,
+      );
+    }
+
+    test('replace (default) swaps out current contents', () async {
+      emitRequest(bus, 'live-1');
+      emitWsConnect(bus, 'ws-live');
+      await pump();
+
+      store.importSession(
+        sessionWith(
+          entries: [makeEntry(id: 'imp-1'), makeEntry(id: 'imp-2')],
+          wsConnections: [makeWsEntry(id: 'ws-imp')],
+        ),
+      );
+
+      expect(store.entries.map((e) => e.id), ['imp-1', 'imp-2']);
+      expect(store.wsConnections.map((e) => e.id), ['ws-imp']);
+      expect(store.byId('live-1'), isNull);
+    });
+
+    test('append keeps current contents underneath', () async {
+      emitRequest(bus, 'live-1');
+      await pump();
+
+      store.importSession(
+        sessionWith(entries: [makeEntry(id: 'imp-1')]),
+        append: true,
+      );
+
+      expect(store.entries.map((e) => e.id), ['imp-1', 'live-1']);
+      expect(store.byId('live-1')!.imported, isFalse);
+      expect(store.byId('imp-1')!.imported, isTrue);
+    });
+
+    test('every imported entry is marked imported: true', () {
+      store.importSession(
+        sessionWith(
+          entries: [
+            makeEntry(id: 'a'),
+            makeEntry(id: 'b', imported: true), // already true stays true
+          ],
+        ),
+      );
+      expect(store.entries.every((e) => e.imported), isTrue);
+    });
+
+    test(
+      'isViewingImport lifecycle: false -> import true -> clear false',
+      () {
+        expect(store.isViewingImport, isFalse);
+
+        store.importSession(sessionWith(entries: [makeEntry(id: 'a')]));
+        expect(store.isViewingImport, isTrue);
+
+        store.clear();
+        expect(store.isViewingImport, isFalse);
+        expect(store.entries, isEmpty);
+      },
+    );
+
+    test('append import also sets isViewingImport', () {
+      store.importSession(sessionWith(), append: true);
+      expect(store.isViewingImport, isTrue);
+    });
+
+    test('import notifies watch and watchWs streams', () async {
+      final snapshots = <List<NetworkCallEntry>>[];
+      final wsSnapshots = <List<WsConnectionEntry>>[];
+      final sub = store.watch.listen(snapshots.add);
+      final wsSub = store.watchWs.listen(wsSnapshots.add);
+
+      store.importSession(
+        sessionWith(
+          entries: [makeEntry(id: 'imp-1')],
+          wsConnections: [makeWsEntry(id: 'ws-imp')],
+        ),
+      );
+      await pump();
+      await sub.cancel();
+      await wsSub.cancel();
+
+      expect(snapshots.last.map((e) => e.id), ['imp-1']);
+      expect(wsSnapshots.last.map((e) => e.id), ['ws-imp']);
+    });
+
+    test('ring-buffer capacity still applies to imported entries', () {
+      // store has maxEntries 5.
+      store.importSession(
+        sessionWith(
+          entries: [for (var i = 0; i < 8; i++) makeEntry(id: 'imp-$i')],
+        ),
+      );
+      expect(store.entries, hasLength(5));
+    });
+
+    test('live capture continues after an import', () async {
+      store.importSession(sessionWith(entries: [makeEntry(id: 'imp-1')]));
+
+      emitRequest(bus, 'live-after');
+      await pump();
+
+      expect(store.byId('live-after'), isNotNull);
+      expect(store.byId('live-after')!.imported, isFalse);
+      expect(
+        store.isViewingImport,
+        isTrue,
+        reason: 'still viewing the import until clear()',
+      );
+    });
   });
 
   group('GraphQL metadata', () {

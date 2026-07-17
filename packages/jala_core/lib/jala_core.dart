@@ -1,8 +1,9 @@
 /// Pure-Dart core for Jala, the in-app Flutter network inspector.
 ///
 /// Contains the captured-call model, event bus, ring-buffer store,
-/// capture-time redaction, DevTools-style filter grammar, and exporters
-/// (cURL, Dart/Dio snippet, HAR 1.2). No Flutter dependency.
+/// capture-time redaction, DevTools-style filter grammar, exporters
+/// (cURL, Dart/Dio snippet, HAR 1.2), network throttling, and session
+/// export/import. No Flutter dependency.
 library;
 
 export 'src/binding/jala_binding.dart';
@@ -25,6 +26,10 @@ export 'src/model/network_call_entry.dart';
 export 'src/model/ws_connection_entry.dart';
 export 'src/model/ws_frame.dart';
 export 'src/redact/jala_redactor.dart';
+export 'src/session/jala_session.dart';
+export 'src/session/jala_session_codec.dart';
 export 'src/store/jala_store.dart';
+export 'src/throttle/jala_throttle_profile.dart';
+export 'src/throttle/jala_throttle_registry.dart';
 export 'src/util/glob.dart';
 export 'src/util/id_generator.dart';

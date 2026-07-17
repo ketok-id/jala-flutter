@@ -217,6 +217,26 @@ void main() {
     });
   });
 
+  group('is:subscription term', () {
+    final subscription = makeEntry(
+      operationName: 'OnMessage',
+      operationType: 'subscription',
+    );
+    final query = makeEntry(operationName: 'GetUser', operationType: 'query');
+    final plain = makeEntry();
+
+    test('matches only entries with operationType == subscription', () {
+      expect(match('is:subscription', subscription), isTrue);
+      expect(match('is:subscription', query), isFalse);
+      expect(match('is:subscription', plain), isFalse);
+    });
+
+    test('negation works', () {
+      expect(match('-is:subscription', subscription), isFalse);
+      expect(match('-is:subscription', query), isTrue);
+    });
+  });
+
   group('is:ws term against NetworkCallEntry', () {
     test('always false — a NetworkCallEntry is never a WS entry', () {
       expect(match('is:ws', makeEntry()), isFalse);
@@ -464,6 +484,7 @@ void main() {
       expect(matchWs('is:graphql', open), isFalse);
       expect(matchWs('is:replay', open), isFalse);
       expect(matchWs('is:mocked', open), isFalse);
+      expect(matchWs('is:subscription', open), isFalse);
     });
 
     test('unparseable status value degrades to free text over the term', () {

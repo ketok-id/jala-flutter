@@ -35,6 +35,8 @@ import '../util/glob.dart';
 /// - `op:<name>` — GraphQL `operationName`, `*` wildcard allowed (same
 ///   semantics as `host:`). [NetworkCallEntry] only.
 /// - `is:graphql` — `operationName != null`. [NetworkCallEntry] only.
+/// - `is:subscription` — `operationType == 'subscription'`.
+///   [NetworkCallEntry] only.
 /// - `is:ws` — always false against [matches] (a [NetworkCallEntry] is
 ///   never a WS entry); always true against [matchesWs].
 /// - `body:token` — substring of captured request or response body text.
@@ -211,6 +213,8 @@ class JalaFilter {
         return (e) => e.mockRuleId != null;
       case 'graphql':
         return (e) => e.operationName != null;
+      case 'subscription':
+        return (e) => e.operationType == 'subscription';
       case 'ws':
         // A NetworkCallEntry is never a WS entry (see matchesWs for the
         // WS-side counterpart).

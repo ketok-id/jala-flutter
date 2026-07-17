@@ -149,4 +149,42 @@ void main() {
       expect(JalaBinding.instance.replayRegistry, isA<JalaReplayRegistry>());
     });
   });
+
+  group('JalaBinding.throttleRegistry', () {
+    test('binding exposes a throttle registry', () {
+      expect(
+        JalaBinding.instance.throttleRegistry,
+        isA<JalaThrottleRegistry>(),
+      );
+    });
+
+    test('reports off while the binding is disabled, even when set', () {
+      final binding = JalaBinding.instance
+        ..initialize(config: JalaConfig(enabled: false));
+      binding.throttleRegistry.setActive(JalaThrottleProfile.offline);
+
+      expect(binding.throttleRegistry.activeProfile, isNull);
+      expect(binding.throttleRegistry.shouldDrop(), isFalse);
+      expect(binding.throttleRegistry.latencyFor(), Duration.zero);
+    });
+
+    test('reports the active profile once the binding is enabled', () {
+      final binding = JalaBinding.instance
+        ..initialize(config: JalaConfig(enabled: true));
+      binding.throttleRegistry.setActive(JalaThrottleProfile.slow3g);
+
+      expect(
+        binding.throttleRegistry.activeProfile,
+        JalaThrottleProfile.slow3g,
+      );
+    });
+
+    test('uninitialized binding reports off (never throws)', () {
+      final binding = JalaBinding.instance;
+      expect(binding.isInitialized, isFalse);
+      binding.throttleRegistry.setActive(JalaThrottleProfile.offline);
+      expect(binding.throttleRegistry.activeProfile, isNull);
+      expect(binding.throttleRegistry.shouldDrop(), isFalse);
+    });
+  });
 }

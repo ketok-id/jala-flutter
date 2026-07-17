@@ -67,6 +67,36 @@ class WsFrame {
     );
   }
 
+  /// Deserializes a frame previously produced by [toJson] (used by
+  /// `JalaSessionCodec` — see docs/plans/track-e-v0.5.md E1).
+  ///
+  /// Throws [FormatException] on missing required fields or an
+  /// unrecognized `direction`.
+  factory WsFrame.fromJson(Map<String, Object?> json) {
+    final String? timestampRaw = json['timestamp'] as String?;
+    final String? directionName = json['direction'] as String?;
+    if (timestampRaw == null || directionName == null) {
+      throw const FormatException('WsFrame missing required field');
+    }
+    WsDirection? direction;
+    for (final WsDirection candidate in WsDirection.values) {
+      if (candidate.name == directionName) {
+        direction = candidate;
+        break;
+      }
+    }
+    if (direction == null) {
+      throw FormatException('Unknown WsDirection: $directionName');
+    }
+    return WsFrame(
+      timestamp: DateTime.parse(timestampRaw),
+      direction: direction,
+      isBinary: json['isBinary'] as bool? ?? false,
+      size: json['size'] as int? ?? 0,
+      preview: json['preview'] as String?,
+    );
+  }
+
   /// Hard cap, in bytes, on [preview] text for a text frame. Mirrors the
   /// `CapturedBody` capture-cap philosophy, sized smaller than the default
   /// body cap because WebSocket frames tend to be small, high-frequency
@@ -91,6 +121,16 @@ class WsFrame {
   /// Null when [isBinary] is true — binary frames are metadata-only, the
   /// payload itself is never retained.
   final String? preview;
+
+  /// Serializes this frame for `JalaSessionCodec` (see
+  /// docs/plans/track-e-v0.5.md E1).
+  Map<String, Object?> toJson() => <String, Object?>{
+    'timestamp': timestamp.toIso8601String(),
+    'direction': direction.name,
+    'isBinary': isBinary,
+    'size': size,
+    if (preview != null) 'preview': preview,
+  };
 
   static String _capPreview(String text) {
     final List<int> encoded = utf8.encode(text);

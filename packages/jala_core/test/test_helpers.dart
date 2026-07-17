@@ -25,6 +25,10 @@ NetworkCallEntry makeEntry({
   NetworkProgressEvent? progress,
   String? operationName,
   String? operationType,
+  String? throttledBy,
+  List<CapturedBody> payloads = const <CapturedBody>[],
+  int payloadCount = 0,
+  bool imported = false,
 }) {
   return NetworkCallEntry(
     id: id,
@@ -48,6 +52,10 @@ NetworkCallEntry makeEntry({
     progress: progress,
     operationName: operationName,
     operationType: operationType,
+    throttledBy: throttledBy,
+    payloads: payloads,
+    payloadCount: payloadCount,
+    imported: imported,
   );
 }
 
@@ -70,6 +78,7 @@ void emitRequest(
   String? replayOf,
   String? operationName,
   String? operationType,
+  String? throttledBy,
 }) {
   bus.emit(
     NetworkRequestEvent(
@@ -84,6 +93,25 @@ void emitRequest(
       replayOf: replayOf,
       operationName: operationName,
       operationType: operationType,
+      throttledBy: throttledBy,
+    ),
+  );
+}
+
+/// Emits a [NetworkSubscriptionPayloadEvent] for [id] on [bus].
+void emitSubscriptionPayload(
+  JalaEventBus bus,
+  String id, {
+  int seq = 0,
+  CapturedBody? body,
+  DateTime? timestamp,
+}) {
+  bus.emit(
+    NetworkSubscriptionPayloadEvent(
+      callId: id,
+      timestamp: timestamp ?? DateTime.utc(2026, 7, 15, 12, 0, 1),
+      seq: seq,
+      body: body ?? CapturedBody.capture('{"n":$seq}', contentType: 'application/json'),
     ),
   );
 }

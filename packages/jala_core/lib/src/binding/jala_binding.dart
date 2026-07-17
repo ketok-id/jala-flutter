@@ -2,6 +2,7 @@ import '../config.dart';
 import '../event/jala_event_bus.dart';
 import '../mock/jala_mock_registry.dart';
 import '../store/jala_store.dart';
+import '../throttle/jala_throttle_registry.dart';
 import 'jala_replay_registry.dart';
 
 /// Process-wide singleton wiring together Jala's config, event bus,
@@ -16,7 +17,9 @@ import 'jala_replay_registry.dart';
 /// ([isEnabled] is false) — every capture path is a true no-op. Mock
 /// short-circuits also require [isEnabled].
 class JalaBinding {
-  JalaBinding._();
+  JalaBinding._() {
+    throttleRegistry = JalaThrottleRegistry(isEnabled: () => isEnabled);
+  }
 
   static JalaBinding _instance = JalaBinding._();
 
@@ -34,6 +37,11 @@ class JalaBinding {
   /// Ordered mock rules (first enabled match wins). Always present; adapters
   /// only consult it when [isEnabled] is true.
   final JalaMockRegistry mockRegistry = JalaMockRegistry();
+
+  /// The active network-throttle profile (if any) and helpers to apply it.
+  /// Always present; every read reports "off" while [isEnabled] is false —
+  /// see `JalaThrottleRegistry`.
+  late final JalaThrottleRegistry throttleRegistry;
 
   /// Whether Jala is initialized *and* enabled by config. Hot networking
   /// paths check this before doing any capture work.
@@ -84,6 +92,7 @@ class JalaBinding {
     await old._store?.dispose();
     await old._bus?.dispose();
     await old.mockRegistry.dispose();
+    await old.throttleRegistry.dispose();
   }
 
   static T _require<T>(T? value, String name) {

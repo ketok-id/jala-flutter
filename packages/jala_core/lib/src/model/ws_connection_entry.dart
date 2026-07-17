@@ -44,6 +44,54 @@ class WsConnectionEntry {
     this.closeReason,
   });
 
+  /// Deserializes a connection previously produced by [toJson] (used by
+  /// `JalaSessionCodec` — see docs/plans/track-e-v0.5.md E1).
+  ///
+  /// Throws [FormatException] on missing required fields or an
+  /// unrecognized `status`.
+  factory WsConnectionEntry.fromJson(Map<String, Object?> json) {
+    final String? id = json['id'] as String?;
+    final String? uriRaw = json['uri'] as String?;
+    final String? statusName = json['status'] as String?;
+    final String? openedAtRaw = json['openedAt'] as String?;
+    if (id == null ||
+        uriRaw == null ||
+        statusName == null ||
+        openedAtRaw == null) {
+      throw const FormatException('WsConnectionEntry missing required field');
+    }
+    WsConnectionStatus? status;
+    for (final WsConnectionStatus candidate in WsConnectionStatus.values) {
+      if (candidate.name == statusName) {
+        status = candidate;
+        break;
+      }
+    }
+    if (status == null) {
+      throw FormatException('Unknown WsConnectionStatus: $statusName');
+    }
+    final String? closedAtRaw = json['closedAt'] as String?;
+    final Object? framesRaw = json['frames'];
+    return WsConnectionEntry(
+      id: id,
+      uri: Uri.parse(uriRaw),
+      status: status,
+      openedAt: DateTime.parse(openedAtRaw),
+      closedAt: closedAtRaw == null ? null : DateTime.parse(closedAtRaw),
+      closeCode: json['closeCode'] as int?,
+      closeReason: json['closeReason'] as String?,
+      frameCount: json['frameCount'] as int? ?? 0,
+      frames: framesRaw is List
+          ? framesRaw
+                .map(
+                  (Object? f) =>
+                      WsFrame.fromJson(Map<String, Object?>.from(f as Map)),
+                )
+                .toList(growable: false)
+          : const <WsFrame>[],
+    );
+  }
+
   /// Process-unique id for this connection. Also the correlation key
   /// shared by every WS `JalaEvent` belonging to this connection (carried
   /// as `JalaEvent.callId` — see `WsConnectEvent.connectionId` and
@@ -118,6 +166,20 @@ class WsConnectionEntry {
       frames: frames ?? this.frames,
     );
   }
+
+  /// Serializes this connection for `JalaSessionCodec` (see
+  /// docs/plans/track-e-v0.5.md E1).
+  Map<String, Object?> toJson() => <String, Object?>{
+    'id': id,
+    'uri': uri.toString(),
+    'status': status.name,
+    'openedAt': openedAt.toIso8601String(),
+    if (closedAt != null) 'closedAt': closedAt!.toIso8601String(),
+    if (closeCode != null) 'closeCode': closeCode,
+    if (closeReason != null) 'closeReason': closeReason,
+    'frameCount': frameCount,
+    'frames': frames.map((WsFrame f) => f.toJson()).toList(),
+  };
 
   @override
   String toString() =>
