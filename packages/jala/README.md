@@ -8,6 +8,10 @@ See the [repo README](../../README.md) for the full pitch (replay, filter
 grammar, redaction-by-default, throttling, session share), the comparison
 vs. alice/chucker_flutter/talker, and the roadmap.
 
+**Existing app?** Prefer the brownfield guide:
+[docs/ADOPTION.md](../../docs/ADOPTION.md) (multi-Dio, GraphQL
+double-capture, Alice/Chucker migration, debug bootstrap, PR checklist).
+
 ## Quick start
 
 ```yaml

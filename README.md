@@ -54,6 +54,11 @@ void main() {
 
 Tap the floating bubble (or call `Jala.open()`) to inspect traffic.
 
+**Adding Jala to an existing app?** See
+[**docs/ADOPTION.md**](docs/ADOPTION.md) — brownfield install, multi-Dio,
+GraphQL double-capture, Alice/Chucker migration, debug-only bootstrap,
+flavors, and a production-safety PR checklist.
+
 Using `package:http` instead of Dio? Install
 [`jala_http`](packages/jala_http) (`jala_http: ^0.5.0`) and call
 `JalaHttp.wrap(http.Client())` in place of `JalaDio.attach(dio)` above.
@@ -226,6 +231,14 @@ dart analyze
 # (cd examples/jala_example && flutter test integration_test/track_e_smoke_test.dart)
 cd examples/jala_example && flutter run -d macos
 ```
+
+## Docs
+
+| Doc | Audience |
+|---|---|
+| [docs/ADOPTION.md](docs/ADOPTION.md) | Existing apps — install, migrate, multi-client, team QA |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | What shipped and what’s next |
+| [docs/SPEC-v0.1.md](docs/SPEC-v0.1.md) | Original v0.1 binding contract |
 
 ## Spec
 

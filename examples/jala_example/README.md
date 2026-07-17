@@ -6,6 +6,10 @@ and provides buttons that hit public echo/demo hosts so you can exercise
 filters, export, replay, redaction, mocks, GraphQL, WebSockets, throttling,
 and session share in the inspector.
 
+Adding Jala to **your** app? Start with
+[docs/ADOPTION.md](../../docs/ADOPTION.md) rather than copying this rig
+wholesale — the example deliberately wires everything at once for QA.
+
 ## Run
 
 From the workspace root:
