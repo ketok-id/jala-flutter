@@ -34,8 +34,8 @@ never need on-device inspection, you may not need Jala. That’s fine.
 
 ```yaml
 dependencies:
-  jala: ^0.5.1
-  jala_dio: ^0.5.1
+  jala: ^0.5.2
+  jala_dio: ^0.5.2
   # dio: you already have this
 ```
 
@@ -89,7 +89,7 @@ migration.
 
 ## Which packages do I need?
 
-Install **only** what you use. All versions lockstep at `^0.5.1`.
+Install **only** what you use. All versions lockstep at `^0.5.2`.
 
 | You use… | Add | Setup |
 |---|---|---|
@@ -417,7 +417,7 @@ Help sheet in the inspector documents the full grammar.
 ```text
 Add Jala (in-app network inspector) for debug/QA.
 
-- jala + jala_dio ^0.5.1
+- jala + jala_dio ^0.5.2
 - installJala() in debug bootstrap; JalaOverlay at root
 - Attach primary Dio (and list any secondary clients)
 - Default enabled: kDebugMode (no-op in store release)

@@ -23,6 +23,23 @@ String humanizeDuration(Duration? duration) {
   return '${duration.inMilliseconds} ms';
 }
 
+/// Relative time from [when] to [now] (defaults to [DateTime.now]), e.g.
+/// `just now`, `12s ago`, `3m ago`, `2h ago`. Used on the call list for
+/// recency at a glance.
+String humanizeRelativeTime(DateTime when, {DateTime? now}) {
+  final DateTime n = now ?? DateTime.now();
+  final int seconds = n.difference(when).inSeconds;
+  if (seconds < 0) return 'just now';
+  if (seconds < 5) return 'just now';
+  if (seconds < 60) return '${seconds}s ago';
+  final int minutes = seconds ~/ 60;
+  if (minutes < 60) return '${minutes}m ago';
+  final int hours = minutes ~/ 60;
+  if (hours < 48) return '${hours}h ago';
+  final int days = hours ~/ 24;
+  return '${days}d ago';
+}
+
 /// Formats [dt] as a local `HH:mm:ss` clock time (zero-padded) — compact
 /// enough for a list tile's trailing label (see `JalaWsListTile`'s
 /// last-activity time).

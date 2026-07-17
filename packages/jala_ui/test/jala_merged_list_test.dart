@@ -88,7 +88,14 @@ void main() {
       await pumpJalaApp(tester, const JalaInspectorScreen());
       await pumpJalaSettle(tester);
 
-      expect(find.text('WS'), findsOneWidget);
+      // Filter chips also label "WS" — scope the chip on the list tile.
+      expect(
+        find.descendant(
+          of: find.byType(JalaWsListTile),
+          matching: find.text('WS'),
+        ),
+        findsOneWidget,
+      );
       expect(find.text('open'), findsOneWidget);
       expect(find.textContaining('1 frame'), findsOneWidget);
       expect(

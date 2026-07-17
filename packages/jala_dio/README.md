@@ -16,8 +16,8 @@ for the facade that wires this up in an app.
 
 ```yaml
 dependencies:
-  jala: ^0.5.1
-  jala_dio: ^0.5.1   # requires jala_core ^0.5.1
+  jala: ^0.5.2
+  jala_dio: ^0.5.2   # requires jala_core ^0.5.2
   dio: ^5.0.0
 ```
 

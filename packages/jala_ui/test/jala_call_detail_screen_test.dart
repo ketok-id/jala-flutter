@@ -30,6 +30,13 @@ void main() {
     await tester.tap(find.text('Request'));
     await pumpJalaSettle(tester);
 
+    // Cookie/auth headers are collapsed under Sensitive by default.
+    expect(find.text('authorization'), findsNothing);
+    await tester.tap(
+      find.textContaining('Show 1 sensitive'),
+    );
+    await pumpJalaSettle(tester);
+
     expect(find.text('authorization'), findsOneWidget);
     expect(find.text(JalaRedactor.mask), findsOneWidget);
   });

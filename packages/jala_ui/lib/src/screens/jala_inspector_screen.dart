@@ -77,6 +77,17 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
   final TextEditingController _filterController = TextEditingController();
   JalaFilter _filter = JalaFilter.parse('');
   Timer? _debounce;
+  bool _denseList = false;
+
+  static const List<(String label, String query)> _quickFilters =
+      <(String, String)>[
+        ('4xx', 's:4xx'),
+        ('5xx', 's:5xx'),
+        ('Errors', 's:error'),
+        ('Mocked', 'is:mocked'),
+        ('GraphQL', 'is:graphql'),
+        ('WS', 'is:ws'),
+      ];
 
   @override
   void dispose() {
@@ -91,6 +102,19 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
       if (!mounted) return;
       setState(() => _filter = JalaFilter.parse(value));
     });
+  }
+
+  void _applyQuickFilter(String query) {
+    final String current = _filterController.text.trim();
+    // Toggle off if the field is exactly this chip's query.
+    if (current == query) {
+      _filterController.clear();
+      setState(() => _filter = JalaFilter.parse(''));
+      return;
+    }
+    _filterController.text = query;
+    _filterController.selection = TextSelection.collapsed(offset: query.length);
+    setState(() => _filter = JalaFilter.parse(query));
   }
 
   Future<void> _confirmClear(BuildContext context) async {
@@ -329,6 +353,13 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
                 },
           ),
           IconButton(
+            icon: Icon(
+              _denseList ? Icons.density_medium : Icons.density_small,
+            ),
+            tooltip: _denseList ? 'Comfortable list' : 'Compact list',
+            onPressed: () => setState(() => _denseList = !_denseList),
+          ),
+          IconButton(
             icon: const Icon(Icons.delete_outline),
             tooltip: 'Clear',
             onPressed: all.isEmpty ? null : () => _confirmClear(context),
@@ -363,19 +394,80 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
         children: <Widget>[
           Padding(
             padding: const EdgeInsets.all(8),
-            child: TextField(
-              controller: _filterController,
-              onChanged: _onFilterChanged,
-              decoration: InputDecoration(
-                hintText: 'method:get status:4xx host:api.* …',
-                prefixIcon: const Icon(Icons.filter_alt_outlined),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.help_outline),
-                  tooltip: 'Filter grammar',
-                  onPressed: () => _openHelp(context),
-                ),
-                border: const OutlineInputBorder(),
-                isDense: true,
+            child: Builder(
+              builder: (BuildContext context) {
+                final ColorScheme scheme = Theme.of(context).colorScheme;
+                // Placeholder must read as secondary text, not disabled —
+                // default hintStyle is often too faint on light surfaces.
+                final TextStyle? hintStyle = Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(
+                      color: scheme.onSurfaceVariant.withValues(alpha: 0.85),
+                    );
+                return TextField(
+                  controller: _filterController,
+                  onChanged: _onFilterChanged,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  decoration: InputDecoration(
+                    hintText: 'Filter: method:get  s:4xx  host:api.*',
+                    hintStyle: hintStyle,
+                    prefixIcon: Icon(
+                      Icons.filter_alt_outlined,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        Icons.help_outline,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                      tooltip: 'Filter grammar',
+                      onPressed: () => _openHelp(context),
+                    ),
+                    filled: true,
+                    fillColor: scheme.surfaceContainerHighest.withValues(
+                      alpha: 0.45,
+                    ),
+                    border: const OutlineInputBorder(),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: scheme.outlineVariant,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: scheme.primary,
+                        width: 1.5,
+                      ),
+                    ),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: <Widget>[
+                  for (final (String label, String query) in _quickFilters)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: FilterChip(
+                        label: Text(label),
+                        selected: _filterController.text.trim() == query,
+                        visualDensity: VisualDensity.compact,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        onSelected: (_) => _applyQuickFilter(query),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
@@ -390,6 +482,9 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
                     message: 'No calls match "${_filterController.text}".',
                   )
                 : ListView.separated(
+                    // Extra bottom pad so the last row isn't tight against
+                    // the system gesture area (bubble is hidden when open).
+                    padding: const EdgeInsets.only(bottom: 24),
                     itemCount: filtered.length,
                     separatorBuilder: (BuildContext context, int index) =>
                         const Divider(height: 1),
@@ -397,6 +492,7 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
                       return switch (filtered[index]) {
                         _CallEntry(:final NetworkCallEntry entry) =>
                           JalaCallListTile(
+                            dense: _denseList,
                             entry: entry,
                             onTap: () => Navigator.of(
                               context,

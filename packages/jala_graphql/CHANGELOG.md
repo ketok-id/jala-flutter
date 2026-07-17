@@ -1,3 +1,7 @@
+## 0.5.2
+
+- Lockstep release; no functional changes.
+
 ## 0.5.1
 
 - Pub metadata: `homepage`, `issue_tracker`, clearer description.

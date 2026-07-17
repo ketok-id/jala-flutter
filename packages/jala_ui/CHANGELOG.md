@@ -1,3 +1,17 @@
+## 0.5.2
+
+- Headers: stacked name/value layout (full-width wrapping values) with
+  per-value copy — long names no longer crush the value column. Search
+  within headers; collapse common noise (date/server/…); collapse
+  cookie/authorization under Sensitive.
+- Call list: path is primary (up to 2 lines, monospace); query string
+  included; host stays secondary. Status code uses status color; trailing
+  shows duration + relative time (`12s ago`); long-press copies full URL;
+  compact density toggle in the AppBar.
+- Filter: quick chips (`4xx`, `5xx`, `Errors`, `Mocked`, `GraphQL`, `WS`);
+  clearer hint contrast / filled field.
+- Detail AppBar: method + multi-line path; Overview Path row.
+
 ## 0.5.1
 
 - Pub metadata: `homepage`, `issue_tracker`, description covers throttle

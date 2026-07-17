@@ -55,6 +55,22 @@ void main() {
   );
 
   testWidgets(
+    'path title includes the query string when present',
+    (WidgetTester tester) async {
+      await pumpTile(
+        tester,
+        entry(
+          url: 'https://api.example.com/users?page=2&limit=10',
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('/users?page=2&limit=10'), findsOneWidget);
+      expect(find.text('api.example.com'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
     'a GraphQL entry shows operationName as title and QUERY as the chip',
     (WidgetTester tester) async {
       await pumpTile(

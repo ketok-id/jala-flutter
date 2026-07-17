@@ -54,7 +54,10 @@ class JalaOverlay extends StatelessWidget {
                         onClose: Jala.close,
                       ),
                     ),
-                  const JalaOverlayButton(onTap: Jala.open),
+                  // Hide the bubble while the inspector is open so it does
+                  // not cover list rows / detail actions (user feedback).
+                  if (!Jala.controller.isOpen)
+                    const JalaOverlayButton(onTap: Jala.open),
                 ],
               );
             },

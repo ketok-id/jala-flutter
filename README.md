@@ -33,8 +33,8 @@ Jala exists because the incumbents each miss something concrete:
 
 ```yaml
 dependencies:
-  jala: ^0.5.1
-  jala_dio: ^0.5.1
+  jala: ^0.5.2
+  jala_dio: ^0.5.2
   dio: ^5.9.0
 ```
 
@@ -63,15 +63,15 @@ GraphQL double-capture, Alice/Chucker migration, debug-only bootstrap,
 flavors, and a production-safety PR checklist.
 
 Using `package:http` instead of Dio? Install
-[`jala_http`](packages/jala_http) (`jala_http: ^0.5.1`) and call
+[`jala_http`](packages/jala_http) (`jala_http: ^0.5.2`) and call
 `JalaHttp.wrap(http.Client())` in place of `JalaDio.attach(dio)` above.
 
 Using GraphQL? Install [`jala_graphql`](packages/jala_graphql)
-(`jala_graphql: ^0.5.1`) and insert `JalaGraphQLLink(endpoint: uri)` before
+(`jala_graphql: ^0.5.2`) and insert `JalaGraphQLLink(endpoint: uri)` before
 your terminating `gql_link` (works with `graphql_flutter` and `ferry`).
 
 Using WebSockets? Install [`jala_websocket`](packages/jala_websocket)
-(`jala_websocket: ^0.5.1`) and wrap your channel with
+(`jala_websocket: ^0.5.2`) and wrap your channel with
 `JalaWebSocketChannel.wrap(channel, uri: uri)`.
 
 **v0.2 capture extras:** image responses (`image/*` within the body cap)

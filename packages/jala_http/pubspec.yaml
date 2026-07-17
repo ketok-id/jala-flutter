@@ -2,7 +2,7 @@ name: jala_http
 description: >
   package:http adapter for Jala: capture, one-tap replay, and full
   throttling (latency, drop, upload and download pacing).
-version: 0.5.1
+version: 0.5.2
 homepage: https://github.com/ketok-id/jala-flutter
 repository: https://github.com/ketok-id/jala-flutter
 issue_tracker: https://github.com/ketok-id/jala-flutter/issues
@@ -19,7 +19,7 @@ resolution: workspace
 
 dependencies:
   http: ^1.2.0
-  jala_core: ^0.5.1
+  jala_core: ^0.5.2
 
 dev_dependencies:
   lints: ^6.0.0

@@ -95,11 +95,31 @@ class _JalaCallDetailScreenState extends State<JalaCallDetailScreen>
               final bool hasReplayer =
                   JalaBinding.instance.replayRegistry.hasReplayer;
               final bool imported = entry.imported;
+              final String pathTitle = entry.uri.path.isEmpty
+                  ? '/'
+                  : entry.uri.path;
               return Scaffold(
                 appBar: AppBar(
-                  title: Text(
-                    '${entry.method} ${entry.uri.path}',
-                    overflow: TextOverflow.ellipsis,
+                  // Two-line title: method stays visible; path is not crushed
+                  // into a single ellipsized "GET /dev/financev2/api/v2/p…".
+                  title: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Text(
+                        entry.method,
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
+                      Text(
+                        pathTitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontFamily: 'monospace',
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                   bottom: TabBar(
                     controller: _tabController,
@@ -276,8 +296,20 @@ class _OverviewTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final String pathOnly =
+        entry.uri.path.isEmpty ? '/' : entry.uri.path;
     final List<(String, Widget)> rows = <(String, Widget)>[
       ('Method', Text(entry.method)),
+      (
+        'Path',
+        SelectableText(
+          pathOnly,
+          style: const TextStyle(
+            fontFamily: 'monospace',
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
       ('URL', SelectableText(entry.uri.toString())),
       ('Status', Text(_statusLabel(entry))),
       ('Duration', Text(humanizeDuration(entry.duration))),

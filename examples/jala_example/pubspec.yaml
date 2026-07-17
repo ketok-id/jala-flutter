@@ -18,12 +18,12 @@ dependencies:
   gql_http_link: ^1.2.0
   gql_link: ^1.0.0
   http: ^1.2.0
-  jala: ^0.5.1
-  jala_core: ^0.5.1
-  jala_dio: ^0.5.1
-  jala_graphql: ^0.5.1
-  jala_http: ^0.5.1
-  jala_websocket: ^0.5.1
+  jala: ^0.5.2
+  jala_core: ^0.5.2
+  jala_dio: ^0.5.2
+  jala_graphql: ^0.5.2
+  jala_http: ^0.5.2
+  jala_websocket: ^0.5.2
   path_provider: ^2.1.0
   web_socket_channel: ^3.0.0
 

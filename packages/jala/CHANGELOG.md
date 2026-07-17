@@ -1,3 +1,9 @@
+## 0.5.2
+
+- Overlay: hide the floating **J** bubble while the inspector is open so
+  it does not cover list/detail actions (pairs with `jala_ui` 0.5.2 UX).
+- Lockstep with `jala_ui` / `jala_core` 0.5.2.
+
 ## 0.5.1
 
 - Pub metadata: `homepage`, `issue_tracker`, package screenshots on
