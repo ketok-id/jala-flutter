@@ -76,7 +76,7 @@ void main() {
 
     await tester.enterText(
       dialogField(),
-      "curl -X POST https://api.example.com/post "
+      'curl -X POST https://api.example.com/post '
       "-H 'Content-Type: application/json' -d '{\"a\":1}'",
     );
     await pumpJalaSettle(tester);

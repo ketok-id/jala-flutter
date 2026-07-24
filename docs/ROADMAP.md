@@ -9,13 +9,13 @@ Status as of 2026-07-24. Detailed execution plans live in `docs/plans/`.
 | C | Mocking & edit-and-resend | 0.3.0 | ✅ DONE — [plan](plans/track-c-v0.3-mocking.md) |
 | D | Realtime & GraphQL | 0.4.0 | ✅ DONE — [plan](plans/track-d-v0.4.md) |
 | E | Power tools: throttling, session share, subscription payloads | 0.5.0 | ✅ DONE — [plan](plans/track-e-v0.5.md) |
-| F | Inspect deeper: call diff, JSON virtualization, cURL/HAR import | 0.6.0 | 🔜 PLANNED — [plan](plans/track-f-v0.6-inspect-deeper.md) |
+| F | Inspect deeper: call diff, JSON virtualization, cURL/HAR import | 0.6.0 | ✅ DONE — [plan](plans/track-f-v0.6-inspect-deeper.md) |
 | G | `jala_grpc` adapter (gRPC / gRPC-web) | 0.7.0 | 📋 PROPOSED |
 | H | Localization (en + id-ID) | 0.6.x | 📋 PROPOSED |
 
 All five packages (`jala`, `jala_core`, `jala_dio`, `jala_http`, `jala_ui`)
 plus `jala_graphql` and `jala_websocket` are published on pub.dev at
-**0.5.x** in lockstep, all under the verified publisher `ketok.id`.
+**0.6.x** in lockstep, all under the verified publisher `ketok.id`.
 
 ## Track D — v0.4.0 proposal: GraphQL + WebSocket
 
@@ -52,10 +52,10 @@ type-colored JSON tree shipped in 0.5.x:
   and see a structural diff of status, headers, and JSON body, rendered in
   the JSON tree with add/remove/change coloring. Category-differentiating;
   no incumbent does it in-app.
-- **JSON tree virtualization** — the tree currently builds every expanded
-  node eagerly (a `Column`), so large payloads jank. Flatten to a lazily
-  built list so only visible rows are constructed. Correctness/perf debt
-  carried over from the 0.5.x viewer work.
+- **JSON tree virtualization** — flatten expanded nodes into a
+  `ListView.builder` so only viewport rows are built (large payloads no
+  longer jank). Correctness/perf debt carried over from the 0.5.x viewer
+  work; landed in 0.6.0.
 - **cURL + HAR import** — export already ships both; import closes the loop.
   cURL lands in the request composer (edit-and-resend); HAR loads as an
   imported session (replay disabled, reusing the `imported` flag from E).

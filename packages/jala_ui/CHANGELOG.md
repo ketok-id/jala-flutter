@@ -1,3 +1,17 @@
+## 0.6.0
+
+- Call diff: `JalaCallDiffScreen` + `JalaJsonDiffView` (unified status /
+  header chips / body tree with add/remove/change colors). Entry points:
+  **Compare with…** on call detail, multi-select ready path via route
+  helper.
+- Import UI: inspector overflow **Import cURL…** (opens request composer
+  prefilled) and **Import HAR…** (session import, same imported-session
+  banner / replay-disabled UX as session import).
+- JSON tree virtualization: `JalaJsonTree` flattens visible rows into a
+  `ListView.builder` (true virtualization when height is bounded; flat
+  shrink-wrap when nested in a parent scroll view). Search, expand-all /
+  collapse-all, type colors, and long-string expand preserved.
+
 ## 0.5.3
 
 - Session menu: export full / no bodies / headers only; import dialog warns

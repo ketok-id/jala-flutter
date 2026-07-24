@@ -1,3 +1,14 @@
+## 0.6.0
+
+- Call diff model: `JalaJsonDiff.diff` (structural recursive `DiffNode` —
+  added/removed/changed/unchanged) and `JalaEntryDiff.of` (status, headers
+  case-insensitively, request/response JSON bodies).
+- Import codecs: `JalaCurlCodec.decode` → `ImportedRequest` (method, URI,
+  headers, body; shell quotes, `-H`/`-d`/`-X`/`-u`, defaults POST when data
+  present); `JalaHarCodec.decode` → `JalaSession` of `imported: true`
+  entries. Failures are typed (`JalaImportFormatException` /
+  `JalaSessionFormatException`), never crashes.
+
 ## 0.5.3
 
 - Security: expanded default redacted headers (CSRF, session, AWS STS, …).

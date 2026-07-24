@@ -19,7 +19,7 @@ void main() {
 
     test('parses method, headers and a JSON body', () {
       final ImportedRequest req = JalaCurlCodec.decode(
-        "curl -X POST https://api.example.com/post "
+        'curl -X POST https://api.example.com/post '
         "-H 'Content-Type: application/json' "
         "-H 'X-Trace: abc' "
         r"""-d '{"hello":"jala"}'""",

@@ -11,14 +11,14 @@ See the [repo README](../../README.md) for what Jala is and why (replay,
 filter grammar, redaction-by-default) and the [`jala`](../jala) package
 for the facade that wires this up in an app.
 
-**Lockstep** with `jala` / `jala_core` `0.5.x`. Brownfield:
+**Lockstep** with `jala` / `jala_core` `0.6.x`. Brownfield:
 [docs/ADOPTION.md](../../docs/ADOPTION.md).
 
 ## Install
 
 ```yaml
 dependencies:
-  jala_graphql: ^0.5.3   # requires jala_core ^0.5.3
+  jala_graphql: ^0.6.0   # requires jala_core ^0.6.0
 ```
 
 ## Attach

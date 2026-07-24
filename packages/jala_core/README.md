@@ -3,8 +3,8 @@
 Pure-Dart core for [Jala](https://github.com/ketok-id/jala-flutter), the in-app
 Flutter network inspector: the captured-call model, event bus, ring-buffer
 store, capture-time redaction, DevTools-style filter grammar, exporters
-(cURL, Dart/Dio snippet, HAR 1.2), network throttling, and session
-export/import.
+(cURL, Dart/Dio snippet, HAR 1.2), call/JSON diff, cURL/HAR import, network
+throttling, and session export/import.
 
 **Zero Flutter dependency.** This package only depends on `dart:core` /
 `dart:convert` and is tested with `dart test`, so it can be reused outside
@@ -18,7 +18,7 @@ Flutter (CLI tooling, server-side log tooling, etc.) as well as inside it.
 >
 > **Apps:** [docs/ADOPTION.md](../../docs/ADOPTION.md). **0.x policy:**
 > [docs/COMPAT.md](../../docs/COMPAT.md). Lockstep with other Jala packages
-> at the same `0.5.x`.
+> at the same `0.6.x`.
 
 ## Main classes
 
@@ -38,6 +38,8 @@ Flutter (CLI tooling, server-side log tooling, etc.) as well as inside it.
 | `CurlExporter` | Renders an entry as a runnable, shell-escaped `curl` command. |
 | `DartSnippetExporter` | Renders an entry as a runnable `dio.request(...)` snippet. |
 | `HarExporter` | Renders one call or a whole session as HAR 1.2 JSON. |
+| `JalaJsonDiff` / `JalaEntryDiff` | Structural JSON + per-call (status/headers/body) diffs. |
+| `JalaCurlCodec` / `JalaHarCodec` | Import a `curl` command or HAR 1.2 document into an `ImportedRequest` / `JalaSession`. |
 | `JalaConfig` | `enabled`, `maxEntries`, `maxBodyBytes`, `captureImageBodies`, `maxWsConnections`, `maxWsFramesPerConnection`, `maxSubscriptionPayloads`, `redactor` — passed to `JalaBinding.instance.initialize(config: ...)`. |
 
 ## Filter grammar
