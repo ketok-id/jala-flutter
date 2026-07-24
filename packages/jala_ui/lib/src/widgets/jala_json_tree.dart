@@ -38,26 +38,139 @@ class _JalaJsonTreeState extends State<JalaJsonTree> {
     });
   }
 
+  bool get _isContainer => widget.data is Map || widget.data is List;
+
+  /// Adds every container path in the tree to [_expanded] so the whole
+  /// structure is open at once.
+  void _expandAll() {
+    final Set<String> paths = <String>{};
+    void walk(String path, dynamic value) {
+      if (value is Map) {
+        paths.add(path);
+        for (final MapEntry<dynamic, dynamic> entry in value.entries) {
+          walk('$path.${entry.key}', entry.value);
+        }
+      } else if (value is List) {
+        paths.add(path);
+        for (int i = 0; i < value.length; i++) {
+          walk('$path.[$i]', value[i]);
+        }
+      }
+    }
+
+    walk(_rootPath, widget.data);
+    setState(() => _expanded
+      ..clear()
+      ..addAll(paths));
+  }
+
+  /// Collapses everything back to the root (its top-level keys shown, each
+  /// collapsed) — matching the initial state.
+  void _collapseAll() {
+    setState(() => _expanded
+      ..clear()
+      ..add(_rootPath));
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() => _query = '');
+  }
+
+  /// Counts the nodes whose key or (leaf) value contains [query] — the same
+  /// hit rule the filter uses, so the shown count matches what stays visible.
+  /// The synthetic root (`$`) is never counted.
+  int _matchCount(String query) {
+    int node(String keyLabel, dynamic value, {bool isRoot = false}) {
+      final bool keyHit = !isRoot && keyLabel.toLowerCase().contains(query);
+      if (value is Map) {
+        int count = keyHit ? 1 : 0;
+        for (final MapEntry<dynamic, dynamic> entry in value.entries) {
+          count += node(entry.key.toString(), entry.value);
+        }
+        return count;
+      }
+      if (value is List) {
+        int count = keyHit ? 1 : 0;
+        for (int i = 0; i < value.length; i++) {
+          count += node('[$i]', value[i]);
+        }
+        return count;
+      }
+      final bool valueHit = _stringify(value).toLowerCase().contains(query);
+      return keyHit || valueHit ? 1 : 0;
+    }
+
+    return node(_rootPath, widget.data, isRoot: true);
+  }
+
   @override
   Widget build(BuildContext context) {
     final String query = _query.trim().toLowerCase();
+    final int matches = query.isEmpty ? 0 : _matchCount(query);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         Padding(
           padding: const EdgeInsets.all(8),
-          child: TextField(
-            controller: _searchController,
-            decoration: const InputDecoration(
-              isDense: true,
-              prefixIcon: Icon(Icons.search, size: 18),
-              hintText: 'Search in JSON…',
-              border: OutlineInputBorder(),
-            ),
-            onChanged: (String value) => setState(() => _query = value),
+          child: Row(
+            children: <Widget>[
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    prefixIcon: const Icon(Icons.search, size: 18),
+                    hintText: 'Search in JSON…',
+                    border: const OutlineInputBorder(),
+                    suffixIcon: _query.isEmpty
+                        ? null
+                        : IconButton(
+                            icon: const Icon(Icons.close, size: 18),
+                            tooltip: 'Clear search',
+                            visualDensity: VisualDensity.compact,
+                            onPressed: _clearSearch,
+                          ),
+                  ),
+                  onChanged: (String value) => setState(() => _query = value),
+                ),
+              ),
+              if (_isContainer) ...<Widget>[
+                const SizedBox(width: 4),
+                IconButton(
+                  icon: const Icon(Icons.unfold_more, size: 20),
+                  tooltip: 'Expand all',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: _expandAll,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.unfold_less, size: 20),
+                  tooltip: 'Collapse all',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: _collapseAll,
+                ),
+              ],
+            ],
           ),
         ),
+        if (query.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(left: 12, bottom: 4),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                matches == 0
+                    ? 'No matches'
+                    : matches == 1
+                    ? '1 match'
+                    : '$matches matches',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ),
         JalaJsonNode(
           keyLabel: _rootPath,
           path: _rootPath,
@@ -233,6 +346,12 @@ class _JalaJsonLeafState extends State<_JalaJsonLeaf> {
     final TextStyle baseStyle = DefaultTextStyle.of(
       context,
     ).style.copyWith(fontFamily: 'monospace', fontSize: 13);
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final _JsonLeafStyle leaf = _JsonLeafStyle.of(
+      widget.value,
+      Theme.of(context).brightness,
+      scheme,
+    );
 
     return InkWell(
       onTap: isLongString ? () => setState(() => _expanded = !_expanded) : null,
@@ -252,7 +371,16 @@ class _JalaJsonLeafState extends State<_JalaJsonLeaf> {
                 text: '${widget.keyLabel}: ',
                 style: baseStyle.copyWith(fontWeight: FontWeight.w600),
               ),
-              ..._highlighted(shown, widget.query, baseStyle),
+              ..._highlighted(
+                shown,
+                widget.query,
+                baseStyle.copyWith(
+                  color: leaf.color,
+                  fontStyle: leaf.fontStyle,
+                ),
+                highlightBg: scheme.tertiaryContainer,
+                highlightFg: scheme.onTertiaryContainer,
+              ),
             ],
           ),
         ),
@@ -261,7 +389,54 @@ class _JalaJsonLeafState extends State<_JalaJsonLeaf> {
   }
 }
 
-List<TextSpan> _highlighted(String text, String query, TextStyle style) {
+/// Resolves the text color (and, for `null`, the italic style) a JSON leaf
+/// value is rendered with, so strings, numbers, booleans and null are
+/// distinguishable at a glance. Colors are chosen per [Brightness] to stay
+/// legible in both themes.
+class _JsonLeafStyle {
+  const _JsonLeafStyle(this.color, this.fontStyle);
+
+  factory _JsonLeafStyle.of(
+    dynamic value,
+    Brightness brightness,
+    ColorScheme scheme,
+  ) {
+    final bool dark = brightness == Brightness.dark;
+    if (value == null) {
+      return _JsonLeafStyle(scheme.onSurfaceVariant, FontStyle.italic);
+    }
+    if (value is String) {
+      return _JsonLeafStyle(
+        dark ? const Color(0xFF9ECE6A) : const Color(0xFF2E7D32),
+        FontStyle.normal,
+      );
+    }
+    if (value is num) {
+      return _JsonLeafStyle(
+        dark ? const Color(0xFF7AA2F7) : const Color(0xFF1565C0),
+        FontStyle.normal,
+      );
+    }
+    if (value is bool) {
+      return _JsonLeafStyle(
+        dark ? const Color(0xFFE0AF68) : const Color(0xFFB26A00),
+        FontStyle.normal,
+      );
+    }
+    return _JsonLeafStyle(scheme.onSurface, FontStyle.normal);
+  }
+
+  final Color color;
+  final FontStyle fontStyle;
+}
+
+List<TextSpan> _highlighted(
+  String text,
+  String query,
+  TextStyle style, {
+  required Color highlightBg,
+  required Color highlightFg,
+}) {
   if (query.isEmpty) return <TextSpan>[TextSpan(text: text, style: style)];
   final String lower = text.toLowerCase();
   final List<TextSpan> spans = <TextSpan>[];
@@ -279,7 +454,8 @@ List<TextSpan> _highlighted(String text, String query, TextStyle style) {
       TextSpan(
         text: text.substring(idx, idx + query.length),
         style: style.copyWith(
-          backgroundColor: Colors.yellow.withValues(alpha: 0.6),
+          backgroundColor: highlightBg,
+          color: highlightFg,
         ),
       ),
     );

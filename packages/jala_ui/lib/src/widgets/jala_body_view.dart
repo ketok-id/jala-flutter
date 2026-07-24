@@ -32,7 +32,7 @@ class JalaBodyView extends StatelessWidget {
         }
         try {
           final dynamic decoded = jsonDecode(text);
-          return JalaJsonTree(data: decoded);
+          return _JsonBodyView(decoded: decoded, rawText: text);
         } on FormatException {
           return _selectableText(text);
         }
@@ -79,6 +79,128 @@ class JalaBodyView extends StatelessWidget {
   static String _binaryMessage(CapturedBody body) =>
       'Binary — ${body.originalSize ?? 'unknown'} bytes captured '
       '(metadata only)';
+
+  /// The JSON view mode last chosen by the user, remembered for the app
+  /// session so opening another body doesn't reset it back to [
+  /// _JsonViewMode.tree]. Process-scoped (not persisted across restarts).
+  static _JsonViewMode _lastJsonViewMode = _JsonViewMode.tree;
+
+  /// Resets [_lastJsonViewMode] so widget tests don't leak the remembered
+  /// mode from one test into the next.
+  @visibleForTesting
+  static void debugResetJsonViewMode() =>
+      _lastJsonViewMode = _JsonViewMode.tree;
+}
+
+/// The ways a JSON body can be shown by [_JsonBodyView].
+enum _JsonViewMode {
+  /// The collapsible [JalaJsonTree].
+  tree,
+
+  /// Re-serialized with two-space indentation — readable formatted text.
+  pretty,
+
+  /// The verbatim captured text, exactly as it came off the wire.
+  raw,
+}
+
+/// Wraps a decoded JSON body with a Tree · Pretty · Raw view switch.
+///
+/// [JalaBodyView] stays stateless; this small stateful widget owns the
+/// selected [_JsonViewMode]. Pretty mode re-indents the decoded value for
+/// readability; Raw mode shows [rawText] verbatim (not re-serialized) so it
+/// reflects exactly what was captured, including key order and whitespace.
+class _JsonBodyView extends StatefulWidget {
+  const _JsonBodyView({required this.decoded, required this.rawText});
+
+  /// The `jsonDecode`d value, rendered by [JalaJsonTree] in tree mode.
+  final dynamic decoded;
+
+  /// The original captured JSON text, shown verbatim in raw mode.
+  final String rawText;
+
+  @override
+  State<_JsonBodyView> createState() => _JsonBodyViewState();
+}
+
+class _JsonBodyViewState extends State<_JsonBodyView> {
+  static const JsonEncoder _prettyEncoder = JsonEncoder.withIndent('  ');
+
+  late _JsonViewMode _mode = JalaBodyView._lastJsonViewMode;
+
+  /// Two-space-indented rendering of the decoded value. `decoded` came from
+  /// `jsonDecode`, so it always re-encodes; the fallback is purely defensive.
+  String get _prettyText {
+    try {
+      return _prettyEncoder.convert(widget.decoded);
+    } on JsonUnsupportedObjectError {
+      return widget.rawText;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Widget content;
+    switch (_mode) {
+      case _JsonViewMode.tree:
+        content = JalaJsonTree(data: widget.decoded);
+      case _JsonViewMode.pretty:
+        content = _monoText(_prettyText);
+      case _JsonViewMode.raw:
+        content = _monoText(widget.rawText);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 4, bottom: 4),
+            child: SegmentedButton<_JsonViewMode>(
+              style: const ButtonStyle(
+                visualDensity: VisualDensity.compact,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              showSelectedIcon: false,
+              segments: const <ButtonSegment<_JsonViewMode>>[
+                ButtonSegment<_JsonViewMode>(
+                  value: _JsonViewMode.tree,
+                  label: Text('Tree'),
+                  icon: Icon(Icons.account_tree_outlined, size: 16),
+                ),
+                ButtonSegment<_JsonViewMode>(
+                  value: _JsonViewMode.pretty,
+                  label: Text('Pretty'),
+                  icon: Icon(Icons.data_object, size: 16),
+                ),
+                ButtonSegment<_JsonViewMode>(
+                  value: _JsonViewMode.raw,
+                  label: Text('Raw'),
+                  icon: Icon(Icons.notes, size: 16),
+                ),
+              ],
+              selected: <_JsonViewMode>{_mode},
+              onSelectionChanged: (Set<_JsonViewMode> selection) => setState(() {
+                _mode = selection.first;
+                JalaBodyView._lastJsonViewMode = _mode;
+              }),
+            ),
+          ),
+        ),
+        content,
+      ],
+    );
+  }
+
+  Widget _monoText(String text) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8),
+    child: SelectableText(
+      text,
+      style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+    ),
+  );
 }
 
 /// Renders a [BodyKind.image] capture: a constrained inline preview with a
