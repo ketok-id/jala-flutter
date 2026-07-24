@@ -9,6 +9,8 @@ library;
 export 'src/binding/jala_binding.dart';
 export 'src/binding/jala_replay_registry.dart';
 export 'src/config.dart';
+export 'src/diff/jala_entry_diff.dart';
+export 'src/diff/jala_json_diff.dart';
 export 'src/event/jala_event.dart';
 export 'src/event/jala_event_bus.dart';
 export 'src/export/curl_exporter.dart';
