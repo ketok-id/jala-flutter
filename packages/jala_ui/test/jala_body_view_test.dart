@@ -96,6 +96,90 @@ void main() {
     });
   });
 
+  group('JalaBodyView / JSON Tree ⇄ Raw toggle', () {
+    // The remembered mode is process-scoped; reset it so tests don't leak
+    // one test's selection into the next.
+    setUp(JalaBodyView.debugResetJsonViewMode);
+
+    CapturedBody jsonBody() => CapturedBody.capture(
+      <String, dynamic>{
+        'id': 1,
+        'nested': <String, dynamic>{'flag': true},
+      },
+      contentType: 'application/json',
+    );
+
+    testWidgets('defaults to the tree view', (WidgetTester tester) async {
+      await pumpBody(tester, jsonBody());
+      await tester.pump();
+
+      expect(find.byType(JalaJsonTree), findsOneWidget);
+      // The raw (verbatim) JSON string is not shown in tree mode.
+      expect(find.textContaining('"nested"'), findsNothing);
+    });
+
+    testWidgets('tapping Raw shows the verbatim text and hides the tree', (
+      WidgetTester tester,
+    ) async {
+      await pumpBody(tester, jsonBody());
+      await tester.pump();
+
+      await tester.tap(find.text('Raw'));
+      await tester.pump();
+
+      expect(find.byType(JalaJsonTree), findsNothing);
+      // Verbatim capture: compact, quoted keys — never produced by the tree.
+      expect(find.textContaining('"nested":{"flag":true}'), findsOneWidget);
+    });
+
+    testWidgets('tapping Pretty shows re-indented JSON', (
+      WidgetTester tester,
+    ) async {
+      await pumpBody(tester, jsonBody());
+      await tester.pump();
+
+      await tester.tap(find.text('Pretty'));
+      await tester.pump();
+
+      expect(find.byType(JalaJsonTree), findsNothing);
+      // Two-space indent + space after the colon — neither the compact
+      // verbatim form (`"nested":{`) nor the tree (`nested`) produces this.
+      expect(find.textContaining('  "nested": {'), findsOneWidget);
+    });
+
+    testWidgets('tapping Tree again returns to the tree view', (
+      WidgetTester tester,
+    ) async {
+      await pumpBody(tester, jsonBody());
+      await tester.pump();
+
+      await tester.tap(find.text('Raw'));
+      await tester.pump();
+      await tester.tap(find.text('Tree'));
+      await tester.pump();
+
+      expect(find.byType(JalaJsonTree), findsOneWidget);
+      expect(find.textContaining('"nested"'), findsNothing);
+    });
+
+    testWidgets('remembers the last mode across a freshly opened body', (
+      WidgetTester tester,
+    ) async {
+      await pumpBody(tester, jsonBody());
+      await tester.pump();
+      await tester.tap(find.text('Raw'));
+      await tester.pump();
+
+      // Open a brand-new JalaBodyView (fresh _JsonBodyView state).
+      await pumpBody(tester, jsonBody());
+      await tester.pump();
+
+      // It opens straight into Raw, not back to the Tree default.
+      expect(find.byType(JalaJsonTree), findsNothing);
+      expect(find.textContaining('"nested":{"flag":true}'), findsOneWidget);
+    });
+  });
+
   group('JalaBodyView / multipart (@multipart convention)', () {
     testWidgets('renders a parts table instead of the raw JSON tree', (
       WidgetTester tester,

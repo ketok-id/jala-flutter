@@ -8,7 +8,7 @@ See the [repo README](../../README.md) for what Jala is and why (filter
 grammar, redaction-by-default) and the [`jala`](../jala) package for the
 facade that wires this up in an app.
 
-**Lockstep** with `jala` / `jala_core` `0.5.x`. Brownfield:
+**Lockstep** with `jala` / `jala_core` `0.6.x`. Brownfield:
 [docs/ADOPTION.md](../../docs/ADOPTION.md). WebSocket frames are **not**
 throttled (HTTP adapters only).
 
@@ -16,7 +16,7 @@ throttled (HTTP adapters only).
 
 ```yaml
 dependencies:
-  jala_websocket: ^0.5.3   # requires jala_core ^0.5.3
+  jala_websocket: ^0.6.0   # requires jala_core ^0.6.0
 ```
 
 ## Wrap

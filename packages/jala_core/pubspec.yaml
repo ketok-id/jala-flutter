@@ -1,8 +1,9 @@
 name: jala_core
 description: >
   Pure-Dart core for Jala: call model, store, redaction, filter grammar,
-  exporters, network throttling, and session export/import. Zero Flutter.
-version: 0.5.3
+  exporters, call/JSON diff, cURL/HAR import, network throttling, and
+  session export/import. Zero Flutter.
+version: 0.6.0
 homepage: https://github.com/ketok-id/jala-flutter
 repository: https://github.com/ketok-id/jala-flutter
 issue_tracker: https://github.com/ketok-id/jala-flutter/issues

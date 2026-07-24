@@ -1,3 +1,7 @@
+## 0.6.0
+
+- Lockstep release with jala_core 0.6.0 (call diff + import codecs).
+
 ## 0.5.3
 
 - Lockstep release with jala_core 0.5.3 security defaults.

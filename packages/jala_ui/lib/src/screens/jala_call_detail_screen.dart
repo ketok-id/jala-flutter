@@ -9,6 +9,7 @@ import '../widgets/jala_body_view.dart';
 import '../widgets/jala_headers_table.dart';
 import '../widgets/jala_json_tree.dart';
 import '../widgets/jala_themed_page.dart';
+import 'jala_call_diff_screen.dart';
 import 'jala_mock_editor_screen.dart';
 import 'jala_request_composer_screen.dart';
 
@@ -70,6 +71,56 @@ class _JalaCallDetailScreenState extends State<JalaCallDetailScreen>
     );
   }
 
+  /// Lets the user pick another captured call to diff against [current], then
+  /// pushes [JalaCallDiffScreen] (current = A/before, picked = B/after).
+  Future<void> _pickAndCompare(
+    BuildContext context,
+    NetworkCallEntry current,
+  ) async {
+    final List<NetworkCallEntry> others = JalaBinding.instance.store.entries
+        .where((NetworkCallEntry e) => e.id != current.id)
+        .toList(growable: false);
+    if (others.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No other calls to compare with')),
+      );
+      return;
+    }
+    final NetworkCallEntry? picked = await showModalBottomSheet<NetworkCallEntry>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (BuildContext ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Text(
+                'Compare with…',
+                style: Theme.of(ctx).textTheme.titleMedium,
+              ),
+            ),
+            for (final NetworkCallEntry e in others)
+              ListTile(
+                dense: true,
+                title: Text(
+                  '${e.method} ${e.uri.path.isEmpty ? '/' : e.uri.path}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontFamily: 'monospace'),
+                ),
+                trailing: Text('${e.statusCode ?? '—'}'),
+                onTap: () => Navigator.of(ctx).pop(e),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (picked == null || !context.mounted) return;
+    await Navigator.of(context).push(JalaCallDiffScreen.route(current, picked));
+  }
+
   @override
   Widget build(BuildContext context) {
     return JalaThemedPage(
@@ -121,6 +172,13 @@ class _JalaCallDetailScreenState extends State<JalaCallDetailScreen>
                       ),
                     ],
                   ),
+                  actions: <Widget>[
+                    IconButton(
+                      icon: const Icon(Icons.compare_arrows),
+                      tooltip: 'Compare with…',
+                      onPressed: () => _pickAndCompare(context, entry),
+                    ),
+                  ],
                   bottom: TabBar(
                     controller: _tabController,
                     tabs: const <Tab>[

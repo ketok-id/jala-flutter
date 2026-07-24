@@ -1,15 +1,16 @@
 # jala_ui
 
 Inspector UI for Jala, the in-app Flutter network inspector: the call
-list, detail screens, JSON viewer, overlay bubble, throttle screen, and
-session export/import. Pure UI over `package:jala_core` — no business
-logic beyond display, filtering, and export/replay wiring.
+list, detail screens, virtualized JSON tree, call diff, cURL/HAR import,
+overlay bubble, throttle screen, and session export/import. Pure UI over
+`package:jala_core` — no business logic beyond display, filtering, and
+export/replay wiring.
 
 See the [repo README](../../README.md) for what Jala is and why, and the
 [`jala`](../jala) package for the facade most apps should install
 instead of depending on this package directly.
 
-Requires Flutter `>=3.35`. Lockstep `0.5.x` with `jala_core`. Brownfield:
+Requires Flutter `>=3.35`. Lockstep `0.6.x` with `jala_core`. Brownfield:
 [docs/ADOPTION.md](../../docs/ADOPTION.md).
 
 ## What's here
@@ -26,10 +27,15 @@ Requires Flutter `>=3.35`. Lockstep `0.5.x` with `jala_core`. Brownfield:
   No `share_plus` / file-picker dependency. While `isViewingImport`, an
   import banner offers Clear back to live capture.
 - `JalaCallDetailScreen` — Overview / Request / Response tabs, expandable
-  JSON tree, image preview, multipart parts, transfer progress, GraphQL
-  query/variables panes, subscription payload timeline, and bottom actions
-  (cURL / Dart / HAR / Replay / Mock this / Edit & resend). Imported entries
-  disable replay/mock/edit with an explanatory tooltip.
+  virtualized JSON tree, image preview, multipart parts, transfer progress,
+  GraphQL query/variables panes, subscription payload timeline, **Compare
+  with…**, and bottom actions (cURL / Dart / HAR / Replay / Mock this /
+  Edit & resend). Imported entries disable replay/mock/edit with an
+  explanatory tooltip.
+- `JalaCallDiffScreen` / `JalaJsonDiffView` — structural comparison of two
+  calls (status, headers, JSON bodies with add/remove/change colors).
+- Import: inspector overflow **Import cURL…** (composer) and **Import
+  HAR…** (session import).
 - `JalaWsDetailScreen` — WebSocket connection header + frame timeline.
 - `JalaOverlayButton` — draggable floating bubble with a pending/error
   badge, meant to be dropped into a host app's root `Overlay`.

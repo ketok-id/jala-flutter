@@ -1,8 +1,9 @@
 name: jala_ui
 description: >
-  Inspector UI for Jala: filtered call list, detail tabs, throttle screen,
-  session export/import, JSON viewer, and overlay bubble.
-version: 0.5.3
+  Inspector UI for Jala: filtered call list, detail tabs, call diff,
+  virtualized JSON tree, cURL/HAR import, throttle screen, session
+  export/import, and overlay bubble.
+version: 0.6.0
 homepage: https://github.com/ketok-id/jala-flutter
 repository: https://github.com/ketok-id/jala-flutter
 issue_tracker: https://github.com/ketok-id/jala-flutter/issues
@@ -17,7 +18,7 @@ resolution: workspace
 dependencies:
   flutter:
     sdk: flutter
-  jala_core: ^0.5.3
+  jala_core: ^0.6.0
 
 dev_dependencies:
   flutter_lints: ^6.0.0

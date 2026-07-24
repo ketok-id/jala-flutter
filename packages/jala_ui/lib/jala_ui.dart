@@ -8,6 +8,7 @@ library;
 
 export 'src/jala_inspector.dart';
 export 'src/screens/jala_call_detail_screen.dart';
+export 'src/screens/jala_call_diff_screen.dart';
 export 'src/screens/jala_inspector_screen.dart';
 export 'src/screens/jala_mock_editor_screen.dart';
 export 'src/screens/jala_mocks_screen.dart';
@@ -20,6 +21,7 @@ export 'src/widgets/jala_body_view.dart';
 export 'src/widgets/jala_call_list_tile.dart';
 export 'src/widgets/jala_filter_help_sheet.dart';
 export 'src/widgets/jala_headers_table.dart';
+export 'src/widgets/jala_json_diff_view.dart';
 export 'src/widgets/jala_json_tree.dart';
 export 'src/widgets/jala_method_chip.dart';
 export 'src/widgets/jala_overlay_button.dart';

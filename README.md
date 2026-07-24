@@ -33,13 +33,13 @@ Jala exists because the incumbents each miss something concrete:
 
 ```yaml
 dependencies:
-  jala: ^0.5.3
-  jala_dio: ^0.5.3
+  jala: ^0.6.0
+  jala_dio: ^0.6.0
   dio: ^5.9.0
 ```
 
 Requires **Dart ^3.11** and **Flutter >=3.35**. Keep Jala packages on the
-same lockstep version (`0.5.x`).
+same lockstep version (`0.6.x`).
 
 ```dart
 import 'package:dio/dio.dart';
@@ -63,15 +63,15 @@ GraphQL double-capture, Alice/Chucker migration, debug-only bootstrap,
 flavors, and a production-safety PR checklist.
 
 Using `package:http` instead of Dio? Install
-[`jala_http`](packages/jala_http) (`jala_http: ^0.5.3`) and call
+[`jala_http`](packages/jala_http) (`jala_http: ^0.6.0`) and call
 `JalaHttp.wrap(http.Client())` in place of `JalaDio.attach(dio)` above.
 
 Using GraphQL? Install [`jala_graphql`](packages/jala_graphql)
-(`jala_graphql: ^0.5.3`) and insert `JalaGraphQLLink(endpoint: uri)` before
+(`jala_graphql: ^0.6.0`) and insert `JalaGraphQLLink(endpoint: uri)` before
 your terminating `gql_link` (works with `graphql_flutter` and `ferry`).
 
 Using WebSockets? Install [`jala_websocket`](packages/jala_websocket)
-(`jala_websocket: ^0.5.3`) and wrap your channel with
+(`jala_websocket: ^0.6.0`) and wrap your channel with
 `JalaWebSocketChannel.wrap(channel, uri: uri)`.
 
 **v0.2 capture extras:** image responses (`image/*` within the body cap)
@@ -94,6 +94,12 @@ Offline + custom profiles, host glob), session export/import via a
 versioned JSON codec (clipboard paste in the inspector — no file-picker
 dependency in `jala_ui`), and a GraphQL subscription payload timeline.
 Filter with `is:subscription`.
+
+**v0.6 inspect deeper:** structural **call diff** (status / headers / JSON
+bodies), **virtualized JSON tree** for large payloads, and **cURL + HAR
+import** (cURL → request composer; HAR → imported session). Use inspector
+overflow **Import…**, call-detail **Compare with…**, or the example QA
+rig sample buttons.
 
 ## Screenshots
 
@@ -212,10 +218,11 @@ structured terms degrade to free text instead of erroring.
 - **v0.4** — `jala_graphql` + `jala_websocket`: GraphQL operation-aware
   capture, WebSocket connection + frame-timeline capture, merged
   inspector list.
-- **v0.5** (this release) — network throttling, session export/import,
-  GraphQL subscription payload timeline (see
-  [docs/ROADMAP.md](docs/ROADMAP.md)).
-- **Later** — HAR import, storage explorers, desktop companion.
+- **v0.5** — network throttling, session export/import, GraphQL
+  subscription payload timeline.
+- **v0.6** (this release) — call diff, virtualized JSON tree, cURL + HAR
+  import (see [docs/ROADMAP.md](docs/ROADMAP.md)).
+- **Later** — storage explorers, desktop companion, `jala_grpc`.
 
 ## Develop
 

@@ -9,15 +9,15 @@ filter grammar, redaction-by-default) and the [`jala`](../jala) package
 for the facade that wires this up in an app.
 
 **Existing app?** [docs/ADOPTION.md](../../docs/ADOPTION.md).  
-**Lockstep:** use the same `0.5.x` as `jala` / `jala_core` (see
+**Lockstep:** use the same `0.6.x` as `jala` / `jala_core` (see
 [docs/COMPAT.md](../../docs/COMPAT.md)). Requires Dart `^3.11`.
 
 ## Install
 
 ```yaml
 dependencies:
-  jala: ^0.5.3
-  jala_dio: ^0.5.3   # requires jala_core ^0.5.3
+  jala: ^0.6.0
+  jala_dio: ^0.6.0   # requires jala_core ^0.6.0
   dio: ^5.0.0
 ```
 

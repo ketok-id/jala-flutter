@@ -5,7 +5,7 @@ the host app process; it is not a perimeter firewall, vault, or remote
 security product.
 
 This document describes defaults, residual risks, and recommended
-configuration. Package version context: **0.5.3+**.
+configuration. Package version context: **0.6.0+**.
 
 ---
 

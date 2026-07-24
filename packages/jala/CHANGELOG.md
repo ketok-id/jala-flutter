@@ -1,3 +1,11 @@
+## 0.6.0
+
+- Lockstep with `jala_core` / `jala_ui` 0.6.0: call diff, virtualized JSON
+  tree, cURL + HAR import. No changes to the `Jala` facade API itself —
+  use the inspector overflow menu / Compare with…, or drive
+  `JalaCurlCodec` / `JalaHarCodec` / `JalaEntryDiff` from app code (see
+  the example Inspect deeper section).
+
 ## 0.5.3
 
 - Docs: mock persistence security notes; lockstep with core/ui 0.5.3 security

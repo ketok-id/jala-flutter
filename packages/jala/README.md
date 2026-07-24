@@ -5,23 +5,23 @@ Facade package for Jala, the in-app Flutter network inspector —
 inspector UI in two lines.
 
 See the [repo README](../../README.md) for the full pitch (replay, filter
-grammar, redaction-by-default, throttling, session share), the comparison
-vs. alice/chucker_flutter/talker, and the roadmap.
+grammar, redaction-by-default, throttling, session share, call diff,
+import), the comparison vs. alice/chucker_flutter/talker, and the roadmap.
 
 **Existing app?** Prefer the brownfield guide:
 [docs/ADOPTION.md](../../docs/ADOPTION.md) (multi-Dio, GraphQL
 double-capture, Alice/Chucker migration, debug bootstrap, PR checklist).
 
 **Requirements:** Dart `^3.11`, Flutter `>=3.35`. Use **lockstep** versions
-with adapters (`jala` / `jala_dio` / … all `^0.5.3`). Compatibility notes:
+with adapters (`jala` / `jala_dio` / … all `^0.6.0`). Compatibility notes:
 [docs/COMPAT.md](../../docs/COMPAT.md).
 
 ## Quick start
 
 ```yaml
 dependencies:
-  jala: ^0.5.3
-  jala_dio: ^0.5.3   # if you use Dio
+  jala: ^0.6.0
+  jala_dio: ^0.6.0   # if you use Dio
   dio: ^5.0.0
 ```
 
@@ -48,11 +48,11 @@ below and the [repo README](../../README.md#production-safety).
 
 | Client | Package | Setup |
 |---|---|---|
-| `package:http` | [`jala_http`](../jala_http) `^0.5.3` | `JalaHttp.wrap(http.Client())` |
-| GraphQL (`gql_link`) | [`jala_graphql`](../jala_graphql) `^0.5.3` | `JalaGraphQLLink(endpoint: uri)` before terminating link |
-| WebSocket | [`jala_websocket`](../jala_websocket) `^0.5.3` | `JalaWebSocketChannel.wrap(channel, uri: uri)` |
+| `package:http` | [`jala_http`](../jala_http) `^0.6.0` | `JalaHttp.wrap(http.Client())` |
+| GraphQL (`gql_link`) | [`jala_graphql`](../jala_graphql) `^0.6.0` | `JalaGraphQLLink(endpoint: uri)` before terminating link |
+| WebSocket | [`jala_websocket`](../jala_websocket) `^0.6.0` | `JalaWebSocketChannel.wrap(channel, uri: uri)` |
 
-### v0.5 power tools (in the inspector)
+### Inspector power tools (v0.5+)
 
 - **Throttle** (AppBar speed icon): Slow 3G / Fast 3G / Flaky / Offline +
   custom profiles and host glob.
@@ -60,6 +60,14 @@ below and the [repo README](../../README.md#production-safety).
   session via clipboard (`JalaSessionCodec` under the hood).
 - **Subscriptions**: GraphQL payload timeline on the Response tab;
   filter with `is:subscription`.
+
+### Inspect deeper (v0.6)
+
+- **Compare with…** on call detail (or pick two calls) → structural status /
+  header / JSON body diff.
+- **Import cURL…** / **Import HAR…** in the inspector overflow (cURL opens
+  the request composer; HAR loads as an imported session).
+- **Virtualized JSON tree** — large expanded payloads no longer jank.
 
 ## Production safety
 

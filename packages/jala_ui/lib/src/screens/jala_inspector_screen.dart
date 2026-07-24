@@ -11,12 +11,20 @@ import '../widgets/jala_themed_page.dart';
 import '../widgets/jala_ws_list_tile.dart';
 import 'jala_call_detail_screen.dart';
 import 'jala_mocks_screen.dart';
+import 'jala_request_composer_screen.dart';
 import 'jala_throttle_screen.dart';
 import 'jala_ws_detail_screen.dart';
 
 /// Session actions offered from the inspector AppBar overflow menu (see
-/// docs/plans/track-e-v0.5.md E3).
-enum _SessionAction { exportFull, exportHeadersOnly, exportNoBodies, import }
+/// docs/plans/track-e-v0.5.md E3, and Track F import codecs).
+enum _SessionAction {
+  exportFull,
+  exportHeadersOnly,
+  exportNoBodies,
+  import,
+  importHar,
+  importCurl,
+}
 
 /// One row of the chronologically-interleaved merged list: either a
 /// [NetworkCallEntry] or a [WsConnectionEntry], ordered newest-first by
@@ -184,7 +192,36 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
   Future<void> _importSession(BuildContext context) async {
     await showDialog<void>(
       context: context,
-      builder: (BuildContext ctx) => const _ImportSessionDialog(),
+      builder: (BuildContext ctx) => const _ImportSessionDialog(
+        title: 'Import session',
+        hint: 'Paste exported session JSON here…',
+        note:
+            'Treat pasted JSON like a log dump — it may contain personal or '
+            'business data. Max size '
+            '${JalaSessionCodec.defaultMaxDecodeChars ~/ (1024 * 1024)} MiB.',
+        decode: JalaSessionCodec.decode,
+      ),
+    );
+  }
+
+  Future<void> _importHar(BuildContext context) async {
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext ctx) => const _ImportSessionDialog(
+        title: 'Import HAR',
+        hint: 'Paste HAR 1.2 JSON here…',
+        note:
+            'Imports a HAR export (browser devtools, Charles, Proxyman, …) as '
+            'a session. Imported calls have replay disabled.',
+        decode: JalaHarCodec.decode,
+      ),
+    );
+  }
+
+  Future<void> _importCurl(BuildContext context) async {
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext ctx) => const _ImportCurlDialog(),
     );
   }
 
@@ -213,6 +250,10 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
         );
       case _SessionAction.import:
         await _importSession(context);
+      case _SessionAction.importHar:
+        await _importHar(context);
+      case _SessionAction.importCurl:
+        await _importCurl(context);
     }
   }
 
@@ -413,6 +454,14 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
                   PopupMenuItem<_SessionAction>(
                     value: _SessionAction.import,
                     child: Text('Import session'),
+                  ),
+                  PopupMenuItem<_SessionAction>(
+                    value: _SessionAction.importHar,
+                    child: Text('Import HAR…'),
+                  ),
+                  PopupMenuItem<_SessionAction>(
+                    value: _SessionAction.importCurl,
+                    child: Text('Import cURL…'),
                   ),
                 ],
           ),
@@ -689,11 +738,23 @@ class _ImportBanner extends StatelessWidget {
   }
 }
 
-/// Dialog for [_SessionAction.import]: paste-JSON field, Replace/Append
-/// choice, and inline decode-error text (never a crash — see
-/// `JalaSessionFormatException`).
+/// Paste-to-import dialog for anything that decodes to a [JalaSession]:
+/// exported Jala JSON ([JalaSessionCodec.decode]) or a HAR document
+/// ([JalaHarCodec.decode]). Offers a Replace/Append choice and shows inline
+/// decode-error text (never a crash — both decoders only throw
+/// [JalaSessionFormatException]).
 class _ImportSessionDialog extends StatefulWidget {
-  const _ImportSessionDialog();
+  const _ImportSessionDialog({
+    required this.title,
+    required this.hint,
+    required this.note,
+    required this.decode,
+  });
+
+  final String title;
+  final String hint;
+  final String note;
+  final JalaSession Function(String) decode;
 
   @override
   State<_ImportSessionDialog> createState() => _ImportSessionDialogState();
@@ -713,11 +774,11 @@ class _ImportSessionDialogState extends State<_ImportSessionDialog> {
   void _import() {
     final String text = _controller.text.trim();
     if (text.isEmpty) {
-      setState(() => _error = 'Paste a session JSON to import');
+      setState(() => _error = 'Paste something to import');
       return;
     }
     try {
-      final JalaSession session = JalaSessionCodec.decode(text);
+      final JalaSession session = widget.decode(text);
       JalaBinding.instance.store.importSession(session, append: _append);
       Navigator.of(context).pop();
     } on JalaSessionFormatException catch (e) {
@@ -728,7 +789,7 @@ class _ImportSessionDialogState extends State<_ImportSessionDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Import session'),
+      title: Text(widget.title),
       content: SizedBox(
         width: 480,
         child: SingleChildScrollView(
@@ -736,20 +797,15 @@ class _ImportSessionDialogState extends State<_ImportSessionDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              Text(
-                'Treat pasted JSON like a log dump — it may contain personal '
-                'or business data. Max size '
-                '${JalaSessionCodec.defaultMaxDecodeChars ~/ (1024 * 1024)} MiB.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
+              Text(widget.note, style: Theme.of(context).textTheme.bodySmall),
               const SizedBox(height: 8),
               TextField(
                 controller: _controller,
                 minLines: 5,
                 maxLines: 10,
-                decoration: const InputDecoration(
-                  hintText: 'Paste exported session JSON here…',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  hintText: widget.hint,
+                  border: const OutlineInputBorder(),
                 ),
                 onChanged: (_) {
                   if (_error != null) setState(() => _error = null);
@@ -782,6 +838,116 @@ class _ImportSessionDialogState extends State<_ImportSessionDialog> {
           child: const Text('Cancel'),
         ),
         FilledButton(onPressed: _import, child: const Text('Import')),
+      ],
+    );
+  }
+}
+
+/// Paste-a-`curl`-command dialog: parses via [JalaCurlCodec] and opens the
+/// request composer prefilled for edit-and-resend. Shows inline errors and
+/// never crashes ([JalaCurlCodec.decode] only throws
+/// [JalaImportFormatException]).
+class _ImportCurlDialog extends StatefulWidget {
+  const _ImportCurlDialog();
+
+  @override
+  State<_ImportCurlDialog> createState() => _ImportCurlDialogState();
+}
+
+class _ImportCurlDialogState extends State<_ImportCurlDialog> {
+  final TextEditingController _controller = TextEditingController();
+  String? _error;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _import() {
+    final String text = _controller.text.trim();
+    if (text.isEmpty) {
+      setState(() => _error = 'Paste a curl command');
+      return;
+    }
+    final ImportedRequest req;
+    try {
+      req = JalaCurlCodec.decode(text);
+    } on JalaImportFormatException catch (e) {
+      setState(() => _error = e.message);
+      return;
+    }
+    final NetworkCallEntry draft = NetworkCallEntry(
+      id: JalaIdGenerator.next(),
+      startTime: DateTime.now(),
+      method: req.method,
+      uri: req.uri,
+      requestHeaders: req.headers,
+      requestBody: req.body == null
+          ? CapturedBody.none
+          : CapturedBody.capture(req.body, contentType: _contentType(req)),
+      responseHeaders: const <String, String>{},
+      responseBody: CapturedBody.none,
+      status: JalaCallStatus.pending,
+      client: 'import',
+    );
+    Navigator.of(context).pop();
+    Navigator.of(context).push(JalaRequestComposerScreen.route(draft));
+  }
+
+  static String? _contentType(ImportedRequest req) {
+    for (final MapEntry<String, String> h in req.headers.entries) {
+      if (h.key.toLowerCase() == 'content-type') return h.value;
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Import cURL'),
+      content: SizedBox(
+        width: 480,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Text(
+                'Paste a curl command (e.g. copied from browser devtools). It '
+                'opens in the composer to edit and send.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _controller,
+                minLines: 4,
+                maxLines: 10,
+                decoration: const InputDecoration(
+                  hintText: "curl 'https://…' -H '…' -d '…'",
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (_) {
+                  if (_error != null) setState(() => _error = null);
+                },
+              ),
+              if (_error != null) ...<Widget>[
+                const SizedBox(height: 8),
+                Text(
+                  _error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(onPressed: _import, child: const Text('Open in composer')),
       ],
     );
   }

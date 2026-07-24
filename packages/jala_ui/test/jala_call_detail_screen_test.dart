@@ -10,6 +10,38 @@ void main() {
   setUpAll(configureJalaUiTests);
   tearDown(JalaBinding.resetForTesting);
 
+  testWidgets('Compare with… opens the diff screen for the picked call', (
+    WidgetTester tester,
+  ) async {
+    final JalaBinding binding = initJalaBinding();
+    emitCompletedCall(
+      binding.bus,
+      'call-1',
+      url: 'https://api.example.com/one',
+      statusCode: 200,
+    );
+    emitCompletedCall(
+      binding.bus,
+      'call-2',
+      url: 'https://api.example.com/two',
+      statusCode: 404,
+    );
+    await flush();
+
+    await pumpJalaApp(tester, const JalaCallDetailScreen(entryId: 'call-1'));
+    await pumpJalaSettle(tester);
+
+    await tester.tap(find.byIcon(Icons.compare_arrows));
+    await pumpJalaSettle(tester);
+    expect(find.text('Compare with…'), findsOneWidget);
+
+    await tester.tap(find.textContaining('/two'));
+    await pumpJalaSettle(tester);
+
+    expect(find.byType(JalaCallDiffScreen), findsOneWidget);
+    expect(find.textContaining('200  →  404'), findsOneWidget);
+  });
+
   testWidgets('shows the redacted header mask on the Request tab', (
     WidgetTester tester,
   ) async {

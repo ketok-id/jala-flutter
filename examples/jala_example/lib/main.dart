@@ -133,7 +133,8 @@ class _DemoHomeState extends State<_DemoHome> {
             'Backup GET: jsonplaceholder.typicode.com\n'
             'WS echo: wss://ws.postman-echo.com/raw\n'
             'GraphQL: countries.trevorblades.com\n'
-            'Power tools: Slow 3G + Large, session export/import',
+            'Power tools: Slow 3G + Large, session export/import\n'
+            'Inspect deeper: cURL/HAR import + call diff',
           ),
           const Divider(height: 32),
           _btn('GET json', () => _run('GET json', () async {
@@ -369,9 +370,121 @@ class _DemoHomeState extends State<_DemoHome> {
               );
             }),
           ),
+          const Divider(height: 32),
+          Text(
+            'Inspect deeper (v0.6 — call diff + cURL/HAR import)',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Sample cURL opens the request composer prefilled (edit-and-resend). '
+            'Sample HAR loads two differing calls as an imported session. '
+            'Compare last two opens the structural diff for the two newest '
+            'entries — fire GET + POST first, or import the HAR sample.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 8),
+          _btn(
+            'Import cURL (sample)',
+            () => _run('import cURL sample', () async {
+              final ImportedRequest req = JalaCurlCodec.decode(_sampleCurl);
+              final NetworkCallEntry draft = NetworkCallEntry(
+                id: JalaIdGenerator.next(),
+                startTime: DateTime.now(),
+                method: req.method,
+                uri: req.uri,
+                requestHeaders: req.headers,
+                requestBody: req.body == null
+                    ? CapturedBody.none
+                    : CapturedBody.capture(
+                        req.body,
+                        contentType: _headerValue(
+                          req.headers,
+                          'content-type',
+                        ),
+                      ),
+                responseHeaders: const <String, String>{},
+                responseBody: CapturedBody.none,
+                status: JalaCallStatus.pending,
+                client: 'import',
+              );
+              if (!mounted) return;
+              await Navigator.of(
+                context,
+              ).push(JalaRequestComposerScreen.route(draft));
+            }),
+          ),
+          _btn(
+            'Import HAR (sample)',
+            () => _run('import HAR sample', () async {
+              final JalaSession session = JalaHarCodec.decode(_sampleHar);
+              JalaBinding.instance.store.importSession(session);
+              if (!mounted) return;
+              final int n = JalaBinding.instance.store.entries.length;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Imported HAR ($n entries). Open the inspector — '
+                    'Replay is disabled. Use Compare last two to diff them.',
+                  ),
+                  action: const SnackBarAction(
+                    label: 'Open',
+                    onPressed: Jala.open,
+                  ),
+                ),
+              );
+            }),
+          ),
+          _btn(
+            'Compare last two',
+            () => _run('compare last two', () async {
+              final List<NetworkCallEntry> entries =
+                  JalaBinding.instance.store.entries;
+              if (entries.length < 2) {
+                throw StateError(
+                  'Need at least 2 captured calls — fire GET json + '
+                  'POST json, or use Import HAR (sample).',
+                );
+              }
+              // Store is newest-first: A = older, B = newer.
+              final NetworkCallEntry a = entries[1];
+              final NetworkCallEntry b = entries[0];
+              if (!mounted) return;
+              await Navigator.of(context).push(JalaCallDiffScreen.route(a, b));
+            }),
+          ),
         ],
       ),
     );
+  }
+
+  /// Sample `curl` used by "Import cURL (sample)" — same shape as the
+  /// inspector paste flow and the Track F demo driver.
+  static const String _sampleCurl =
+      'curl -X POST https://api.example.com/orders '
+      "-H 'Content-Type: application/json' "
+      "-d '{\"item\":\"jala\",\"qty\":2}'";
+
+  /// Minimal HAR 1.2 with two JSON responses that differ, so "Compare last
+  /// two" has something interesting to show after import.
+  static const String _sampleHar = r'''
+{"log":{"version":"1.2","entries":[
+  {"startedDateTime":"2026-07-24T10:00:00.000Z","time":40,
+   "request":{"method":"GET","url":"https://api.example.com/items/1","headers":[{"name":"Accept","value":"application/json"}]},
+   "response":{"status":200,"statusText":"OK","headers":[{"name":"Content-Type","value":"application/json"}],
+    "content":{"size":28,"mimeType":"application/json","text":"{\"id\":1,\"name\":\"alpha\"}"}}},
+  {"startedDateTime":"2026-07-24T10:00:01.000Z","time":55,
+   "request":{"method":"GET","url":"https://api.example.com/items/1","headers":[{"name":"Accept","value":"application/json"}]},
+   "response":{"status":200,"statusText":"OK","headers":[{"name":"Content-Type","value":"application/json"}],
+    "content":{"size":36,"mimeType":"application/json","text":"{\"id\":1,\"name\":\"alpha\",\"qty\":2}"}}}
+]}}''';
+
+  static String? _headerValue(Map<String, String> headers, String name) {
+    final String lower = name.toLowerCase();
+    for (final MapEntry<String, String> h in headers.entries) {
+      if (h.key.toLowerCase() == lower) return h.value;
+    }
+    return null;
   }
 
   Widget _btn(String label, VoidCallback onPressed) {
