@@ -211,4 +211,71 @@ void main() {
         (nullText.textSpan! as TextSpan).children![1] as TextSpan;
     expect(nullValue.style!.fontStyle, FontStyle.italic);
   });
+
+  testWidgets('flattened list drives a ListView (virtualization path)', (
+    WidgetTester tester,
+  ) async {
+    // Large-enough top-level map that a recursive Column used to build
+    // eagerly; the tree should expose a ListView for lazy rows.
+    final Map<String, dynamic> data = <String, dynamic>{
+      for (int i = 0; i < 80; i++) 'k$i': i,
+    };
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: JalaJsonTree(data: data)),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(ListView), findsOneWidget);
+    // Root + first leaves are visible; far keys only after scroll.
+    expect(find.textContaining('k0: 0'), findsOneWidget);
+    expect(find.textContaining('k79: 79'), findsNothing);
+
+    // Scroll the tree's ListView (not the TextField's internal Scrollable).
+    final Finder treeList = find.descendant(
+      of: find.byType(JalaJsonTree),
+      matching: find.byType(ListView),
+    );
+    await tester.drag(treeList, const Offset(0, -4000));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('k79: 79'), findsOneWidget);
+  });
+
+  testWidgets('nested in a parent scroll view still expands/search works', (
+    WidgetTester tester,
+  ) async {
+    // Call-detail / body pane nests the tree in a ListView (unbounded
+    // height) — shrink-wrap path must keep expand + search parity.
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ListView(
+            children: const <Widget>[
+              JalaJsonTree(
+                data: <String, dynamic>{
+                  'id': 1,
+                  'nested': <String, dynamic>{'flag': true},
+                  'alpha': 'keep me',
+                  'beta': 'drop me',
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.textContaining('flag'), findsNothing);
+    await tester.tap(find.byTooltip('Expand all'));
+    await tester.pump();
+    expect(find.textContaining('flag: true'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), 'keep');
+    await tester.pump();
+    expect(find.text('1 match'), findsOneWidget);
+    expect(find.textContaining('beta'), findsNothing);
+  });
 }
