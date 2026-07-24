@@ -101,6 +101,27 @@ other developer-facing technical tokens.
 (HAR *import* promoted into Track F; desktop companion promoted from an
 unplanned note to the epic above.)
 
+## Performance & footprint
+
+Memory is bounded by design, not by luck — treat these as invariants, not
+tuning knobs:
+
+- **Ring-buffer store.** `JalaConfig.maxEntries` (300),
+  `maxWsFramesPerConnection`, and `maxSubscriptionPayloads` cap every
+  retained collection, so capture runs indefinitely without unbounded growth.
+- **Body truncation.** `CapturedBody` truncates at `defaultMaxBytes`
+  (`BodyKind.truncated`), so no single payload can blow up the heap.
+- **Baseline dominates at normal loads.** On-device snapshot (Xiaomi, light
+  session, 2026-07-24): ~58 MB native-heap alloc / ~99 MB RSS — almost
+  entirely the Flutter engine + Skia baseline; a dozen captured calls are
+  negligible. Capture data only matters near the ring-buffer cap.
+
+Open perf item: the JSON tree builds eagerly, so a large payload janks
+(Track F2 virtualization). Measure large-payload frame times before/after
+F2 rather than speculating — the same flattening also removes the
+per-keystroke whole-tree search cost. No dedicated "optimization track" is
+planned; these wins fold into F.
+
 ## Standing rules
 
 - Every release: lockstep versions across all `jala_*` packages, CHANGELOG
