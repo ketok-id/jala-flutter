@@ -11,15 +11,15 @@ patch). When you depend on more than one, pin them together:
 
 ```yaml
 dependencies:
-  jala: ^0.6.0
-  jala_dio: ^0.6.0
+  jala: ^0.7.0
+  jala_dio: ^0.7.0
   # if used:
-  jala_http: ^0.6.0
-  jala_graphql: ^0.6.0
-  jala_websocket: ^0.6.0
+  jala_http: ^0.7.0
+  jala_graphql: ^0.7.0
+  jala_websocket: ^0.7.0
 ```
 
-Do not mix `0.5.x` adapters with `0.6.x` core/ui.
+Do not mix `0.6.x` adapters with `0.7.x` core/ui.
 
 ## What 0.x means here
 
@@ -39,7 +39,7 @@ breaking changes may land in a minor bump until **1.0.0**. We still:
 
 ## Runtime floors
 
-| Constraint | Current (0.5.x) |
+| Constraint | Current (0.7.x) |
 |---|---|
 | Dart SDK | `^3.11.0` |
 | Flutter (packages that need it: `jala`, `jala_ui`) | `>=3.35.0` |

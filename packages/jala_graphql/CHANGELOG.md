@@ -1,4 +1,4 @@
-## Unreleased
+## 0.7.0
 
 - The captured endpoint URL goes through `JalaRedactor.redactUri`, masking
   sensitive query-parameter values on endpoints that carry auth in the URL.

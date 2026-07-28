@@ -1,4 +1,4 @@
-## Unreleased
+## 0.7.0
 
 - The captured handshake URL goes through `JalaRedactor.redactUri`. A
   `?token=` on the handshake URL is the usual way WebSocket auth is

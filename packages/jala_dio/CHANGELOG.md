@@ -1,4 +1,4 @@
-## Unreleased
+## 0.7.0
 
 - Sensitive query-parameter values (`?access_token=…`) are masked at
   capture time via `JalaRedactor.redactUri`, so the real value never

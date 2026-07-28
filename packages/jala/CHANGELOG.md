@@ -1,4 +1,4 @@
-## Unreleased
+## 0.7.0
 
 - Fix: screens pushed from the inspector (call detail, diff, mocks, mock
   editor, request composer, throttle, WebSocket detail) ignored the AppBar

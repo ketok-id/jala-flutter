@@ -1,4 +1,4 @@
-## Unreleased
+## 0.7.0
 
 - Redaction now covers URLs: `JalaRedactor.redactUri` masks the values of
   sensitive query parameters (`defaultRedactedQueryParams` — the

@@ -1,4 +1,4 @@
-## Unreleased
+## 0.7.0
 
 - Call detail Request tab: new **Query parameters** section breaking the
   URL's query string into decoded name/value rows — percent-decoded
