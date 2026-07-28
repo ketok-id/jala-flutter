@@ -1,3 +1,12 @@
+## Unreleased
+
+- Call detail Request tab: new **Query parameters** section breaking the
+  URL's query string into decoded name/value rows — percent-decoded
+  (`item_type%5B%5D` reads as `item_type[]`), wire order and repeated keys
+  preserved, and params sent without a value shown as `(no value)` rather
+  than dropped. Previously query params were only visible mashed into the
+  single-line URL row.
+
 ## 0.6.0
 
 - Call diff: `JalaCallDiffScreen` + `JalaJsonDiffView` (unified status /

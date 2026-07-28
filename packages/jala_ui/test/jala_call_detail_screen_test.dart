@@ -460,4 +460,75 @@ void main() {
       expect(editTooltip.message, contains("can't be edited"));
     },
   );
+
+  group('Query parameters section', () {
+    Future<void> pumpRequestTab(WidgetTester tester, String url) async {
+      final JalaBinding binding = initJalaBinding();
+      emitCompletedCall(binding.bus, 'call-1', url: url);
+      await flush();
+      await pumpJalaApp(tester, const JalaCallDetailScreen(entryId: 'call-1'));
+      await pumpJalaSettle(tester);
+      await tester.tap(find.text('Request'));
+      await pumpJalaSettle(tester);
+    }
+
+    testWidgets('breaks a real search URL out into decoded rows', (
+      WidgetTester tester,
+    ) async {
+      await pumpRequestTab(
+        tester,
+        'https://api.example.com/dev/databox/api/v2/products/search'
+        '?hasActiveObjectFilters=true&page=1&limit=12&q&item_type%5B%5D=12'
+        '&auction_company_id%5B%5D=2&sort_by=default&min_price&max_price',
+      );
+
+      expect(find.text('Query parameters (9)'), findsOneWidget);
+      // Percent-encoding decoded, not shown as %5B%5D.
+      expect(find.text('item_type[]'), findsOneWidget);
+      expect(find.text('auction_company_id[]'), findsOneWidget);
+      expect(find.text('hasActiveObjectFilters'), findsOneWidget);
+      expect(find.text('true'), findsOneWidget);
+      expect(find.text('default'), findsOneWidget);
+    });
+
+    testWidgets('shows valueless params instead of dropping them', (
+      WidgetTester tester,
+    ) async {
+      await pumpRequestTab(tester, 'https://api.example.com/s?q&page=1&max=');
+
+      expect(find.text('Query parameters (3)'), findsOneWidget);
+      expect(find.text('q'), findsOneWidget);
+      expect(find.text('max'), findsOneWidget);
+      // `q` carried no `=` at all; `max=` carried an empty value.
+      expect(find.text('(no value)'), findsOneWidget);
+      expect(find.text('(empty)'), findsOneWidget);
+    });
+
+    testWidgets('is absent when the URL has no query string', (
+      WidgetTester tester,
+    ) async {
+      await pumpRequestTab(tester, 'https://api.example.com/users');
+
+      expect(find.textContaining('Query parameters'), findsNothing);
+      expect(find.text('Headers'), findsOneWidget);
+    });
+
+    testWidgets('does not appear on the Response tab', (
+      WidgetTester tester,
+    ) async {
+      final JalaBinding binding = initJalaBinding();
+      emitCompletedCall(
+        binding.bus,
+        'call-1',
+        url: 'https://api.example.com/s?page=1',
+      );
+      await flush();
+      await pumpJalaApp(tester, const JalaCallDetailScreen(entryId: 'call-1'));
+      await pumpJalaSettle(tester);
+
+      await tester.tap(find.text('Response'));
+      await pumpJalaSettle(tester);
+      expect(find.textContaining('Query parameters'), findsNothing);
+    });
+  });
 }
