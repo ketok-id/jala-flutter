@@ -1,6 +1,6 @@
 # Jala roadmap
 
-Status as of 2026-07-24. Detailed execution plans live in `docs/plans/`.
+Status as of 2026-07-28. Detailed execution plans live in `docs/plans/`.
 
 | Track | Goal | Shipped as | Status |
 |---|---|---|---|
@@ -10,12 +10,13 @@ Status as of 2026-07-24. Detailed execution plans live in `docs/plans/`.
 | D | Realtime & GraphQL | 0.4.0 | ✅ DONE — [plan](plans/track-d-v0.4.md) |
 | E | Power tools: throttling, session share, subscription payloads | 0.5.0 | ✅ DONE — [plan](plans/track-e-v0.5.md) |
 | F | Inspect deeper: call diff, JSON virtualization, cURL/HAR import | 0.6.0 | ✅ DONE — [plan](plans/track-f-v0.6-inspect-deeper.md) |
-| G | `jala_grpc` adapter (gRPC / gRPC-web) | 0.7.0 | 📋 PROPOSED |
-| H | Localization (en + id-ID) | 0.6.x | 📋 PROPOSED |
+| — | Read the URL: decoded query-param table, capture-time URL redaction | 0.7.0 | ✅ DONE |
+| G | `jala_grpc` adapter (gRPC / gRPC-web) | 0.8.0 | 📋 PROPOSED |
+| H | Localization (en + id-ID) | 0.8.x | 📋 PROPOSED |
 
 All five packages (`jala`, `jala_core`, `jala_dio`, `jala_http`, `jala_ui`)
 plus `jala_graphql` and `jala_websocket` are published on pub.dev at
-**0.6.x** in lockstep, all under the verified publisher `ketok.id`.
+**0.7.x** in lockstep, all under the verified publisher `ketok.id`.
 
 ## Track D — v0.4.0 proposal: GraphQL + WebSocket
 
@@ -64,7 +65,7 @@ Detailed execution plan:
 [plans/track-f-v0.6-inspect-deeper.md](plans/track-f-v0.6-inspect-deeper.md)
 (written 2026-07-24).
 
-## Track G — v0.7.0 proposal: `jala_grpc`
+## Track G — v0.8.0 proposal: `jala_grpc`
 
 Next capture-surface expansion — gRPC / gRPC-web is effectively greenfield
 in Flutter, the same gap that GraphQL/WS were before Track D. New package
@@ -76,7 +77,7 @@ streaming timeline reusing the WS/subscription frame UI. Filter grammar:
 after first publish (standing rule). Detailed plan written when the track
 starts.
 
-## Track H — v0.6.x proposal: localization
+## Track H — v0.8.x proposal: localization
 
 Internationalize the inspector chrome (labels, tooltips, empty states,
 action names) via `flutter gen-l10n` / ARB with a host-overridable delegate,
@@ -85,7 +86,7 @@ non-blocking, so it can ride alongside Track F rather than gate a release.
 Deliberately *not* localized: the filter DSL grammar, HTTP method names, and
 other developer-facing technical tokens.
 
-## Horizon (beyond v0.6)
+## Horizon (beyond v0.7)
 
 - **Desktop / remote companion** (epic, spec-first). Stream capture over a
   localhost WS/HTTP channel (debug builds only, opt-in, pairing token) to a

@@ -33,13 +33,13 @@ Jala exists because the incumbents each miss something concrete:
 
 ```yaml
 dependencies:
-  jala: ^0.6.0
-  jala_dio: ^0.6.0
+  jala: ^0.7.0
+  jala_dio: ^0.7.0
   dio: ^5.9.0
 ```
 
 Requires **Dart ^3.11** and **Flutter >=3.35**. Keep Jala packages on the
-same lockstep version (`0.6.x`).
+same lockstep version (`0.7.x`).
 
 ```dart
 import 'package:dio/dio.dart';
@@ -63,15 +63,15 @@ GraphQL double-capture, Alice/Chucker migration, debug-only bootstrap,
 flavors, and a production-safety PR checklist.
 
 Using `package:http` instead of Dio? Install
-[`jala_http`](packages/jala_http) (`jala_http: ^0.6.0`) and call
+[`jala_http`](packages/jala_http) (`jala_http: ^0.7.0`) and call
 `JalaHttp.wrap(http.Client())` in place of `JalaDio.attach(dio)` above.
 
 Using GraphQL? Install [`jala_graphql`](packages/jala_graphql)
-(`jala_graphql: ^0.6.0`) and insert `JalaGraphQLLink(endpoint: uri)` before
+(`jala_graphql: ^0.7.0`) and insert `JalaGraphQLLink(endpoint: uri)` before
 your terminating `gql_link` (works with `graphql_flutter` and `ferry`).
 
 Using WebSockets? Install [`jala_websocket`](packages/jala_websocket)
-(`jala_websocket: ^0.6.0`) and wrap your channel with
+(`jala_websocket: ^0.7.0`) and wrap your channel with
 `JalaWebSocketChannel.wrap(channel, uri: uri)`.
 
 **v0.2 capture extras:** image responses (`image/*` within the body cap)
@@ -100,6 +100,15 @@ bodies), **virtualized JSON tree** for large payloads, and **cURL + HAR
 import** (cURL → request composer; HAR → imported session). Use inspector
 overflow **Import…**, call-detail **Compare with…**, or the example QA
 rig sample buttons.
+
+**v0.7 read the URL:** the call detail's Request tab now breaks the query
+string into a decoded **Query parameters** table — `item_type%5B%5D` reads
+as `item_type[]`, repeated keys and wire order are kept, and a parameter
+sent with no value shows as `(no value)` instead of disappearing. Sensitive
+query values (`?access_token=…`) are now **redacted at capture time** like
+headers, so the real token never reaches the store or any cURL/HAR export;
+replay drops masked parameters rather than resending them. See
+[docs/SECURITY.md](docs/SECURITY.md) for the default parameter list.
 
 ## Screenshots
 
@@ -220,8 +229,9 @@ structured terms degrade to free text instead of erroring.
   inspector list.
 - **v0.5** — network throttling, session export/import, GraphQL
   subscription payload timeline.
-- **v0.6** (this release) — call diff, virtualized JSON tree, cURL + HAR
-  import (see [docs/ROADMAP.md](docs/ROADMAP.md)).
+- **v0.6** — call diff, virtualized JSON tree, cURL + HAR import.
+- **v0.7** (this release) — decoded query-parameter table in call detail,
+  capture-time URL redaction (see [docs/ROADMAP.md](docs/ROADMAP.md)).
 - **Later** — storage explorers, desktop companion, `jala_grpc`.
 
 ## Develop

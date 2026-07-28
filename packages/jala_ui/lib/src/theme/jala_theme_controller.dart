@@ -57,8 +57,20 @@ class JalaThemeScope extends InheritedNotifier<JalaThemeController> {
 
   static final JalaThemeController _fallback = JalaThemeController();
 
-  /// Returns the nearest ancestor controller, or a shared fallback
-  /// singleton if this widget isn't wrapped in a [JalaThemeScope].
+  /// The controller [of] falls back to when no scope is in the tree.
+  ///
+  /// Exposed so an embedder pushing Jala screens onto a **host** navigator
+  /// can bind them all to one controller. A scope introduced inside a route
+  /// is invisible to routes pushed *next to* it — they are sibling overlay
+  /// entries — so those screens fall back here; binding the entry route to
+  /// this same controller keeps the whole inspector on one theme mode.
+  ///
+  /// `JalaOverlay` does not need this: it puts the scope above its own
+  /// Navigator, so every route it pushes inherits normally.
+  static JalaThemeController get sharedController => _fallback;
+
+  /// Returns the nearest ancestor controller, or [sharedController] if this
+  /// widget isn't wrapped in a [JalaThemeScope].
   static JalaThemeController of(BuildContext context) {
     final JalaThemeScope? scope = context
         .dependOnInheritedWidgetOfExactType<JalaThemeScope>();

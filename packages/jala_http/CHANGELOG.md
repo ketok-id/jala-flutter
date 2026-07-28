@@ -1,3 +1,12 @@
+## 0.7.0
+
+- Sensitive query-parameter values (`?access_token=…`) are masked at
+  capture time via `JalaRedactor.redactUri`, so the real value never
+  reaches the store or any export. The outgoing request still carries the
+  real URL.
+- Replay drops query parameters whose value was masked, mirroring how it
+  already drops redacted headers rather than resending the mask.
+
 ## 0.6.0
 
 - Lockstep release with jala_core 0.6.0 (call diff + import codecs).

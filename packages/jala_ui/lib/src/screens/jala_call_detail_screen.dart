@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:jala_core/jala_core.dart';
 
 import '../util/format.dart';
+import '../util/query_params.dart';
 import '../widgets/jala_body_view.dart';
 import '../widgets/jala_headers_table.dart';
 import '../widgets/jala_json_tree.dart';
@@ -196,6 +197,7 @@ class _JalaCallDetailScreenState extends State<JalaCallDetailScreen>
                       headers: entry.requestHeaders,
                       body: entry.requestBody,
                       graphQlRequest: _GraphQlRequest.tryParse(entry),
+                      uri: entry.uri,
                     ),
                     _HeadersBodyTab(
                       headers: entry.responseHeaders,
@@ -500,11 +502,17 @@ class _HeadersBodyTab extends StatelessWidget {
     this.operationType,
     this.payloads = const <CapturedBody>[],
     this.payloadCount = 0,
+    this.uri,
   });
 
   final Map<String, String> headers;
   final CapturedBody body;
   final String? errorMessage;
+
+  /// The request URI — only passed for the Request tab, to break its query
+  /// string out into a decoded name/value section. Null on the Response
+  /// tab, which has no query string of its own.
+  final Uri? uri;
 
   /// When non-null, the Body section is replaced by Query/Variables
   /// sections rendered from this parsed GraphQL payload.
@@ -525,6 +533,10 @@ class _HeadersBodyTab extends StatelessWidget {
     final _GraphQlRequest? graphQl = graphQlRequest;
     final bool showSubscriptionPayloads =
         operationType == 'subscription' && payloads.isNotEmpty;
+    final Uri? requestUri = uri;
+    final List<JalaQueryParam> queryParams = requestUri == null
+        ? const <JalaQueryParam>[]
+        : parseQueryParams(requestUri);
     return ListView(
       padding: const EdgeInsets.all(12),
       children: <Widget>[
@@ -534,6 +546,18 @@ class _HeadersBodyTab extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: SelectableText(errorMessage!),
           ),
+          const Divider(),
+        ],
+        // Above Headers: for a GET the query string *is* the payload, so it
+        // is the first thing worth reading on the Request tab. Titled
+        // "Query parameters" rather than "Query" so it never reads as the
+        // GraphQL query section rendered further down.
+        if (queryParams.isNotEmpty) ...<Widget>[
+          Text(
+            'Query parameters (${queryParams.length})',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          _QueryParamsTable(params: queryParams),
           const Divider(),
         ],
         Text('Headers', style: Theme.of(context).textTheme.titleSmall),
@@ -571,6 +595,97 @@ class _HeadersBodyTab extends StatelessWidget {
         ] else ...<Widget>[
           Text('Body', style: Theme.of(context).textTheme.titleSmall),
           JalaBodyView(body: body),
+        ],
+      ],
+    );
+  }
+}
+
+/// Renders a request's decoded query string as name/value rows, mirroring
+/// [JalaHeadersTable]'s pair layout.
+///
+/// Percent-encoding is decoded (`item_type%5B%5D=12` reads as
+/// `item_type[]` / `12`), wire order and repeated keys are preserved, and a
+/// parameter sent without a value renders as an explicit `(no value)` row
+/// rather than vanishing — see [parseQueryParams].
+class _QueryParamsTable extends StatelessWidget {
+  const _QueryParamsTable({required this.params});
+
+  final List<JalaQueryParam> params;
+
+  Future<void> _copyValue(BuildContext context, JalaQueryParam param) async {
+    await Clipboard.setData(ClipboardData(text: param.value ?? ''));
+    if (!context.mounted) return;
+    ScaffoldMessenger.maybeOf(
+      context,
+    )?.showSnackBar(SnackBar(content: Text('Copied ${param.name}')));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final TextTheme textTheme = Theme.of(context).textTheme;
+    final TextStyle keyStyle = (textTheme.labelMedium ?? const TextStyle())
+        .copyWith(
+          fontFamily: 'monospace',
+          fontWeight: FontWeight.w600,
+          color: scheme.onSurfaceVariant,
+        );
+    final TextStyle valueStyle = (textTheme.bodyMedium ?? const TextStyle())
+        .copyWith(fontFamily: 'monospace', height: 1.35);
+    final TextStyle absentStyle = (textTheme.bodySmall ?? const TextStyle())
+        .copyWith(
+          fontStyle: FontStyle.italic,
+          color: scheme.onSurfaceVariant.withValues(alpha: 0.85),
+        );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        for (int i = 0; i < params.length; i++) ...<Widget>[
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Expanded(
+                      child: SelectableText(params[i].name, style: keyStyle),
+                    ),
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
+                      tooltip: 'Copy value',
+                      icon: Icon(
+                        Icons.copy_outlined,
+                        size: 16,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                      onPressed: () => _copyValue(context, params[i]),
+                    ),
+                  ],
+                ),
+                if (params[i].value == null)
+                  Text('(no value)', style: absentStyle)
+                else if (params[i].value!.isEmpty)
+                  Text('(empty)', style: absentStyle)
+                else
+                  SelectableText(params[i].value!, style: valueStyle),
+              ],
+            ),
+          ),
+          if (i < params.length - 1)
+            Divider(
+              height: 1,
+              thickness: 1,
+              color: scheme.outlineVariant.withValues(alpha: 0.5),
+            ),
         ],
       ],
     );

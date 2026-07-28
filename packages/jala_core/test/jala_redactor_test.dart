@@ -134,4 +134,130 @@ void main() {
       );
     });
   });
+
+  group('redactUri', () {
+    final JalaRedactor redactor = JalaRedactor();
+
+    Uri redact(String url) => redactor.redactUri(Uri.parse(url));
+
+    test('returns the URI untouched when there is no query', () {
+      final Uri uri = Uri.parse('https://api.example.com/users');
+      expect(redact('https://api.example.com/users'), uri);
+    });
+
+    test('masks a token value and leaves the rest of the URL intact', () {
+      final Uri out = redact(
+        'https://api.example.com/me?access_token=ya29.secret&page=1',
+      );
+      expect(out.queryParameters['access_token'], JalaRedactor.mask);
+      expect(out.queryParameters['page'], '1');
+      expect(out.host, 'api.example.com');
+      expect(out.path, '/me');
+      expect(out.toString(), isNot(contains('ya29.secret')));
+    });
+
+    test('matches names ignoring case, dashes and underscores', () {
+      for (final String name in <String>[
+        'access_token',
+        'access-token',
+        'AccessToken',
+        'ACCESS_TOKEN',
+      ]) {
+        final Uri out = redact('https://x.dev/a?$name=s3cret');
+        expect(
+          out.queryParameters[name],
+          JalaRedactor.mask,
+          reason: '$name should be redacted',
+        );
+      }
+    });
+
+    test('masks presigned-URL signature parameters', () {
+      final Uri out = redact(
+        'https://s3.example.com/o?X-Amz-Credential=AKIA%2F20260728'
+        '&X-Amz-Signature=abc123&X-Amz-Expires=900',
+      );
+      expect(out.queryParameters['X-Amz-Signature'], JalaRedactor.mask);
+      expect(out.queryParameters['X-Amz-Credential'], JalaRedactor.mask);
+      expect(out.queryParameters['X-Amz-Expires'], '900');
+    });
+
+    test('leaves non-sensitive parameters alone', () {
+      final Uri out = redact(
+        'https://x.dev/s?page=1&sort_by=default&client_id=public-app&code=ID',
+      );
+      expect(out.queryParameters['client_id'], 'public-app');
+      expect(out.queryParameters['code'], 'ID');
+      expect(out.queryParameters['sort_by'], 'default');
+    });
+
+    test('preserves valueless params, empty values and repeated keys', () {
+      final Uri out = redact(
+        'https://x.dev/s?q&token=s3cret&tag=a&tag=b&min_price&empty=',
+      );
+      final List<String> segments = out.query.split('&');
+      expect(segments, contains('q'));
+      expect(segments, contains('min_price'));
+      expect(segments, contains('empty='));
+      expect(out.queryParametersAll['tag'], <String>['a', 'b']);
+      expect(out.queryParameters['token'], JalaRedactor.mask);
+    });
+
+    test('does not re-encode untouched parameters', () {
+      final Uri out = redact(
+        'https://x.dev/s?item_type%5B%5D=12&token=s3cret&z=a+b',
+      );
+      expect(out.query, contains('item_type%5B%5D=12'));
+      expect(out.queryParameters['z'], 'a b');
+    });
+
+    test('masked value round-trips so replay can detect it', () {
+      final Uri out = redact('https://x.dev/s?api_key=abc');
+      // Re-parsing the rendered URL must still yield exactly `mask`, which
+      // is what the replayers compare against when dropping secrets.
+      expect(
+        Uri.parse(out.toString()).queryParameters['api_key'],
+        JalaRedactor.mask,
+      );
+    });
+
+    test('is a no-op when no parameter matches (same instance)', () {
+      final Uri uri = Uri.parse('https://x.dev/s?page=1');
+      expect(identical(redactor.redactUri(uri), uri), isTrue);
+    });
+
+    test('stripMaskedQueryParams drops masked params, keeps the rest', () {
+      final Uri masked = redact('https://x.dev/s?token=s3cret&page=1');
+      final Uri stripped = JalaRedactor.stripMaskedQueryParams(masked);
+      expect(stripped.queryParameters.containsKey('token'), isFalse);
+      expect(stripped.queryParameters['page'], '1');
+    });
+
+    test('stripMaskedQueryParams leaves a clean URL when all params go', () {
+      final Uri masked = redact('https://x.dev/s?token=s3cret');
+      final Uri stripped = JalaRedactor.stripMaskedQueryParams(masked);
+      expect(stripped.toString(), 'https://x.dev/s');
+      expect(stripped.hasQuery, isFalse);
+    });
+
+    test('stripMaskedQueryParams is a no-op when nothing is masked', () {
+      final Uri uri = Uri.parse('https://x.dev/s?page=1&q');
+      expect(identical(JalaRedactor.stripMaskedQueryParams(uri), uri), isTrue);
+    });
+
+    test('honors a custom parameter set', () {
+      final JalaRedactor custom = JalaRedactor(
+        redactedQueryParams: const <String>{'tenant'},
+      );
+      final Uri out = custom.redactUri(
+        Uri.parse('https://x.dev/s?tenant=acme&token=s3cret'),
+      );
+      expect(out.queryParameters['tenant'], JalaRedactor.mask);
+      expect(
+        out.queryParameters['token'],
+        's3cret',
+        reason: 'a custom set replaces the defaults',
+      );
+    });
+  });
 }

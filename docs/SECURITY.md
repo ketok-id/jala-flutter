@@ -55,8 +55,29 @@ the UI.
   `bearer`, `client_id` (and common underscore/hyphen variants).
 - Form / query-style pairs: same key names as `key=value`.
 
-**Replay** drops headers whose stored value is the redaction mask — Jala never
-had the secret to resend.
+**Default redacted URL query parameters** (`JalaRedactor.redactUri`, applied
+by every adapter at capture time; matched ignoring case, `-` and `_`):
+
+- `password`, `passwd`, `pwd`
+- `secret`, `client_secret`
+- `token`, `access_token`, `refresh_token`, `id_token`
+- `auth_token`, `session_token`
+- `api_key`, `apikey`
+- `signature`, `sig`, `x_amz_signature`, `x_amz_security_token`,
+  `x_amz_credential` — a presigned URL's signature *is* the credential
+
+A token in a URL is as exposed as one in a header, and usually more so: the
+full URL appears on the call list, in the detail screen, and in every cURL /
+HAR / Dart-snippet export. Only the value is masked — scheme, host, path and
+every other parameter are preserved, as are repeated keys, valueless params
+(`?q&page=1`) and existing percent-encoding. Empty values (`?token=`) are
+left alone. Bare `key`, `code` and `client_id` are **not** redacted by
+default (too generic, and `client_id` is public by OAuth's design); pass
+`redactedQueryParams` to add them.
+
+**Replay** drops headers *and* query parameters whose stored value is the
+redaction mask — Jala never had the secret to resend, and sending the mask
+would issue a knowingly wrong credential.
 
 ### Size limits
 

@@ -18,7 +18,7 @@ Flutter (CLI tooling, server-side log tooling, etc.) as well as inside it.
 >
 > **Apps:** [docs/ADOPTION.md](../../docs/ADOPTION.md). **0.x policy:**
 > [docs/COMPAT.md](../../docs/COMPAT.md). Lockstep with other Jala packages
-> at the same `0.6.x`.
+> at the same `0.7.x`.
 
 ## Main classes
 

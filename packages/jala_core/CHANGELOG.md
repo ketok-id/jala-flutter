@@ -1,3 +1,18 @@
+## 0.7.0
+
+- Redaction now covers URLs: `JalaRedactor.redactUri` masks the values of
+  sensitive query parameters (`defaultRedactedQueryParams` — the
+  `defaultFormSecretValues` name list plus presigned-URL `signature` /
+  `X-Amz-*` params), configurable via the new `redactedQueryParams`
+  constructor argument. A token in a URL is as sensitive as one in a header
+  and more exposed, since the full URL appears on the call list, in the
+  detail screen, and in every cURL / HAR / Dart-snippet export.
+  The raw query is rewritten segment by segment, so repeated keys,
+  valueless params (`?q&page=1`) and existing percent-encoding survive
+  untouched. Empty values (`?token=`) are left alone.
+- `JalaRedactor.stripMaskedQueryParams` removes masked parameters from a
+  URL, for replayers that must not resend `••••••` as a credential.
+
 ## 0.6.0
 
 - Call diff model: `JalaJsonDiff.diff` (structural recursive `DiffNode` —

@@ -68,7 +68,10 @@ class JalaWebSocketChannel extends StreamChannelMixin<dynamic>
         WsConnectEvent(
           connectionId: connectionId,
           timestamp: DateTime.now(),
-          uri: effectiveUri,
+          // A `?token=` on the handshake URL is the usual way WebSocket
+          // auth is carried, so it needs the same capture-time masking as
+          // an HTTP query string.
+          uri: binding.config.redactor.redactUri(effectiveUri),
         ),
       );
     } catch (_) {

@@ -1,3 +1,10 @@
+## 0.7.0
+
+- The captured handshake URL goes through `JalaRedactor.redactUri`. A
+  `?token=` on the handshake URL is the usual way WebSocket auth is
+  carried, so it now gets the same capture-time masking as an HTTP query
+  string.
+
 ## 0.6.0
 
 - Lockstep release with jala_core 0.6.0 (call diff + import codecs).

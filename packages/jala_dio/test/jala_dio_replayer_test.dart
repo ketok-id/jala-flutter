@@ -80,6 +80,44 @@ void main() {
     );
 
     test(
+      'replay drops a query parameter whose value was masked rather than '
+      'resending the mask as if it were the real credential',
+      () async {
+        JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+        final FakeHttpClientAdapter adapter = FakeHttpClientAdapter(
+          (options) async => jsonResponseBody(<String, dynamic>{'ok': true}),
+        );
+        final Dio dio = Dio(BaseOptions(baseUrl: 'https://api.example.com'))
+          ..httpClientAdapter = adapter;
+        JalaDio.attach(dio);
+
+        await dio.get<dynamic>('/me?access_token=ya29.top-secret&page=1');
+        await pump();
+
+        final NetworkCallEntry original =
+            JalaBinding.instance.store.entries.single;
+        expect(original.uri.queryParameters['access_token'], JalaRedactor.mask);
+
+        await JalaBinding.instance.replayRegistry.replay(original);
+        await pump();
+
+        expect(adapter.requests, hasLength(2));
+        final Uri replayedUri = adapter.requests.last.uri;
+        expect(replayedUri.queryParameters.containsKey('access_token'), isFalse);
+        expect(
+          replayedUri.toString(),
+          isNot(contains('%E2%80%A2')),
+          reason: 'the mask must not be sent percent-encoded either',
+        );
+        expect(
+          replayedUri.queryParameters['page'],
+          '1',
+          reason: 'non-sensitive parameters must survive replay',
+        );
+      },
+    );
+
+    test(
       'replaying a JSON request body re-encodes it as decoded JSON',
       () async {
         JalaBinding.instance.initialize(config: JalaConfig(enabled: true));

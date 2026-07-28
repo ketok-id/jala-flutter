@@ -10,8 +10,10 @@ import 'jala_http_client.dart';
 ///
 /// Rebuilds a [http.Request] from a [NetworkCallEntry]: headers whose
 /// value was masked by redaction (`JalaRedactor.mask`) are dropped rather
-/// than resent (Jala never retained the real secret to resend), and the
-/// body is re-encoded from the entry's captured text where possible. The
+/// than resent (Jala never retained the real secret to resend), query
+/// parameters masked the same way are dropped from the URL for the same
+/// reason, and the body is re-encoded from the entry's captured text where
+/// possible. The
 /// rebuilt request is tagged with the [JalaHttpClient.replayOfHeader]
 /// header, so [JalaHttpClient.send] captures the replay as a fresh entry
 /// with `replayOf` set to the original call's id.
@@ -56,9 +58,11 @@ class JalaHttpReplayer implements JalaReplayer {
   }) {
     final Map<String, String> sourceHeaders =
         headers ?? entry.requestHeaders;
+    // An explicit override (edit-and-resend) is the developer retyping the
+    // real value, so it is used as given; only the stored URL is stripped.
     final http.Request request = http.Request(
       method ?? entry.method,
-      uri ?? entry.uri,
+      uri ?? JalaRedactor.stripMaskedQueryParams(entry.uri),
     )
       ..headers.addAll(<String, String>{
         for (final MapEntry<String, String> header in sourceHeaders.entries)

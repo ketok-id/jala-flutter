@@ -13,15 +13,15 @@ import), the comparison vs. alice/chucker_flutter/talker, and the roadmap.
 double-capture, Alice/Chucker migration, debug bootstrap, PR checklist).
 
 **Requirements:** Dart `^3.11`, Flutter `>=3.35`. Use **lockstep** versions
-with adapters (`jala` / `jala_dio` / … all `^0.6.0`). Compatibility notes:
+with adapters (`jala` / `jala_dio` / … all `^0.7.0`). Compatibility notes:
 [docs/COMPAT.md](../../docs/COMPAT.md).
 
 ## Quick start
 
 ```yaml
 dependencies:
-  jala: ^0.6.0
-  jala_dio: ^0.6.0   # if you use Dio
+  jala: ^0.7.0
+  jala_dio: ^0.7.0   # if you use Dio
   dio: ^5.0.0
 ```
 
@@ -48,9 +48,9 @@ below and the [repo README](../../README.md#production-safety).
 
 | Client | Package | Setup |
 |---|---|---|
-| `package:http` | [`jala_http`](../jala_http) `^0.6.0` | `JalaHttp.wrap(http.Client())` |
-| GraphQL (`gql_link`) | [`jala_graphql`](../jala_graphql) `^0.6.0` | `JalaGraphQLLink(endpoint: uri)` before terminating link |
-| WebSocket | [`jala_websocket`](../jala_websocket) `^0.6.0` | `JalaWebSocketChannel.wrap(channel, uri: uri)` |
+| `package:http` | [`jala_http`](../jala_http) `^0.7.0` | `JalaHttp.wrap(http.Client())` |
+| GraphQL (`gql_link`) | [`jala_graphql`](../jala_graphql) `^0.7.0` | `JalaGraphQLLink(endpoint: uri)` before terminating link |
+| WebSocket | [`jala_websocket`](../jala_websocket) `^0.7.0` | `JalaWebSocketChannel.wrap(channel, uri: uri)` |
 
 ### Inspector power tools (v0.5+)
 

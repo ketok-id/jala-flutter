@@ -127,40 +127,47 @@ class _JalaInspectorHostState extends State<_JalaInspectorHost>
       child: Material(
         color: Colors.black54,
         child: SafeArea(
-          child: Navigator(
-            key: _navKey,
-          onGenerateRoute: (RouteSettings settings) {
-            return PageRouteBuilder<void>(
-              settings: settings,
-              pageBuilder: (
-                BuildContext context,
-                Animation<double> animation,
-                Animation<double> secondaryAnimation,
-              ) {
-                return JalaThemeScope(
-                  controller: Jala.themeController,
-                  child: PopScope(
-                    canPop: true,
-                    onPopInvokedWithResult: (bool didPop, Object? result) {
-                      if (didPop) {
-                        // Root route popped — hide the host.
-                        widget.onClose();
-                      }
-                    },
-                    child: JalaInspectorScreen(onClose: widget.onClose),
-                  ),
+          // The theme scope must sit *above* the Navigator, not inside a
+          // route's pageBuilder: a pushed route (call detail, diff, mocks,
+          // composer, …) is a sibling overlay entry of the root route, so
+          // it cannot see an InheritedWidget introduced inside that route.
+          // Scoping per-route left every pushed screen falling back to
+          // JalaThemeScope's singleton — a different controller than the
+          // AppBar toggle mutates — so detail screens ignored the theme.
+          child: JalaThemeScope(
+            controller: Jala.themeController,
+            child: Navigator(
+              key: _navKey,
+              onGenerateRoute: (RouteSettings settings) {
+                return PageRouteBuilder<void>(
+                  settings: settings,
+                  pageBuilder: (
+                    BuildContext context,
+                    Animation<double> animation,
+                    Animation<double> secondaryAnimation,
+                  ) {
+                    return PopScope(
+                      canPop: true,
+                      onPopInvokedWithResult: (bool didPop, Object? result) {
+                        if (didPop) {
+                          // Root route popped — hide the host.
+                          widget.onClose();
+                        }
+                      },
+                      child: JalaInspectorScreen(onClose: widget.onClose),
+                    );
+                  },
+                  transitionsBuilder: (
+                    BuildContext context,
+                    Animation<double> animation,
+                    Animation<double> secondaryAnimation,
+                    Widget child,
+                  ) {
+                    return FadeTransition(opacity: animation, child: child);
+                  },
                 );
               },
-              transitionsBuilder: (
-                BuildContext context,
-                Animation<double> animation,
-                Animation<double> secondaryAnimation,
-                Widget child,
-              ) {
-                return FadeTransition(opacity: animation, child: child);
-              },
-            );
-          },
+            ),
           ),
         ),
       ),

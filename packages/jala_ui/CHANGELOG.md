@@ -1,3 +1,16 @@
+## 0.7.0
+
+- Call detail Request tab: new **Query parameters** section breaking the
+  URL's query string into decoded name/value rows — percent-decoded
+  (`item_type%5B%5D` reads as `item_type[]`), wire order and repeated keys
+  preserved, and params sent without a value shown as `(no value)` rather
+  than dropped. Previously query params were only visible mashed into the
+  single-line URL row.
+- `JalaThemeScope.sharedController` exposes the controller `of` falls back
+  to, so an embedder pushing Jala screens onto a host navigator can bind
+  them all to one theme mode; `JalaInspector.route()` now defaults to it.
+  Fixes pushed screens ignoring the AppBar theme toggle.
+
 ## 0.6.0
 
 - Call diff: `JalaCallDiffScreen` + `JalaJsonDiffView` (unified status /
