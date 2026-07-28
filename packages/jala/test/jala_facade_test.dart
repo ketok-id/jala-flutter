@@ -187,6 +187,48 @@ void main() {
     },
   );
 
+  testWidgets(
+    'a pushed detail screen follows the AppBar theme toggle '
+    '(regression: JalaThemeScope lived inside the root route, so pushed '
+    'routes saw no scope and fell back to a different controller)',
+    (WidgetTester tester) async {
+      EditableText.debugDeterministicCursor = true;
+      Jala.initialize(config: JalaConfig(enabled: true));
+      emitCompletedCall('a');
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: JalaOverlay(child: Scaffold(body: Text('host-app'))),
+        ),
+      );
+      await tester.pump();
+      Jala.open();
+      await tester.pumpAndSettle();
+
+      // Drive the real AppBar toggle: system -> light -> dark.
+      await tester.tap(find.byTooltip('Theme: system'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Theme: light'));
+      await tester.pumpAndSettle();
+      expect(Jala.themeController.mode, JalaThemeMode.dark);
+      expect(
+        Theme.of(tester.element(find.text('Jala'))).brightness,
+        Brightness.dark,
+        reason: 'the inspector list itself must honor the toggle',
+      );
+
+      await tester.tap(find.text('/users'));
+      await tester.pumpAndSettle();
+      expect(find.text('Overview'), findsOneWidget);
+
+      expect(
+        Theme.of(tester.element(find.text('Overview'))).brightness,
+        Brightness.dark,
+        reason: 'the pushed detail route must resolve the same controller '
+            'the toggle mutates, not JalaThemeScope\'s fallback',
+      );
+    },
+  );
+
   testWidgets('inspector root shows a close button that closes the overlay', (
     WidgetTester tester,
   ) async {

@@ -1,3 +1,13 @@
+## Unreleased
+
+- Fix: screens pushed from the inspector (call detail, diff, mocks, mock
+  editor, request composer, throttle, WebSocket detail) ignored the AppBar
+  theme toggle and always rendered in system brightness. `JalaThemeScope`
+  was built inside the root route's `pageBuilder`, and a pushed route is a
+  sibling overlay entry rather than a descendant of that route, so it saw
+  no scope and fell back to a different controller. The scope now sits
+  above the inspector's `Navigator`.
+
 ## 0.6.0
 
 - Lockstep with `jala_core` / `jala_ui` 0.6.0: call diff, virtualized JSON
