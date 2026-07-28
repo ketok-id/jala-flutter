@@ -248,7 +248,7 @@ class JalaGraphQLLink extends Link {
         callId: callId,
         timestamp: DateTime.now(),
         method: 'POST',
-        uri: endpoint ?? placeholderEndpoint,
+        uri: binding.config.redactor.redactUri(endpoint ?? placeholderEndpoint),
         headers: const <String, String>{},
         body: body,
         client: 'graphql',

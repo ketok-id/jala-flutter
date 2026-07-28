@@ -93,6 +93,36 @@ void main() {
       expect(fake.requests.single.headers['Authorization'], 'Bearer top-secret');
     });
 
+    test('redacts a token in the query string, but still sends it', () async {
+      JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+      final FakeHttpClient fake = FakeHttpClient(
+        (request) async => jsonStreamedResponse(<String, dynamic>{'ok': true}),
+      );
+      final JalaHttpClient client = JalaHttpClient(inner: fake);
+
+      await client.get(
+        Uri.parse('https://api.example.com/me?access_token=ya29.top-secret'
+            '&page=1'),
+      );
+      await pump();
+
+      final NetworkCallEntry entry = JalaBinding.instance.store.entries
+          .single;
+      expect(entry.uri.queryParameters['access_token'], JalaRedactor.mask);
+      expect(entry.uri.queryParameters['page'], '1');
+      expect(
+        entry.uri.toString(),
+        isNot(contains('top-secret')),
+        reason: 'the real token must never reach the store',
+      );
+
+      // Capture-time only: the request actually sent is untouched.
+      expect(
+        fake.requests.single.url.queryParameters['access_token'],
+        'ya29.top-secret',
+      );
+    });
+
     test(
       'captures a transport-level error and rethrows it unchanged',
       () async {

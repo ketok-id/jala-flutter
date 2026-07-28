@@ -122,6 +122,34 @@ void main() {
       );
     });
 
+    test('redacts a token in the query string, but still sends it', () async {
+      JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+      final harness = buildDio(
+        (options) async => jsonResponseBody(<String, dynamic>{'ok': true}),
+      );
+
+      await harness.dio.get<dynamic>(
+        '/me?access_token=ya29.top-secret&page=1',
+      );
+      await pump();
+
+      final NetworkCallEntry entry = JalaBinding.instance.store.entries.single;
+      expect(entry.uri.queryParameters['access_token'], JalaRedactor.mask);
+      expect(entry.uri.queryParameters['page'], '1');
+      expect(
+        entry.uri.toString(),
+        isNot(contains('top-secret')),
+        reason: 'the real token must never reach the store',
+      );
+
+      // Capture-time only: the request actually sent is untouched, and mock
+      // matching sees the real URL too.
+      expect(
+        harness.adapter.requests.single.uri.queryParameters['access_token'],
+        'ya29.top-secret',
+      );
+    });
+
     test('captures a 500 error response as status error with body', () async {
       JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
       final harness = buildDio(

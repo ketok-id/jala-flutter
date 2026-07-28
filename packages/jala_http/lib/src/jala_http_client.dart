@@ -125,7 +125,9 @@ class JalaHttpClient extends http.BaseClient {
           callId: callId,
           timestamp: DateTime.now(),
           method: request.method.toUpperCase(),
-          uri: request.url,
+          // Redacted here, not on `request`: the outgoing call must still
+          // carry the real URL.
+          uri: binding.config.redactor.redactUri(request.url),
           headers: headers,
           body: bodyCapture.body,
           size: bodyCapture.size,

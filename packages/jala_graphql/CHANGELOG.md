@@ -1,3 +1,8 @@
+## Unreleased
+
+- The captured endpoint URL goes through `JalaRedactor.redactUri`, masking
+  sensitive query-parameter values on endpoints that carry auth in the URL.
+
 ## 0.6.0
 
 - Lockstep release with jala_core 0.6.0 (call diff + import codecs).

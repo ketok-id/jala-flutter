@@ -289,7 +289,9 @@ class JalaDioInterceptor extends Interceptor {
         callId: options.extra[idExtraKey] as String,
         timestamp: DateTime.now(),
         method: options.method.toUpperCase(),
-        uri: options.uri,
+        // Redacted here, not on `options`: mock matching and the outgoing
+        // request must still see the real URL.
+        uri: binding.config.redactor.redactUri(options.uri),
         headers: headers,
         body: capture.body,
         size: capture.size,

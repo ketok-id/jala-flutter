@@ -9,8 +9,10 @@ import 'jala_dio_interceptor.dart';
 ///
 /// Rebuilds [RequestOptions] from a [NetworkCallEntry]: headers whose value
 /// was masked by redaction (`JalaRedactor.mask`) are dropped rather than
-/// resent (Jala never retained the real secret to resend), and the body is
-/// re-encoded from the entry's captured text where possible. The rebuilt
+/// resent (Jala never retained the real secret to resend), query parameters
+/// masked the same way are dropped from the URL for the same reason, and
+/// the body is re-encoded from the entry's captured text where possible.
+/// The rebuilt
 /// request is tagged with `extra[JalaDioInterceptor.replayOfExtraKey]`, so
 /// [JalaDioInterceptor] captures the replay as a fresh entry with
 /// `replayOf` set to the original call's id.
@@ -72,9 +74,13 @@ class JalaDioReplayer implements JalaReplayer {
     final dynamic data = bodyOverride != null
         ? _dataFromText(bodyOverride)
         : _rebuildData(entry.requestBody);
+    // An explicit override (edit-and-resend) is the developer retyping the
+    // real value, so it is used as given; only the stored URL is stripped.
+    final Uri effectiveUri =
+        uri ?? JalaRedactor.stripMaskedQueryParams(entry.uri);
     return RequestOptions(
       method: method ?? entry.method,
-      path: (uri ?? entry.uri).toString(),
+      path: effectiveUri.toString(),
       headers: rebuiltHeaders,
       data: data,
       extra: <String, dynamic>{JalaDioInterceptor.replayOfExtraKey: entry.id},
