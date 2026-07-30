@@ -1,25 +1,33 @@
 # jala_http
 
-`package:http` integration for Jala, the in-app Flutter network inspector:
-captures every request, response, and error made through a `http.Client`,
-and supports one-tap in-app replay and full network throttling (latency,
-drop, upload + download pacing).
+**`package:http`** adapter for Jala: captures every request / response /
+error through an `http.Client`, supports one-tap **replay**, and full
+network **throttling** (latency, drop, upload + download pacing).
 
-See the [repo README](../../README.md) for what Jala is and why (replay,
-filter grammar, redaction-by-default) and the [`jala`](../jala) package
-for the facade that wires this up in an app.
+> [What is Jala?](../../README.md) · [Package map](../../docs/packages.md) ·
+> [Doc index](../../docs/README.md)
 
-**Lockstep** with `jala` / `jala_core` `0.7.x`. Brownfield:
-[docs/ADOPTION.md](../../docs/ADOPTION.md).
+| | |
+|---|---|
+| **Audience** | Apps using `package:http` |
+| **Depends on** | `jala_core`, `http` |
+| **Lockstep** | `0.7.x` — [COMPAT.md](../../docs/COMPAT.md) |
+| **Requires** | Dart `^3.11` |
+
+Wire the facade with [`jala`](../jala). Brownfield:
+[ADOPTION.md](../../docs/ADOPTION.md).
+
+---
 
 ## Install
 
 ```yaml
 dependencies:
-  jala_http: ^0.7.0   # requires jala_core ^0.7.0
+  jala: ^0.7.0
+  jala_http: ^0.7.0
 ```
 
-## Wrap
+## Setup
 
 ```dart
 import 'package:http/http.dart' as http;
@@ -29,69 +37,63 @@ final client = JalaHttp.wrap(http.Client());
 await client.get(Uri.parse('https://example.com'));
 ```
 
-`JalaHttp.wrap` reads `JalaBinding.instance` (wired up by
-`Jala.initialize()` from the `jala` facade package), wraps the given
-`http.Client` (a fresh one when omitted) in a [`JalaHttpClient`], and
-registers a `JalaHttpReplayer` for it so the inspector UI's Replay action
-can re-issue calls made through the returned client.
+`JalaHttp.wrap` wraps the client (or a fresh one if omitted) and registers
+a `JalaHttpReplayer` for the inspector Replay action.
 
-Plain `JalaHttpClient(inner: http.Client())` also works and captures calls
-identically — it just skips replay registration, so the Replay button
-stays disabled for calls made through that client.
+### Capture only (no replay)
 
-## The stream tee
+```dart
+final client = JalaHttpClient(inner: http.Client());
+```
 
-`http.Client.send()` returns a `StreamedResponse` whose body is a stream —
-`JalaHttpClient` must capture a preview of it without ever preventing the
-caller from receiving the complete, original body. It does this with a
-tee: every chunk from the real response stream is forwarded to the caller
-unmodified, while a separate buffer (capped at `maxBodyBytes`) and byte
-counter track a preview and the true total size for the inspector. A
-download larger than the cap is delivered to your app in full; only the
-inspector's preview is truncated.
+---
 
-## Replay
+## Public API
 
-Replaying a captured call rebuilds a `http.Request` and re-issues it
-through the same wrapped client, so it's captured as a fresh entry with
-`replayOf` set to the original call's id. Headers that were redacted at
-capture time (e.g. `Authorization`) are never resent — Jala never retains
-the real secret to resend in the first place.
+| API | Role |
+|---|---|
+| `JalaHttp.wrap([client])` | Wrap + register replayer |
+| `JalaHttpClient` | Capture-only client |
+| `JalaHttpReplayer` | Re-issue stored calls through the wrapped client |
 
-## Throttling
+---
 
-`JalaHttpClient.send` consults `JalaBinding.instance.throttleRegistry`
-(configured from the inspector UI or directly via
-`JalaThrottleRegistry.setActive`) whenever a profile is active and the
-request's host matches the profile's host pattern:
+## Behavior notes
 
-- A 100% drop-rate profile (e.g. the `offline` preset) throws
-  `http.ClientException` **before the request ever reaches your wrapped
-  client** — captured as a normal error entry, tagged
-  `throttledBy: <profileId>`.
-- Otherwise the profile's latency (± jitter) delays the request before
-  it's forwarded.
-- Bandwidth pacing is applied in **both** directions — unlike `jala_dio`,
-  which can only pace `ResponseType.stream` responses, `JalaHttpClient`
-  sees every request/response byte, so it gets the complete treatment:
-  `downloadBytesPerSec` delays each chunk of the response stream tee (see
-  above), and `uploadBytesPerSec` delays each chunk of the finalized
-  request byte stream.
+### Stream tee
 
-No profile active (the common case) costs a cheap null/host-pattern check
-on the existing hot path — no measurable overhead.
+`send()` returns a `StreamedResponse`. Jala tees the body: every chunk is
+forwarded to the app **unmodified**, while a separate buffer (capped at
+`maxBodyBytes`) holds an inspector preview. Large downloads are delivered
+in full to the app; only the preview truncates.
 
-## Production safety
+### Replay
 
-- `send()` checks `JalaBinding.instance.isEnabled` first and forwards
-  immediately when Jala is disabled — zero capture work on the hot
-  networking path, and safe to leave `JalaHttpClient` wrapped in release
-  builds.
-- A bug in Jala's own capture logic can never break your networking:
-  capture is wrapped in `try`/`catch` throughout, and the request/response
-  is always forwarded exactly once regardless of whether capture
-  succeeded.
-- Sensitive header values (e.g. `Authorization`, `Cookie`) are redacted
-  **at capture time**, before anything enters the in-memory store, and
-  response bodies are captured through a bounded stream tee (see above) so
-  Jala stays safe against large-body production traffic.
+Rebuilds `http.Request` through the same wrapped client; new entry has
+`replayOf`. Masked headers / query params are not resent.
+
+**Last replayer wins** if you also use `JalaDio.attach` — attach primary
+client last ([ADOPTION.md](../../docs/ADOPTION.md)).
+
+### Throttling
+
+When a profile is active and the host matches:
+
+- **Drop** → `ClientException` before the inner client  
+- **Latency** before forward  
+- **Bandwidth** in **both** directions (unlike Dio’s stream-only download
+  pacing) — request and response streams are paced when configured  
+
+### Production safety
+
+- No-op when `!isEnabled`
+- Capture never blocks or replaces the real request/response path
+- Redaction + body caps — [CONFIG.md](../../docs/CONFIG.md)
+
+---
+
+## See also
+
+- [docs/TROUBLESHOOTING.md](../../docs/TROUBLESHOOTING.md)  
+- [docs/CONFIG.md](../../docs/CONFIG.md) · [docs/SECURITY.md](../../docs/SECURITY.md)  
+- [CHANGELOG.md](CHANGELOG.md)

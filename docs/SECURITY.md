@@ -5,7 +5,7 @@ the host app process; it is not a perimeter firewall, vault, or remote
 security product.
 
 This document describes defaults, residual risks, and recommended
-configuration. Package version context: **0.6.0+**.
+configuration. Package version context: **0.7.0+**.
 
 ---
 
@@ -191,6 +191,9 @@ data.
 
 ## Related docs
 
+- [README.md](README.md) — documentation index  
+- [CONFIG.md](CONFIG.md) — `JalaConfig` / `JalaRedactor` recipes (including debug unmask)  
+- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — missing or masked tokens  
 - [ADOPTION.md](ADOPTION.md) — brownfield install + PR checklist  
 - [COMPAT.md](COMPAT.md) — version lockstep  
 - Package READMEs under `packages/*`

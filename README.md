@@ -1,33 +1,38 @@
 # Jala
 
-**[Try the inspector in your browser ->](https://ketok-id.github.io/jala-flutter/)**
+**[Try the inspector in your browser →](https://ketok-id.github.io/jala-flutter/)**
 
 **Jala** ("net" in Indonesian) is an in-app network inspector for Flutter —
 a Chrome DevTools Network tab you drop into your own app. A product of
 [Ketok](https://ketok.id).
 
+**Docs:** [docs/README.md](docs/README.md) · **Lockstep:** `0.7.x` ·
+**Requires:** Dart `^3.11`, Flutter `>=3.35`
+
+---
+
 ## Why not Alice / Chucker / talker?
 
-Jala exists because the incumbents each miss something concrete:
+| Capability | Jala | alice | chucker_flutter | talker |
+|---|:---:|:---:|:---:|:---:|
+| DevTools-style filter grammar | Yes | No | No | No |
+| Copy as cURL | Yes | No | Yes | No |
+| Copy as Dart/Dio snippet | Yes | No | No | No |
+| One-tap in-app replay | Yes | No | No | No |
+| HAR 1.2 export | Yes | No | Yes | No |
+| Redaction on by default | Yes | Partial | Yes | No |
+| True no-op when disabled | Yes | Partial | Yes | N/A |
+| Desktop + web | Yes | Mobile-only | Android-only | Yes |
+| `package:http` | Yes | Yes | Yes | Yes |
+| GraphQL-aware capture | Yes | No | Partial | No |
+| WebSocket frames | Yes | No | No | No |
+| In-app throttling | Yes | No | No | No |
+| Session export / import | Yes | No | No | No |
 
-- **Replay.** Jala can re-issue a captured request through the *live* Dio
-  instance with one tap. No Flutter inspector package does this.
-- **A real filter grammar.** `method:get status:4xx larger-than:10k
-  slower-than:500ms is:replay -host:*.cdn.com` — DevTools-style, not just a
-  text search box.
-- **Copy as cURL *and* as a Dart/Dio snippet.** Alice has neither; the Dart
-  snippet is unique to Jala.
-- **Redaction on by default.** `Authorization`, `Cookie`, `X-Api-Key`, etc.
-  are masked **at capture time** — the real values never enter the
-  in-memory store, so there's nothing to leak even if a screenshot or crash
-  report captures the inspector.
-- **A true no-op when disabled.** `enabled` defaults to `kDebugMode`; when
-  off, `JalaOverlay` returns your widget tree unchanged and the interceptor
-  forwards without doing any capture work — safe to leave wired up in a
-  release build.
-- **All six platforms.** Android, iOS, macOS, Windows, Linux, and web —
-  verified locally on web, a real Android 13 device, and the iOS 26.5
-  simulator.
+talker is a general logger, not a network inspector UI — included because
+teams often reach for it in the same “see what the app is doing” spot.
+
+---
 
 ## Quick start
 
@@ -38,9 +43,6 @@ dependencies:
   dio: ^5.9.0
 ```
 
-Requires **Dart ^3.11** and **Flutter >=3.35**. Keep Jala packages on the
-same lockstep version (`0.7.x`).
-
 ```dart
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -50,65 +52,43 @@ import 'package:jala_dio/jala_dio.dart';
 void main() {
   Jala.initialize(); // enabled: kDebugMode
   final dio = Dio();
+  // Put auth interceptors *before* attach so headers are captured:
+  // dio.interceptors.add(AuthInterceptor());
   JalaDio.attach(dio);
   runApp(JalaOverlay(child: MyApp(dio: dio)));
 }
 ```
 
-Tap the floating bubble (or call `Jala.open()`) to inspect traffic.
+Tap the floating bubble (or `Jala.open()`) to inspect traffic.
 
-**Adding Jala to an existing app?** See
-[**docs/ADOPTION.md**](docs/ADOPTION.md) — brownfield install, multi-Dio,
-GraphQL double-capture, Alice/Chucker migration, debug-only bootstrap,
-flavors, and a production-safety PR checklist.
+| Stack | Adapter |
+|---|---|
+| `package:http` | [`jala_http`](packages/jala_http) → `JalaHttp.wrap(client)` |
+| GraphQL (`gql_link`) | [`jala_graphql`](packages/jala_graphql) → link before terminator |
+| WebSocket | [`jala_websocket`](packages/jala_websocket) → `JalaWebSocketChannel.wrap` |
 
-Using `package:http` instead of Dio? Install
-[`jala_http`](packages/jala_http) (`jala_http: ^0.7.0`) and call
-`JalaHttp.wrap(http.Client())` in place of `JalaDio.attach(dio)` above.
+**Existing app?** [docs/ADOPTION.md](docs/ADOPTION.md)  
+**Which package?** [docs/packages.md](docs/packages.md)  
+**Config / tokens?** [docs/CONFIG.md](docs/CONFIG.md)  
+**Nothing showing?** [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
 
-Using GraphQL? Install [`jala_graphql`](packages/jala_graphql)
-(`jala_graphql: ^0.7.0`) and insert `JalaGraphQLLink(endpoint: uri)` before
-your terminating `gql_link` (works with `graphql_flutter` and `ferry`).
+---
 
-Using WebSockets? Install [`jala_websocket`](packages/jala_websocket)
-(`jala_websocket: ^0.7.0`) and wrap your channel with
-`JalaWebSocketChannel.wrap(channel, uri: uri)`.
+## Features
 
-**v0.2 capture extras:** image responses (`image/*` within the body cap)
-preview inline in the inspector; multipart uploads show a parts table
-(name / filename / content-type / size); pending calls can show determinate
-transfer progress when the adapter can observe the stream.
+- **Capture** HTTP (Dio / `http`), GraphQL operations + subscriptions, WebSockets  
+- **Filter** with DevTools-style grammar (`method:get status:4xx is:replay …`)  
+- **Inspect** headers (sensitive collapsed), decoded query params, bodies,
+  images, multipart, progress  
+- **Export** cURL, Dart/Dio snippet, HAR; **import** cURL, HAR, session JSON  
+- **Replay** / mock / edit-and-resend on live clients  
+- **Throttle** Slow 3G / Fast 3G / Flaky / Offline (+ custom)  
+- **Diff** two calls (status, headers, JSON bodies)  
+- **Safety** — redaction at capture, no-op when disabled, body caps  
 
-**v0.3 mocking:** create rules from a captured call (**Mock this**), serve
-canned responses / failures / delays without hitting the network, filter
-with `is:mocked`, and **Edit & resend** a modified request. Optional
-`Jala.enableMockPersistence(dir)` keeps rules across restarts.
+Version history and upcoming work: [docs/ROADMAP.md](docs/ROADMAP.md).
 
-**v0.4 GraphQL + WebSocket:** GraphQL operations show their `operationName`
-with a `QUERY`/`MUTATION` chip and a Query/Variables detail pane; WebSocket
-connections appear in the same list with a live status and frame timeline
-you can drill into. Filter with `op:<name>`, `is:graphql`, `is:ws`.
-
-**v0.5 power tools:** in-app network throttling (Slow 3G / Fast 3G / Flaky /
-Offline + custom profiles, host glob), session export/import via a
-versioned JSON codec (clipboard paste in the inspector — no file-picker
-dependency in `jala_ui`), and a GraphQL subscription payload timeline.
-Filter with `is:subscription`.
-
-**v0.6 inspect deeper:** structural **call diff** (status / headers / JSON
-bodies), **virtualized JSON tree** for large payloads, and **cURL + HAR
-import** (cURL → request composer; HAR → imported session). Use inspector
-overflow **Import…**, call-detail **Compare with…**, or the example QA
-rig sample buttons.
-
-**v0.7 read the URL:** the call detail's Request tab now breaks the query
-string into a decoded **Query parameters** table — `item_type%5B%5D` reads
-as `item_type[]`, repeated keys and wire order are kept, and a parameter
-sent with no value shows as `(no value)` instead of disappearing. Sensitive
-query values (`?access_token=…`) are now **redacted at capture time** like
-headers, so the real token never reaches the store or any cURL/HAR export;
-replay drops masked parameters rather than resending them. See
-[docs/SECURITY.md](docs/SECURITY.md) for the default parameter list.
+---
 
 ## Screenshots
 
@@ -129,116 +109,68 @@ replay drops masked parameters rather than resending them. See
 </tr>
 </table>
 
-## Comparison
-
-Only claims verified against each package's actual behavior:
-
-| Capability | Jala | alice | chucker_flutter | talker |
-|---|:---:|:---:|:---:|:---:|
-| DevTools-style filter grammar | Yes | No | No | No |
-| Copy as cURL | Yes | No | Yes | No |
-| Copy as Dart/Dio snippet | Yes | No | No | No |
-| One-tap in-app replay | Yes | No | No | No |
-| HAR 1.2 export | Yes | No | Yes | No |
-| Redaction on by default | Yes | Partial | Yes | No |
-| True no-op when disabled | Yes | Partial | Yes | N/A |
-| Desktop + web support | Yes | No (mobile-only) | No (Android-only) | Yes |
-| `package:http` client support | Yes | Yes | Yes | Yes |
-| GraphQL operation-aware capture | Yes | No | Partial — operation names only | No |
-| WebSocket frame inspection | Yes | No | No | No |
-| In-app network throttling | Yes | No | No | No |
-| Session export / import | Yes | No | No | No |
-| What it is | Network inspector | Network inspector | Network inspector | General-purpose logger |
-
-talker is a structured logging/error-tracking library, not a network
-inspector with a UI of this kind — included because it's often reached for
-in the same "see what my app is doing" spot, not because it's a
-like-for-like competitor to the other three.
+---
 
 ## Packages
 
-| Package | Description |
-|---|---|
-| [`jala`](packages/jala) | Facade — `Jala.initialize()`, `JalaOverlay`, open/close. Install this in your app. |
-| [`jala_core`](packages/jala_core) | Pure Dart: models, event bus, ring-buffer store, redaction, filter grammar, exporters. Zero Flutter dependency. |
-| [`jala_dio`](packages/jala_dio) | Dio interceptor + one-tap replay. |
-| [`jala_http`](packages/jala_http) | `package:http` client wrapper + one-tap replay (stream tee). |
-| [`jala_graphql`](packages/jala_graphql) | `gql_link` link — operation-aware GraphQL capture (name, query, variables, response); works with `graphql_flutter` and `ferry`. |
-| [`jala_websocket`](packages/jala_websocket) | `WebSocketChannel` wrapper — connection + frame-timeline capture (direction, size, preview). |
-| [`jala_ui`](packages/jala_ui) | Inspector screens, JSON viewer, overlay bubble — own theme, own navigator. |
+Install **`jala` + one adapter** for most apps. Full map and layering:
+[docs/packages.md](docs/packages.md).
 
-```
-examples/
-  jala_example/  Manual QA rig (GET/POST/404/500/slow/redirect/image/
-                   large body/gzip/multipart/cancel/error; Dio + http;
-                   WebSocket echo + GraphQL query under "realtime";
-                   Slow 3G + Large + session round-trip under "power tools")
-```
+| Package | Role |
+|---|---|
+| [`jala`](packages/jala) | Facade — `initialize`, `JalaOverlay`, open/close |
+| [`jala_core`](packages/jala_core) | Pure Dart engine (models, store, redaction, filter, export) |
+| [`jala_ui`](packages/jala_ui) | Inspector screens (usually via `jala`) |
+| [`jala_dio`](packages/jala_dio) | Dio interceptor + replay |
+| [`jala_http`](packages/jala_http) | `package:http` wrap + replay |
+| [`jala_graphql`](packages/jala_graphql) | `gql_link` GraphQL capture |
+| [`jala_websocket`](packages/jala_websocket) | WebSocket channel wrap |
+
+QA rig / live demo source: [`examples/jala_example`](examples/jala_example).
+
+---
 
 ## Filter grammar
 
 | Term | Matches |
 |---|---|
-| `method:get` / `m:get` | HTTP method; comma list allowed (`m:get,post`) |
-| `status:404` / `s:404` | Exact status code |
-| `status:4xx` | Status class; also `s:error` (>= 400 or errored/cancelled) and `s:pending` |
-| `host:api.example.com` / `d:` | Host; `*` wildcard allowed (`host:*.example.com`) |
+| `method:get` / `m:get` | HTTP method; comma list (`m:get,post`) |
+| `status:404` / `s:404` | Exact status |
+| `status:4xx` | Class; also `s:error`, `s:pending` |
+| `host:api.example.com` / `d:` | Host; `*` wildcard |
 | `path:/users` | Path substring |
 | `type:json` / `t:json` | Response content-type substring |
-| `larger-than:10k` | Response size greater than n bytes (`k`/`m` suffixes) |
-| `slower-than:500` | Duration greater than n milliseconds |
-| `is:replay` | Entry is a replay of another call |
-| `body:token` | Substring of captured request or response body text |
-| `op:<name>` | GraphQL `operationName`; `*` wildcard allowed (`op:Get*`) |
-| `is:graphql` | Entry carries GraphQL operation metadata |
-| `is:subscription` | GraphQL `operationType == subscription` |
-| `is:ws` | WebSocket connection entries (merged list only) |
-| bare word | Substring of method + full URL |
-| `-<term>` | Negates that term |
+| `larger-than:10k` | Response size (`k`/`m`) |
+| `slower-than:500` | Duration (ms) |
+| `is:replay` / `is:mocked` | Flags |
+| `is:graphql` / `is:subscription` / `is:ws` | Protocol |
+| `op:<name>` | GraphQL operation name |
+| `body:token` | Body substring |
+| bare word | Method + URL substring |
+| `-<term>` | Negation |
 
-Terms are space-separated and combined with AND semantics; malformed
-structured terms degrade to free text instead of erroring.
+Canonical copy also lives in [`jala_core` README](packages/jala_core/README.md#filter-grammar).
+
+---
 
 ## Production safety
 
-- **Off by default in release** — `Jala.initialize()` defaults `enabled`
-  to `kDebugMode`.
-- **True no-op when disabled** — `JalaOverlay` returns your child
-  unchanged; interceptor hooks check the enabled flag first and forward
-  immediately, with no capture work on the hot networking path.
-- **Redaction at capture time** — sensitive headers are masked before an
-  entry ever reaches the store; there's no "reveal" path because the real
-  value was never kept.
-- **Hard body size caps** — 512 KB per captured body by default, avoiding
-  the large-body OOM class of bug.
-- **Never breaks your networking** — capture logic is wrapped so a bug in
-  Jala can't affect requests, responses, or errors flowing through your
-  app.
-- **Own theme, own navigator** — the inspector doesn't inherit your app's
-  `Theme` and doesn't touch your navigation stack; Android's back button is
-  handled explicitly so it closes the inspector instead of leaking through
-  to your app.
+- **Off by default in release** — `enabled: kDebugMode`
+- **True no-op when disabled** — overlay and adapters skip work
+- **Redaction at capture** — no reveal path; query tokens masked since 0.7
+- **Hard body caps** — 512 KB default
+- **Never breaks host networking** — capture is isolated with `try`/`catch`
+- **Own theme & navigator** — inspector does not inherit host `Theme`
 
-## Roadmap
+Details: [docs/SECURITY.md](docs/SECURITY.md) · [docs/CONFIG.md](docs/CONFIG.md).
 
-- **v0.2** — `package:http` adapter, image preview, multipart detail,
-  upload/download progress.
-- **v0.3** — rule-based mocking + edit-and-resend.
-- **v0.4** — `jala_graphql` + `jala_websocket`: GraphQL operation-aware
-  capture, WebSocket connection + frame-timeline capture, merged
-  inspector list.
-- **v0.5** — network throttling, session export/import, GraphQL
-  subscription payload timeline.
-- **v0.6** — call diff, virtualized JSON tree, cURL + HAR import.
-- **v0.7** (this release) — decoded query-parameter table in call detail,
-  capture-time URL redaction (see [docs/ROADMAP.md](docs/ROADMAP.md)).
-- **Later** — storage explorers, desktop companion, `jala_grpc`.
+---
 
 ## Develop
 
 ```bash
 flutter pub get
-dart analyze
+dart analyze --fatal-infos
 (cd packages/jala_core && dart test)
 (cd packages/jala_dio && dart test)
 (cd packages/jala_http && dart test)
@@ -247,24 +179,28 @@ dart analyze
 (cd packages/jala_ui && flutter test)
 (cd packages/jala && flutter test)
 (cd examples/jala_example && flutter test)
-# optional store-only smokes (macOS/iOS/Android host):
-# (cd examples/jala_example && flutter test integration_test/track_e_smoke_test.dart)
 cd examples/jala_example && flutter run -d macos
 ```
 
+More: root `CLAUDE.md` / [docs/overview.md](docs/overview.md).
+
+---
+
 ## Docs
+
+**Index:** [docs/README.md](docs/README.md)
 
 | Doc | Audience |
 |---|---|
-| [docs/ADOPTION.md](docs/ADOPTION.md) | Existing apps — install, migrate, multi-client, team QA |
-| [docs/SECURITY.md](docs/SECURITY.md) | Defaults, redaction, session export, residual risks |
-| [docs/COMPAT.md](docs/COMPAT.md) | 0.x lockstep / breaking-change policy |
-| [docs/ROADMAP.md](docs/ROADMAP.md) | What shipped and what’s next |
+| [docs/ADOPTION.md](docs/ADOPTION.md) | Existing apps — install, migrate, multi-client |
+| [docs/packages.md](docs/packages.md) | Which package; dependency layering |
+| [docs/overview.md](docs/overview.md) | Architecture, capture flow, invariants |
+| [docs/CONFIG.md](docs/CONFIG.md) | `JalaConfig` / `JalaRedactor` |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | No entries, missing token, replay |
+| [docs/SECURITY.md](docs/SECURITY.md) | Threat model, redaction, exports |
+| [docs/COMPAT.md](docs/COMPAT.md) | 0.x lockstep policy |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | Shipped and next |
 | [docs/SPEC-v0.1.md](docs/SPEC-v0.1.md) | Original v0.1 binding contract |
-
-## Spec
-
-Binding implementation contract: [docs/SPEC-v0.1.md](docs/SPEC-v0.1.md).
 
 ## License
 

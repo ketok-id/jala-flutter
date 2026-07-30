@@ -1,29 +1,35 @@
 # jala
 
-Facade package for Jala, the in-app Flutter network inspector —
+Facade for **Jala**, the in-app Flutter network inspector —
 `Jala.initialize()` plus `JalaOverlay` wire up capture, storage, and the
 inspector UI in two lines.
 
-See the [repo README](../../README.md) for the full pitch (replay, filter
-grammar, redaction-by-default, throttling, session share, call diff,
-import), the comparison vs. alice/chucker_flutter/talker, and the roadmap.
+> [What is Jala?](../../README.md) · [Package map](../../docs/packages.md) ·
+> [Doc index](../../docs/README.md)
 
-**Existing app?** Prefer the brownfield guide:
-[docs/ADOPTION.md](../../docs/ADOPTION.md) (multi-Dio, GraphQL
-double-capture, Alice/Chucker migration, debug bootstrap, PR checklist).
+| | |
+|---|---|
+| **Audience** | Flutter apps (install this, not `jala_ui` alone) |
+| **Depends on** | `jala_ui`, `jala_core` |
+| **Lockstep** | `0.7.x` with all Jala packages — [COMPAT.md](../../docs/COMPAT.md) |
+| **Requires** | Dart `^3.11`, Flutter `>=3.35` |
 
-**Requirements:** Dart `^3.11`, Flutter `>=3.35`. Use **lockstep** versions
-with adapters (`jala` / `jala_dio` / … all `^0.7.0`). Compatibility notes:
-[docs/COMPAT.md](../../docs/COMPAT.md).
+**Existing app?** [ADOPTION.md](../../docs/ADOPTION.md) ·
+**Config / redaction:** [CONFIG.md](../../docs/CONFIG.md) ·
+**Missing traffic:** [TROUBLESHOOTING.md](../../docs/TROUBLESHOOTING.md)
 
-## Quick start
+---
+
+## Install
 
 ```yaml
 dependencies:
   jala: ^0.7.0
-  jala_dio: ^0.7.0   # if you use Dio
+  jala_dio: ^0.7.0   # or jala_http / jala_graphql / jala_websocket
   dio: ^5.0.0
 ```
+
+## Setup
 
 ```dart
 import 'package:dio/dio.dart';
@@ -40,54 +46,61 @@ void main() {
 ```
 
 Tap the floating **J** bubble (or call `Jala.open()`) to inspect traffic.
-`enabled` defaults to `kDebugMode`, and `JalaOverlay` returns `child`
-unchanged when disabled — see [Production safety](#production-safety)
-below and the [repo README](../../README.md#production-safety).
+When disabled, `JalaOverlay` returns `child` unchanged.
 
 ### Other adapters
 
 | Client | Package | Setup |
 |---|---|---|
-| `package:http` | [`jala_http`](../jala_http) `^0.7.0` | `JalaHttp.wrap(http.Client())` |
-| GraphQL (`gql_link`) | [`jala_graphql`](../jala_graphql) `^0.7.0` | `JalaGraphQLLink(endpoint: uri)` before terminating link |
-| WebSocket | [`jala_websocket`](../jala_websocket) `^0.7.0` | `JalaWebSocketChannel.wrap(channel, uri: uri)` |
+| `package:http` | [`jala_http`](../jala_http) | `JalaHttp.wrap(http.Client())` |
+| GraphQL (`gql_link`) | [`jala_graphql`](../jala_graphql) | `JalaGraphQLLink(endpoint: uri)` before terminating link |
+| WebSocket | [`jala_websocket`](../jala_websocket) | `JalaWebSocketChannel.wrap(channel, uri: uri)` |
 
-### Inspector power tools (v0.5+)
+Full map: [docs/packages.md](../../docs/packages.md).
 
-- **Throttle** (AppBar speed icon): Slow 3G / Fast 3G / Flaky / Offline +
-  custom profiles and host glob.
-- **Session share** (AppBar overflow): export/import a versioned JSON
-  session via clipboard (`JalaSessionCodec` under the hood).
-- **Subscriptions**: GraphQL payload timeline on the Response tab;
-  filter with `is:subscription`.
+---
 
-### Inspect deeper (v0.6)
+## Public API
 
-- **Compare with…** on call detail (or pick two calls) → structural status /
-  header / JSON body diff.
-- **Import cURL…** / **Import HAR…** in the inspector overflow (cURL opens
-  the request composer; HAR loads as an imported session).
-- **Virtualized JSON tree** — large expanded payloads no longer jank.
+| API | Role |
+|---|---|
+| `Jala.initialize({JalaConfig? config})` | Idempotent bind; default `enabled: kDebugMode` |
+| `Jala.open()` / `Jala.close()` | Show / hide inspector |
+| `JalaOverlay` | Root wrapper + floating bubble |
+| `Jala.enableMockPersistence(directory)` | Optional file-backed mock rules (`jala_mock_rules.json`) |
+| `Jala.controller` / `Jala.themeController` | Overlay open state and inspector theme |
+
+---
+
+## What you get in the inspector
+
+- Call list with DevTools-style **filter grammar**
+- Detail: headers (sensitive collapsed), query params, bodies, GraphQL/WS
+- **Replay**, mock, edit & resend (live clients only; not imported rows)
+- **Throttle** presets, **session** export/import, **cURL/HAR** import
+- **Call diff**, virtualized JSON tree, image/multipart/progress where captured
+
+Feature history and roadmap: [docs/ROADMAP.md](../../docs/ROADMAP.md).
+
+---
 
 ## Production safety
 
-- **Off by default in release** — `Jala.initialize()` uses `enabled:
-  kDebugMode` unless you override it.
-- **True no-op when disabled** — overlay returns `child` unchanged;
-  adapters skip capture on the hot path.
-- **Redaction at capture time** — default sensitive **headers** and common
-  **JSON/form secret keys** (`password`, `access_token`, …) are masked
-  before the store; extend `JalaRedactor` for company-specific names.
-- **Hard body size caps** — default 512 KB per captured body.
-- **Session export modes** — full / no bodies / headers only; import size
-  limited. Treat exports like log dumps.
+- Off by default in release (`enabled: kDebugMode`)
+- True no-op when disabled (overlay + adapters)
+- Redaction at capture time — [SECURITY.md](../../docs/SECURITY.md),
+  [CONFIG.md](../../docs/CONFIG.md)
+- Hard body size caps (default 512 KB)
+- Session export modes: full / no bodies / headers only
 
 Leave the dependency wired in release builds; that is intentional and safe.
-Details: [docs/SECURITY.md](../../docs/SECURITY.md).
+
+---
 
 ## See also
 
-- [docs/SECURITY.md](../../docs/SECURITY.md) — threat model & redaction
-- [docs/ADOPTION.md](../../docs/ADOPTION.md) — existing apps
-- [docs/COMPAT.md](../../docs/COMPAT.md) — 0.x / lockstep policy
-- [docs/SPEC-v0.1.md](../../docs/SPEC-v0.1.md) — original v0.1 contract
+- [docs/README.md](../../docs/README.md) — documentation index  
+- [docs/ADOPTION.md](../../docs/ADOPTION.md) — brownfield install  
+- [docs/overview.md](../../docs/overview.md) — architecture  
+- [docs/COMPAT.md](../../docs/COMPAT.md) — lockstep policy  
+- [CHANGELOG.md](CHANGELOG.md)

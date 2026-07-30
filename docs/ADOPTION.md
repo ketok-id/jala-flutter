@@ -6,8 +6,8 @@ rewiring the app.
 
 Target readers: mid-level implementers *and* seniors reviewing the PR.
 
-Lockstep version for this doc: **0.6.0** (requires Dart `^3.11`, Flutter
-`>=3.35` for `jala` / `jala_ui`).
+Lockstep version for this doc: **0.7.0** (requires Dart `^3.11`, Flutter
+`>=3.35` for `jala` / `jala_ui`). Doc index: [README.md](README.md).
 
 ---
 
@@ -34,8 +34,8 @@ never need on-device inspection, you may not need Jala. That’s fine.
 
 ```yaml
 dependencies:
-  jala: ^0.6.0
-  jala_dio: ^0.6.0
+  jala: ^0.7.0
+  jala_dio: ^0.7.0
   # dio: you already have this
 ```
 
@@ -398,7 +398,25 @@ Help sheet in the inspector documents the full grammar.
 
 ---
 
+## Interceptor order (Dio)
+
+Jala snapshots headers in `onRequest`. Register **auth (and other header
+mutators) before** `JalaDio.attach`, and avoid adding interceptors **after**
+attach if you need those headers in the inspector:
+
+```dart
+dio.interceptors.add(AuthInterceptor()); // adds Authorization
+JalaDio.attach(dio);                     // capture sees final headers
+```
+
+If the token is missing from the Request tab **and** not shown as `••••••`,
+it was never captured — see [TROUBLESHOOTING.md](TROUBLESHOOTING.md#missing-token-not-shown-and-not-redacted).
+
+---
+
 ## Troubleshooting
+
+Full table and deep dives: **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)**.
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
@@ -406,7 +424,9 @@ Help sheet in the inspector documents the full grammar.
 | No entries | Client not attached | `JalaDio.attach` / `JalaHttp.wrap` / GraphQL link / WS wrap on **that** instance |
 | Entries but Replay greyed out | No replayer, or imported session | Attach with `JalaDio.attach` / `JalaHttp.wrap`; clear import banner |
 | Duplicate GraphQL + HTTP rows | Double-capture | See [GraphQL](#graphql) |
-| Auth header visible as real token | Another interceptor logs it, or custom redactor removed defaults | Keep default header redaction; fix other loggers |
+| Token not shown and not `••••••` | Auth interceptor after Jala, or wrong client | [Interceptor order](#interceptor-order-dio); [TROUBLESHOOTING](TROUBLESHOOTING.md) |
+| Auth header is `••••••` | Default capture-time redaction | Expected; [CONFIG.md](CONFIG.md) for debug-only unmask |
+| Auth header visible as real token | Custom redactor emptied defaults, or other logger | Keep default header redaction; fix other loggers |
 | “Works in debug, empty in release QA” | Default `enabled: kDebugMode` | Internal QA flavor: `JalaConfig(enabled: true)` |
 | Large download not slow under throttle (Dio) | Non-stream response type | Use `ResponseType.stream` or test with `jala_http` |
 | WS not slowing under Slow 3G | By design in v0.5 | Throttle is HTTP-only |
@@ -432,7 +452,7 @@ Help sheet in the inspector documents the full grammar.
 ```text
 Add Jala (in-app network inspector) for debug/QA.
 
-- jala + jala_dio ^0.6.0
+- jala + jala_dio ^0.7.0
 - installJala() in debug bootstrap; JalaOverlay at root
 - Attach primary Dio (and list any secondary clients)
 - Default enabled: kDebugMode (no-op in store release)
@@ -445,7 +465,10 @@ Docs: https://github.com/ketok-id/jala-flutter/blob/main/docs/ADOPTION.md
 
 ## See also
 
+- [Doc index](README.md)  
 - [Root README](../README.md) — pitch, comparison table, filter grammar  
+- [packages.md](packages.md) · [overview.md](overview.md) · [CONFIG.md](CONFIG.md)  
+- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) · [SECURITY.md](SECURITY.md)  
 - [Roadmap](ROADMAP.md) — shipped tracks and horizon  
 - Package READMEs under `packages/*` — adapter-specific limits (e.g. Dio
   stream pacing, WS unthrottled)  

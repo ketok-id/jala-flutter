@@ -1,102 +1,121 @@
 # jala_core
 
-Pure-Dart core for [Jala](https://github.com/ketok-id/jala-flutter), the in-app
-Flutter network inspector: the captured-call model, event bus, ring-buffer
-store, capture-time redaction, DevTools-style filter grammar, exporters
-(cURL, Dart/Dio snippet, HAR 1.2), call/JSON diff, cURL/HAR import, network
-throttling, and session export/import.
+Pure-Dart engine for **Jala**: models, event bus, ring-buffer store,
+capture-time redaction, filter grammar, exporters, import codecs, mocks,
+throttle, session codec, and call/JSON diff.
 
-**Zero Flutter dependency.** This package only depends on `dart:core` /
-`dart:convert` and is tested with `dart test`, so it can be reused outside
-Flutter (CLI tooling, server-side log tooling, etc.) as well as inside it.
+**Zero Flutter dependency.** Suitable for adapters, CLI tooling, and tests.
 
-> **Building an app?** Install [`jala`](../jala) instead — it pulls in
-> this package plus `jala_ui` and gives you `Jala.initialize()` and
-> `JalaOverlay` out of the box. `jala_core` is for people building client
-> integrations or plugins (like `jala_dio`), or anyone who wants the model/
-> store/filter/exporter primitives without any UI.
->
-> **Apps:** [docs/ADOPTION.md](../../docs/ADOPTION.md). **0.x policy:**
-> [docs/COMPAT.md](../../docs/COMPAT.md). Lockstep with other Jala packages
-> at the same `0.7.x`.
+> [What is Jala?](../../README.md) · [Package map](../../docs/packages.md) ·
+> [Doc index](../../docs/README.md)
 
-## Main classes
-
-| Class | Role |
+| | |
 |---|---|
-| `JalaBinding` | Process-wide singleton wiring config, event bus, store, replay registry, mock registry, and throttle registry. Client integrations read `JalaBinding.instance` instead of taking constructor parameters. |
-| `JalaReplayRegistry` / `JalaReplayer` | Connects the inspector UI's Replay action to whichever client integration can re-issue a call. |
-| `JalaMockRegistry` / `JalaMockRule` | Ordered mock rules (first enabled match wins) for canned responses / failures / delays. |
-| `JalaThrottleRegistry` / `JalaThrottleProfile` | Active network-condition profile (latency, jitter, bandwidth, drop rate) with presets `slow3g` / `fast3g` / `flaky` / `offline`. Active only while the binding is enabled. |
-| `JalaEvent` / `JalaEventBus` | Sealed event types (HTTP request/response/error/cancel/progress, GraphQL subscription payloads, WebSocket lifecycle/frames) and the broadcast bus clients emit them into. A true no-op when Jala is disabled. |
-| `JalaStore` | Ring-buffer store (default 300 HTTP entries + parallel WS connections) that correlates events into immutable `NetworkCallEntry` / `WsConnectionEntry` values, plus `importSession` / `isViewingImport`. |
-| `NetworkCallEntry` / `CapturedBody` | One captured HTTP/GraphQL call (incl. `throttledBy`, `imported`, GraphQL metadata, subscription `payloads` ring) and its request/response bodies with a hard 512 KB capture cap. |
-| `WsConnectionEntry` / `WsFrame` | WebSocket connection + frame timeline (direction, size, redacted text preview). |
-| `JalaSessionCodec` / `JalaSession` / `JalaSessionExportOptions` | Versioned JSON session export/import (`format: "jala-session"`, v1). Export can strip bodies/images/WS previews; decode rejects oversized pastes. |
-| `JalaRedactor` | Case-insensitive header redaction (`Authorization`, `Cookie`, `X-Api-Key`, etc. by default) and body pattern redaction, meant to run **at capture time** so secrets never enter the store. |
-| `JalaFilter` | `JalaFilter.parse(query)` compiles a DevTools-style query into a `matches(NetworkCallEntry)` predicate (and `matchesWs` for WebSocket entries). |
-| `CurlExporter` | Renders an entry as a runnable, shell-escaped `curl` command. |
-| `DartSnippetExporter` | Renders an entry as a runnable `dio.request(...)` snippet. |
-| `HarExporter` | Renders one call or a whole session as HAR 1.2 JSON. |
-| `JalaJsonDiff` / `JalaEntryDiff` | Structural JSON + per-call (status/headers/body) diffs. |
-| `JalaCurlCodec` / `JalaHarCodec` | Import a `curl` command or HAR 1.2 document into an `ImportedRequest` / `JalaSession`. |
-| `JalaConfig` | `enabled`, `maxEntries`, `maxBodyBytes`, `captureImageBodies`, `maxWsConnections`, `maxWsFramesPerConnection`, `maxSubscriptionPayloads`, `redactor` — passed to `JalaBinding.instance.initialize(config: ...)`. |
+| **Audience** | Adapter authors, headless tooling — **not** a typical app install |
+| **Depends on** | Dart only (`dart:core` / `dart:convert`) |
+| **Lockstep** | `0.7.x` — [COMPAT.md](../../docs/COMPAT.md) |
+| **Requires** | Dart `^3.11` |
 
-## Filter grammar
+**Building an app?** Install [`jala`](../jala) instead (pulls in UI + core).
 
-`JalaFilter.parse(String query)` splits the query on whitespace into terms
-(AND semantics), where a leading `-` negates a term. Matching is
-case-insensitive; malformed structured terms degrade to free text instead of
-throwing.
+**Config / redactor:** [CONFIG.md](../../docs/CONFIG.md) ·
+**Security:** [SECURITY.md](../../docs/SECURITY.md) ·
+**Architecture:** [overview.md](../../docs/overview.md)
 
-| Term | Matches |
-|---|---|
-| `method:get` / `m:get` | HTTP method; comma list allowed (`m:get,post`) |
-| `status:404` / `s:404` | Exact status code |
-| `status:4xx` | Status class; also `s:error` (>= 400 or errored/cancelled) and `s:pending` |
-| `host:api.example.com` / `d:` | Host; `*` wildcard allowed (`host:*.example.com`) |
-| `path:/users` | Path substring |
-| `type:json` / `t:json` | Response content-type substring |
-| `larger-than:10k` | `responseSize` greater than n bytes (`k`/`m` suffixes supported) |
-| `slower-than:500` | Duration greater than n milliseconds |
-| `is:replay` | Entry is a replay of another call (`replayOf != null`) |
-| `is:mocked` | Entry was served by a mock rule |
-| `is:graphql` | Entry carries GraphQL operation metadata |
-| `is:subscription` | `operationType == 'subscription'` |
-| `is:ws` | WebSocket connection entries (`matchesWs` only) |
-| `op:<name>` | GraphQL `operationName`; `*` wildcard allowed |
-| `body:token` | Substring of the captured request or response body text |
-| bare word | Substring of `method + " " + full URL` |
-| `-<any term above>` | Negates that term |
+---
 
-Example: `method:get status:4xx larger-than:10k -host:*.cdn.com`.
+## Install
 
-## Usage without Flutter
+```yaml
+dependencies:
+  jala_core: ^0.7.0
+```
+
+## Setup (without Flutter)
 
 ```dart
 import 'package:jala_core/jala_core.dart';
 
-final config = JalaConfig(enabled: true);
-JalaBinding.instance.initialize(config: config);
+JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
 
-JalaBinding.instance.throttleRegistry.setActive(JalaThrottleProfile.slow3g);
-
-JalaBinding.instance.bus.emit(NetworkRequestEvent(/* ... */));
-// ...
+// Adapters emit into the bus; UI and tools read the store.
 final entries = JalaBinding.instance.store.entries;
 final filter = JalaFilter.parse('method:post s:error');
 final matches = entries.where(filter.matches);
 
 print(CurlExporter.export(matches.first));
-print(HarExporter.exportSession(entries));
-
-// Session share — prefer headers-only outside trusted eng channels
-final encoded = JalaSessionCodec.encode(
-  JalaBinding.instance.store,
-  options: JalaSessionExportOptions.headersOnly,
-);
-JalaBinding.instance.store.importSession(JalaSessionCodec.decode(encoded));
 ```
 
-Security defaults (redaction, export modes): [docs/SECURITY.md](../../docs/SECURITY.md).  
-Original v0.1 contract: [docs/SPEC-v0.1.md](../../docs/SPEC-v0.1.md).
+Apps should call `Jala.initialize()` from package `jala`, which initializes
+the same binding.
+
+---
+
+## Public surface (main types)
+
+| Class | Role |
+|---|---|
+| `JalaBinding` | Process-wide singleton: config, bus, store, replay/mock/throttle registries |
+| `JalaConfig` | `enabled`, caps, `redactor` — see [CONFIG.md](../../docs/CONFIG.md) |
+| `JalaRedactor` | Capture-time header / body / query redaction |
+| `JalaEvent` / `JalaEventBus` | Sealed capture events; no-op when disabled |
+| `JalaStore` | Ring buffer of `NetworkCallEntry` + parallel WS connections |
+| `NetworkCallEntry` / `CapturedBody` | One HTTP/GraphQL call and capped bodies |
+| `WsConnectionEntry` / `WsFrame` | WebSocket connection + frame timeline |
+| `JalaFilter` | DevTools-style query → `matches` / `matchesWs` |
+| `JalaReplayRegistry` / `JalaReplayer` | Single active replayer (last wins) |
+| `JalaMockRegistry` / `JalaMockRule` | Ordered mock rules |
+| `JalaThrottleRegistry` / `JalaThrottleProfile` | Latency / drop / bandwidth profiles |
+| `CurlExporter` / `DartSnippetExporter` / `HarExporter` | Export |
+| `JalaCurlCodec` / `JalaHarCodec` | Import |
+| `JalaSessionCodec` / `JalaSessionExportOptions` | Session JSON share |
+| `JalaJsonDiff` / `JalaEntryDiff` | Structural diffs |
+
+Semver surface = barrel `lib/jala_core.dart`. Prefer that over `src/`.
+
+---
+
+## Filter grammar
+
+`JalaFilter.parse(query)` — space-separated terms, AND semantics, leading
+`-` negates. Case-insensitive; malformed structured terms degrade to free
+text.
+
+| Term | Matches |
+|---|---|
+| `method:get` / `m:get` | HTTP method; comma list (`m:get,post`) |
+| `status:404` / `s:404` | Exact status |
+| `status:4xx` | Class; also `s:error`, `s:pending` |
+| `host:api.example.com` / `d:` | Host; `*` wildcard |
+| `path:/users` | Path substring |
+| `type:json` / `t:json` | Response content-type substring |
+| `larger-than:10k` | Response size (`k`/`m` suffixes) |
+| `slower-than:500` | Duration (ms) |
+| `is:replay` / `is:mocked` | Replay / mock flags |
+| `is:graphql` / `is:subscription` / `is:ws` | Protocol surfaces |
+| `op:<name>` | GraphQL operation name (`*` ok) |
+| `body:token` | Body text substring |
+| bare word | Method + full URL substring |
+| `-<term>` | Negation |
+
+Example: `method:get status:4xx larger-than:10k -host:*.cdn.com`.
+
+---
+
+## Invariants
+
+Documented fully in [overview.md](../../docs/overview.md):
+
+1. No-op when disabled  
+2. Capture never breaks host networking  
+3. Redaction at capture (no reveal)  
+4. Hard body caps  
+5. UI (in other packages) owns theme/navigator  
+
+---
+
+## See also
+
+- [docs/CONFIG.md](../../docs/CONFIG.md) · [docs/SECURITY.md](../../docs/SECURITY.md)  
+- [docs/SPEC-v0.1.md](../../docs/SPEC-v0.1.md) — original binding contract  
+- [CHANGELOG.md](CHANGELOG.md)

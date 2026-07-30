@@ -159,6 +159,11 @@ entries with `replayOf` set. Imported (HAR/session) entries disable replay.
 
 ## Docs
 
+Doc hub: `docs/README.md`. Architecture for humans: `docs/overview.md` and
+package map: `docs/packages.md`. Config/redaction: `docs/CONFIG.md`.
+Common failures (interceptor order, missing tokens):
+`docs/TROUBLESHOOTING.md`.
+
 Larger feature work is planned per "track" in `docs/plans/track-*.md`
 (A → 0.1, B → 0.2, C → 0.3, D → 0.4, E → 0.5, F → 0.6); `docs/ROADMAP.md`
 is the status table and is where a track's target version is claimed —
