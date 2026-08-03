@@ -26,6 +26,9 @@ NetworkCallEntry makeEntry({
   String? operationName,
   String? operationType,
   String? throttledBy,
+  String? rpcKind,
+  int? grpcStatusCode,
+  Map<String, String> trailers = const <String, String>{},
   List<CapturedBody> payloads = const <CapturedBody>[],
   int payloadCount = 0,
   bool imported = false,
@@ -53,6 +56,9 @@ NetworkCallEntry makeEntry({
     operationName: operationName,
     operationType: operationType,
     throttledBy: throttledBy,
+    rpcKind: rpcKind,
+    grpcStatusCode: grpcStatusCode,
+    trailers: trailers,
     payloads: payloads,
     payloadCount: payloadCount,
     imported: imported,
@@ -79,6 +85,7 @@ void emitRequest(
   String? operationName,
   String? operationType,
   String? throttledBy,
+  String? rpcKind,
 }) {
   bus.emit(
     NetworkRequestEvent(
@@ -94,6 +101,7 @@ void emitRequest(
       operationName: operationName,
       operationType: operationType,
       throttledBy: throttledBy,
+      rpcKind: rpcKind,
     ),
   );
 }
@@ -128,6 +136,8 @@ void emitResponse(
   CapturedBody? body,
   int? size,
   Duration duration = const Duration(milliseconds: 50),
+  int? grpcStatusCode,
+  Map<String, String>? trailers,
 }) {
   bus.emit(
     NetworkResponseEvent(
@@ -139,6 +149,8 @@ void emitResponse(
       body: body ?? CapturedBody.none,
       size: size,
       duration: duration,
+      grpcStatusCode: grpcStatusCode,
+      trailers: trailers,
     ),
   );
 }

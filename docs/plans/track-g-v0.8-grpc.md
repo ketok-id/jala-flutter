@@ -71,26 +71,40 @@ both out of scope here and to be decided before G2 starts:
    version-coupled, and it changes the host's channel construction rather
    than adding to an interceptor list. Prototype before committing.
 
-## G1. Core model extensions (`jala_core`) — one executor, runs alone
+## G1. Core model extensions (`jala_core`) — ✅ DONE
 
 gRPC calls **are** network calls — extend `NetworkCallEntry`, don't add a
 parallel entity (the WS precedent does not apply; a gRPC RPC has one request
 and N responses, which is the *GraphQL subscription* shape).
 
-- Reuse `operationName` (= method name) and add `rpcKind: String?`
-  (`unary` / `serverStreaming` / `clientStreaming` / `bidi`) plus
-  `grpcStatusCode: int?` and `grpcStatusMessage: String?` on
-  `NetworkCallEntry` + `NetworkResponseEvent` / `NetworkErrorEvent`.
-- Streaming messages reuse the **existing** `payloads` / `payloadCount` ring
-  buffer built for GraphQL subscriptions (`maxSubscriptionPayloads`) — no
-  new collection, no new cap, and the detail UI already renders it.
-- `client: 'grpc'` distinguishes the source; trailers land in
-  `responseHeaders` (prefix or merge — decide in G1, document it).
-- Filter grammar: `is:grpc` (`client == 'grpc'`); `op:` already globs
-  `operationName`, so it works for free once populated.
+As shipped — three new fields, everything else reused:
 
-Tests: entry/event round-trip through `JalaSessionCodec`, filter terms,
-status mapping. Target D1/E1-level coverage.
+- `NetworkCallEntry.rpcKind: String?` (`unary` / `serverStreaming` /
+  `clientStreaming` / `bidi`), from a matching field on
+  `NetworkRequestEvent`.
+- `NetworkCallEntry.grpcStatusCode: int?`, from `NetworkResponseEvent` and
+  `NetworkErrorEvent`. Separate from `statusCode` because a failed RPC rides
+  on an HTTP 200 — the same convention `jala_graphql` already uses.
+- `NetworkCallEntry.trailers: Map<String, String>` (default empty).
+- Reused unchanged: `operationName` (= method name), `statusMessage` (= gRPC
+  status message), `client: 'grpc'`, and the `payloads` / `payloadCount`
+  ring buffer built for GraphQL subscriptions — no new collection, no new
+  cap, and the detail UI already renders it. `grpcStatusMessage` was dropped
+  from the original sketch as redundant with `statusMessage`.
+- Filter: `is:grpc` (`client == 'grpc'`); `op:` globs `operationName` for
+  free. **`s:error` also matches a non-zero `grpcStatusCode`** — without
+  that branch every NOT_FOUND / PERMISSION_DENIED files under "success",
+  since the HTTP status is 200.
+
+**Open question 3 answered: trailers are a separate field, not merged into
+`responseHeaders`.** Merging would render `grpc-status` as an ordinary HTTP
+header in the headers table and in HAR exports, misreporting what the server
+sent.
+
+Covered by 12 tests across `jala_store_test`, `jala_filter_test` and
+`jala_session_codec_test` (store wiring, error-event field preservation,
+payload ring reuse, filter terms, session round-trip, and that a non-gRPC
+entry omits all three fields from its JSON).
 
 ## G2. `jala_grpc` (new package) — after G1
 
@@ -150,4 +164,5 @@ a proto3-JSON message, and capture failure never breaking the call.
    upstream / channel-subclass route? (Decides G2's shape and G3's note.)
 2. gRPC-web: `GrpcWebClientChannel` uses the same `Client` interceptor
    path, so it should work unchanged — verify, don't assume.
-3. Trailers in `responseHeaders`: merged, or a separate field on the entry?
+3. ~~Trailers in `responseHeaders`: merged, or separate?~~ **Answered in
+   G1: separate field.**

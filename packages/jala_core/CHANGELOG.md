@@ -31,6 +31,13 @@
 
 ### Added
 
+- gRPC model support (Track G, G1): `NetworkCallEntry.rpcKind`,
+  `grpcStatusCode` and `trailers`, populated from matching fields on
+  `NetworkRequestEvent` / `NetworkResponseEvent` / `NetworkErrorEvent`.
+  `grpcStatusCode` is separate from `statusCode` because a failed RPC rides
+  on an HTTP 200, and `JalaFilter`'s `s:error` accounts for that — without
+  it every NOT_FOUND would file under "success". New `is:grpc` term;
+  streaming messages reuse the existing subscription payload ring buffer.
 - `JalaReplayException` and `NetworkCallEntry.replayBlockedReason` (via the
   `JalaReplayability` extension).
 - `parseQueryParams` / `JalaQueryParam`, moved here from `jala_ui` so the

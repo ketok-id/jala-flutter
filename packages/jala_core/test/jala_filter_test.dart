@@ -533,4 +533,49 @@ void main() {
       expect(JalaFilter.parse('').matchesWs(open), isTrue);
     });
   });
+
+  group('gRPC terms (Track G G1)', () {
+    final grpcOk = makeEntry(
+      client: 'grpc',
+      statusCode: 200,
+      operationName: 'GetFeature',
+      rpcKind: 'unary',
+      grpcStatusCode: 0,
+    );
+    final grpcNotFound = makeEntry(
+      client: 'grpc',
+      statusCode: 200,
+      operationName: 'GetFeature',
+      rpcKind: 'unary',
+      grpcStatusCode: 5,
+    );
+    final http200 = makeEntry(statusCode: 200);
+
+    test('is:grpc matches only calls captured by jala_grpc', () {
+      expect(JalaFilter.parse('is:grpc').matches(grpcOk), isTrue);
+      expect(JalaFilter.parse('is:grpc').matches(http200), isFalse);
+    });
+
+    test('-is:grpc excludes them', () {
+      expect(JalaFilter.parse('-is:grpc').matches(grpcOk), isFalse);
+      expect(JalaFilter.parse('-is:grpc').matches(http200), isTrue);
+    });
+
+    test('s:error catches a failed RPC riding on an HTTP 200', () {
+      // Without the gRPC branch this files every NOT_FOUND under "success".
+      expect(JalaFilter.parse('s:error').matches(grpcNotFound), isTrue);
+      expect(JalaFilter.parse('s:error').matches(grpcOk), isFalse);
+      expect(JalaFilter.parse('s:error').matches(http200), isFalse);
+    });
+
+    test('op: globs the gRPC method name', () {
+      expect(JalaFilter.parse('op:GetFeature').matches(grpcOk), isTrue);
+      expect(JalaFilter.parse('op:Get*').matches(grpcOk), isTrue);
+      expect(JalaFilter.parse('op:List*').matches(grpcOk), isFalse);
+    });
+
+    test('is:grpc never matches a WS connection', () {
+      expect(JalaFilter.parse('is:grpc').matchesWs(makeWsEntry()), isFalse);
+    });
+  });
 }
