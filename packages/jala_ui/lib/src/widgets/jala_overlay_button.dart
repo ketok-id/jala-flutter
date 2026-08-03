@@ -10,10 +10,17 @@ import 'jala_themed_page.dart';
 /// current pending/error call count. Snaps to the nearest horizontal edge
 /// on drag end.
 ///
-/// Self-contained: position state is held internally. Intended to be
-/// placed as the content of a root [Overlay] entry (which lays out its
-/// children like a [Stack]), so this widget returns a [Positioned] as its
-/// top-level widget.
+/// Self-contained: position state is held internally, and the position the
+/// user last dragged to is retained process-wide (see
+/// [resetPositionForTesting]) rather than only in this widget's [State].
+/// Embedders unmount the bubble while the inspector is open — `JalaOverlay`
+/// does exactly that so it cannot cover list rows — and a position kept
+/// only in [State] is lost on every such remount, snapping the bubble back
+/// to the default edge each time the inspector closes.
+///
+/// Intended to be placed as the content of a root [Overlay] entry (which
+/// lays out its children like a [Stack]), so this widget returns a
+/// [Positioned] as its top-level widget.
 class JalaOverlayButton extends StatefulWidget {
   /// Creates an overlay bubble.
   ///
@@ -38,6 +45,19 @@ class JalaOverlayButton extends StatefulWidget {
   /// Diameter of the circular bubble.
   final double diameter;
 
+  /// Where the user last dragged the bubble, or null if never dragged.
+  ///
+  /// Retained across mount/unmount so the bubble stays put when the
+  /// inspector is opened and closed. Re-clamped to the current bounds on
+  /// read, so a position stored before a rotation or resize can't strand
+  /// the bubble off-screen.
+  static Offset? _retainedPosition;
+
+  /// Forgets the retained drag position, so a fresh bubble starts from
+  /// [initialPosition] again. Intended for tests — process-wide state
+  /// otherwise leaks between cases (mirrors `JalaBinding.resetForTesting`).
+  static void resetPositionForTesting() => _retainedPosition = null;
+
   @override
   State<JalaOverlayButton> createState() => _JalaOverlayButtonState();
 }
@@ -58,7 +78,9 @@ class _JalaOverlayButtonState extends State<JalaOverlayButton>
     _snapController.addListener(() {
       final Animation<Offset>? animation = _snapAnimation;
       if (animation == null) return;
-      setState(() => _position = animation.value);
+      // Retained as it animates, so the edge the bubble settles on is what
+      // a later remount restores.
+      setState(() => _remember(animation.value));
     });
   }
 
@@ -68,18 +90,34 @@ class _JalaOverlayButtonState extends State<JalaOverlayButton>
     super.dispose();
   }
 
-  Offset _currentPosition(Size bounds) =>
-      _position ??
-      widget.initialPosition ??
-      Offset(bounds.width - widget.diameter - 16, bounds.height / 2);
+  Offset _currentPosition(Size bounds) => _clamp(
+    _position ??
+        JalaOverlayButton._retainedPosition ??
+        widget.initialPosition ??
+        Offset(bounds.width - widget.diameter - 16, bounds.height / 2),
+    bounds,
+  );
+
+  /// Keeps a position inside [bounds]. Applied on read, not just on drag,
+  /// because a retained position may have been stored under a different
+  /// screen size (rotation, window resize, foldable).
+  Offset _clamp(Offset position, Size bounds) {
+    final double maxX = bounds.width - widget.diameter;
+    final double maxY = bounds.height - widget.diameter;
+    return Offset(
+      position.dx.clamp(0.0, maxX < 0 ? 0.0 : maxX),
+      position.dy.clamp(0.0, maxY < 0 ? 0.0 : maxY),
+    );
+  }
+
+  void _remember(Offset position) {
+    _position = position;
+    JalaOverlayButton._retainedPosition = position;
+  }
 
   void _onDragUpdate(DragUpdateDetails details, Size bounds) {
     setState(() {
-      final Offset next = _currentPosition(bounds) + details.delta;
-      _position = Offset(
-        next.dx.clamp(0, bounds.width - widget.diameter),
-        next.dy.clamp(0, bounds.height - widget.diameter),
-      );
+      _remember(_clamp(_currentPosition(bounds) + details.delta, bounds));
     });
   }
 
