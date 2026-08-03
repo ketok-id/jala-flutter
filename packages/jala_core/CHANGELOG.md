@@ -38,6 +38,9 @@
   on an HTTP 200, and `JalaFilter`'s `s:error` accounts for that — without
   it every NOT_FOUND would file under "success". New `is:grpc` term;
   streaming messages reuse the existing subscription payload ring buffer.
+- `JalaGrpcStatus` — canonical gRPC status codes and names. Lives here, not
+  in `jala_grpc`, because `jala_ui` renders the name and adapters never
+  depend on the UI (nor it on them).
 - `JalaReplayException` and `NetworkCallEntry.replayBlockedReason` (via the
   `JalaReplayability` extension).
 - `parseQueryParams` / `JalaQueryParam`, moved here from `jala_ui` so the

@@ -14,6 +14,9 @@ void main() {
     String url = 'https://api.example.com/users',
     String? operationName,
     String? operationType,
+    String client = 'test',
+    String? rpcKind,
+    int? grpcStatusCode,
   }) {
     return NetworkCallEntry(
       id: 'x',
@@ -26,9 +29,11 @@ void main() {
       responseBody: CapturedBody.none,
       statusCode: 200,
       status: JalaCallStatus.success,
-      client: 'test',
+      client: client,
       operationName: operationName,
       operationType: operationType,
+      rpcKind: rpcKind,
+      grpcStatusCode: grpcStatusCode,
     );
   }
 
@@ -123,4 +128,62 @@ void main() {
       expect(find.text('POST'), findsOneWidget);
     },
   );
+
+  group('gRPC entries (Track G G3)', () {
+    NetworkCallEntry grpcEntry({
+      int grpcStatusCode = 0,
+      String rpcKind = 'unary',
+    }) => entry(
+      method: 'POST',
+      url: 'https://api.example.com/routeguide.RouteGuide/GetFeature',
+      client: 'grpc',
+      operationName: 'GetFeature',
+      rpcKind: rpcKind,
+      grpcStatusCode: grpcStatusCode,
+    );
+
+    testWidgets('shows service/method and the RPC kind chip', (
+      WidgetTester tester,
+    ) async {
+      await pumpTile(tester, grpcEntry());
+
+      expect(find.text('routeguide.RouteGuide/GetFeature'), findsOneWidget);
+      expect(find.text('UNARY'), findsOneWidget);
+      // Not the HTTP method — every gRPC call is a POST, which tells the
+      // developer nothing.
+      expect(find.text('POST'), findsNothing);
+    });
+
+    testWidgets('shows the gRPC status name, not the HTTP code', (
+      WidgetTester tester,
+    ) async {
+      await pumpTile(tester, grpcEntry(grpcStatusCode: 5));
+
+      expect(find.text('NOT_FOUND'), findsOneWidget);
+      expect(find.text('200'), findsNothing);
+    });
+
+    testWidgets('a failed RPC is not coloured as a success', (
+      WidgetTester tester,
+    ) async {
+      // Regression guard: a gRPC failure rides on an HTTP 200, so colouring
+      // by statusCode alone paints every NOT_FOUND green.
+      await pumpTile(tester, grpcEntry(grpcStatusCode: 5));
+      final Text failed = tester.widget<Text>(find.text('NOT_FOUND'));
+
+      await pumpTile(tester, grpcEntry());
+      final Text ok = tester.widget<Text>(find.text('OK'));
+
+      expect(failed.style?.color, isNot(ok.style?.color));
+    });
+
+    testWidgets('a plain HTTP entry keeps its method and code', (
+      WidgetTester tester,
+    ) async {
+      await pumpTile(tester, entry());
+
+      expect(find.text('GET'), findsOneWidget);
+      expect(find.text('200'), findsOneWidget);
+    });
+  });
 }

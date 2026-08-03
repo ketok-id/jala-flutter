@@ -137,17 +137,31 @@ success/error/cancel, streaming request messages, trailers → status,
 disabled passthrough returns the invoker's object identically, redaction of
 a proto3-JSON message, and capture failure never breaking the call.
 
-## G3. UI (`jala_ui`) — parallel with G2, depends only on G1
+## G3. UI (`jala_ui`) — ✅ DONE
 
-- List tile: `is:grpc` entries show `service/method` as the title and an
-  `rpcKind` chip instead of an HTTP method chip; status shows the gRPC code
-  name (`NOT_FOUND`, not `404`).
-- Detail: reuse the subscription payload timeline for streaming messages,
-  and a trailers section alongside headers. Where response messages are
-  uncapturable (streaming), render an explicit "response messages not
-  captured for streaming RPCs" note with a doc link — never an empty list
-  that reads like "no traffic".
-- Quick-filter chip for gRPC alongside the existing GraphQL/WS chips.
+- List tile: gRPC entries show `service/method` as the title and an
+  `rpcKind` chip instead of the HTTP method chip (every RPC is a POST,
+  which tells a developer nothing); status shows the gRPC code name
+  (`NOT_FOUND`, not `200`).
+- `JalaTheme.statusColorFor` reads `grpcStatusCode` before `statusCode` —
+  a gRPC failure rides on an HTTP 200, so colouring by status alone painted
+  every `NOT_FOUND` green. Same class of bug as the `s:error` filter gap
+  found in G1.
+- Detail: trailers render as their own section rather than merged into the
+  headers table, and a streaming RPC shows an explicit "response messages
+  are not captured for streaming RPCs" note in place of the body, so an
+  empty section never reads as "the server sent nothing".
+- `gRPC` quick-filter chip alongside GraphQL/WS.
+
+**Layering note:** the gRPC status-name table lives in `jala_core`
+(`JalaGrpcStatus`), not `jala_grpc` — `jala_ui` renders it and adapters
+never depend on the UI nor it on them. `jala_grpc` uses the same table for
+its error messages.
+
+Covered by 8 widget tests across `jala_call_list_tile_test` and
+`jala_call_detail_screen_test`, including a regression guard that a failed
+RPC is not coloured the same as a successful one, and that a non-gRPC entry
+grows no trailers section.
 
 ## G4. Example, smoke, release
 

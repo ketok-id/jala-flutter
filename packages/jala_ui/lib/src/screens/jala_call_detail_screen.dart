@@ -220,6 +220,9 @@ class _JalaCallDetailScreenState extends State<JalaCallDetailScreen>
                       operationType: entry.operationType,
                       payloads: entry.payloads,
                       payloadCount: entry.payloadCount,
+                      trailers: entry.trailers,
+                      streamingRpc:
+                          entry.rpcKind != null && entry.rpcKind != 'unary',
                     ),
                   ],
                 ),
@@ -517,6 +520,8 @@ class _HeadersBodyTab extends StatelessWidget {
     this.payloads = const <CapturedBody>[],
     this.payloadCount = 0,
     this.uri,
+    this.trailers = const <String, String>{},
+    this.streamingRpc = false,
   });
 
   final Map<String, String> headers;
@@ -541,6 +546,16 @@ class _HeadersBodyTab extends StatelessWidget {
 
   /// `NetworkCallEntry.payloadCount` — see [operationType].
   final int payloadCount;
+
+  /// `NetworkCallEntry.trailers` — gRPC trailing metadata, rendered as its
+  /// own section so `grpc-status` is never mistaken for an HTTP header.
+  /// Only passed for the Response tab.
+  final Map<String, String> trailers;
+
+  /// Whether this entry is a *streaming* gRPC RPC, whose response messages
+  /// `jala_grpc` cannot capture. Drives an explicit note in place of the
+  /// body, so an empty body doesn't read as "the server sent nothing".
+  final bool streamingRpc;
 
   @override
   Widget build(BuildContext context) {
@@ -577,6 +592,14 @@ class _HeadersBodyTab extends StatelessWidget {
         Text('Headers', style: Theme.of(context).textTheme.titleSmall),
         JalaHeadersTable(headers: headers),
         const Divider(),
+        if (trailers.isNotEmpty) ...<Widget>[
+          Text(
+            'Trailers (${trailers.length})',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          JalaHeadersTable(headers: trailers),
+          const Divider(),
+        ],
         if (showSubscriptionPayloads) ...<Widget>[
           Text(
             'Subscription payloads',
@@ -608,9 +631,53 @@ class _HeadersBodyTab extends StatelessWidget {
             JalaJsonTree(data: graphQl.variables),
         ] else ...<Widget>[
           Text('Body', style: Theme.of(context).textTheme.titleSmall),
-          JalaBodyView(body: body),
+          if (streamingRpc)
+            const _NotCapturedNote(
+              'Response messages are not captured for streaming RPCs. '
+              'The gRPC interceptor cannot read them without taking the '
+              'subscription your app needs — the call itself, its status '
+              'and its trailers are recorded above.',
+            )
+          else
+            JalaBodyView(body: body),
         ],
       ],
+    );
+  }
+}
+
+/// An explicit "we did not record this" note, so a deliberately empty
+/// section is never mistaken for "the server sent nothing".
+class _NotCapturedNote extends StatelessWidget {
+  const _NotCapturedNote(this.message);
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Icon(Icons.info_outline, size: 18, color: scheme.onSurfaceVariant),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

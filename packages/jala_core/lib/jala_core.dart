@@ -25,6 +25,7 @@ export 'src/mock/jala_mock_rule.dart';
 export 'src/mock/jala_mock_store.dart';
 export 'src/mock/mock_action.dart';
 export 'src/model/captured_body.dart';
+export 'src/model/grpc_status.dart';
 export 'src/model/jala_call_status.dart';
 export 'src/model/multipart_part.dart';
 export 'src/model/network_call_entry.dart';

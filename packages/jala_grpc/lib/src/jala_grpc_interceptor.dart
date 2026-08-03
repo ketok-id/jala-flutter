@@ -463,34 +463,8 @@ class JalaGrpcInterceptor extends ClientInterceptor {
 
   static String _describe(Object error, GrpcError? grpcError) {
     if (grpcError == null) return error.toString();
-    final String name = _statusName(grpcError.code);
+    final String name = JalaGrpcStatus.nameOf(grpcError.code);
     final String? message = grpcError.message;
     return message == null || message.isEmpty ? name : '$name: $message';
   }
-
-  /// Canonical gRPC status name for [code] (`5` -> `NOT_FOUND`).
-  static String _statusName(int code) =>
-      code >= 0 && code < _statusNames.length
-      ? _statusNames[code]
-      : 'CODE_$code';
-
-  static const List<String> _statusNames = <String>[
-    'OK',
-    'CANCELLED',
-    'UNKNOWN',
-    'INVALID_ARGUMENT',
-    'DEADLINE_EXCEEDED',
-    'NOT_FOUND',
-    'ALREADY_EXISTS',
-    'PERMISSION_DENIED',
-    'RESOURCE_EXHAUSTED',
-    'FAILED_PRECONDITION',
-    'ABORTED',
-    'OUT_OF_RANGE',
-    'UNIMPLEMENTED',
-    'INTERNAL',
-    'UNAVAILABLE',
-    'DATA_LOSS',
-    'UNAUTHENTICATED',
-  ];
 }
