@@ -12,7 +12,7 @@ Status as of 2026-08-03. Detailed execution plans live in `docs/plans/`.
 | F | Inspect deeper: call diff, JSON virtualization, cURL/HAR import | 0.6.0 | ✅ DONE — [plan](plans/track-f-v0.6-inspect-deeper.md) |
 | — | Read the URL: decoded query-param table, capture-time URL redaction | 0.7.0 | ✅ DONE |
 | — | Capture-integrity hardening: body redaction across all adapters, Dio bandwidth throttling, replay/HAR/bubble fixes | 0.8.0 (rides with G) | 🚧 STAGED — `## Unreleased` in every CHANGELOG |
-| G | `jala_grpc` adapter (gRPC / gRPC-web) | 0.8.0 | 📋 PROPOSED |
+| G | `jala_grpc` adapter (gRPC / gRPC-web) | 0.8.0 | 📋 PLANNED — [plan](plans/track-g-v0.8-grpc.md) |
 | H | Localization (en + id-ID) | 0.8.x | 📋 PROPOSED |
 
 All five packages (`jala`, `jala_core`, `jala_dio`, `jala_http`, `jala_ui`)
@@ -75,8 +75,17 @@ streaming RPCs — service/method, request/response messages (`toProto3Json`
 where available, else byte metadata), status code + trailers, and a
 streaming timeline reusing the WS/subscription frame UI. Filter grammar:
 `is:grpc`; `op:` reuses the method name. New package → assign to `ketok.id`
-after first publish (standing rule). Detailed plan written when the track
-starts.
+after first publish (standing rule). Detailed execution plan:
+[plans/track-g-v0.8-grpc.md](plans/track-g-v0.8-grpc.md) (written
+2026-08-03).
+
+**Scope warning, verified against grpc 5.1.0:** `ClientInterceptor` is a
+narrower hook than the other three adapters'. Unary capture is complete, but
+streaming *response* messages cannot be tapped (`ResponseStream` is
+single-subscription and only constructible from a private `ClientCall`), and
+mocking / throttling cannot work at all (both need to fabricate or delay a
+response). `jala_grpc` v1 is **capture-only** — the plan covers the two
+escape routes if that proves unacceptable.
 
 **0.8.0 also carries the capture-integrity hardening** already staged under
 `## Unreleased` in every CHANGELOG (decision: user, 2026-08-03 — it rides
