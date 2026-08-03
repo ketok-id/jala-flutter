@@ -4,7 +4,7 @@
 a Chrome DevTools–style Network tab you drop into your own app.
 
 **Live demo:** [ketok-id.github.io/jala-flutter](https://ketok-id.github.io/jala-flutter/)  
-**Lockstep version:** `0.7.x` (all seven packages together — see [COMPAT.md](COMPAT.md))
+**Lockstep version:** `0.8.x` (all eight packages together — see [COMPAT.md](COMPAT.md))
 
 ---
 

@@ -11,7 +11,7 @@ inspector UI in two lines.
 |---|---|
 | **Audience** | Flutter apps (install this, not `jala_ui` alone) |
 | **Depends on** | `jala_ui`, `jala_core` |
-| **Lockstep** | `0.7.x` with all Jala packages — [COMPAT.md](../../docs/COMPAT.md) |
+| **Lockstep** | `0.8.x` with all Jala packages — [COMPAT.md](../../docs/COMPAT.md) |
 | **Requires** | Dart `^3.11`, Flutter `>=3.35` |
 
 **Existing app?** [ADOPTION.md](../../docs/ADOPTION.md) ·
@@ -24,8 +24,8 @@ inspector UI in two lines.
 
 ```yaml
 dependencies:
-  jala: ^0.7.0
-  jala_dio: ^0.7.0   # or jala_http / jala_graphql / jala_websocket
+  jala: ^0.8.0
+  jala_dio: ^0.8.0   # or jala_http / jala_graphql / jala_websocket
   dio: ^5.0.0
 ```
 

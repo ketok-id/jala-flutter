@@ -2,7 +2,7 @@
 
 Which package to install, what it depends on, and when you need it.
 
-**Lockstep:** all seven packages share one version (currently **`0.7.x`**).
+**Lockstep:** all eight packages share one version (currently **`0.8.x`**).
 Do not mix minors — see [COMPAT.md](COMPAT.md).
 
 ---

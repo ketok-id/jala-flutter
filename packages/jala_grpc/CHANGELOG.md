@@ -1,4 +1,4 @@
-## Unreleased
+## 0.8.0 — 2026-08-03
 
 First release. `JalaGrpcInterceptor` — a `package:grpc` `ClientInterceptor`
 that captures RPCs into the shared Jala store.

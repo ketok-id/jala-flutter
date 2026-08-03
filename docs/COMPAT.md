@@ -2,24 +2,26 @@
 
 Jala is pre-1.0. This document states what consumers can rely on while the
 packages remain on **0.x** lockstep versions (`jala`, `jala_core`,
-`jala_dio`, `jala_http`, `jala_graphql`, `jala_websocket`, `jala_ui`).
+`jala_dio`, `jala_http`, `jala_graphql`, `jala_websocket`, `jala_grpc`,
+`jala_ui`).
 
 ## Lockstep versions
 
-All seven packages share the same **major.minor** (and typically the same
+All eight packages share the same **major.minor** (and typically the same
 patch). When you depend on more than one, pin them together:
 
 ```yaml
 dependencies:
-  jala: ^0.7.0
-  jala_dio: ^0.7.0
+  jala: ^0.8.0
+  jala_dio: ^0.8.0
   # if used:
-  jala_http: ^0.7.0
-  jala_graphql: ^0.7.0
-  jala_websocket: ^0.7.0
+  jala_http: ^0.8.0
+  jala_graphql: ^0.8.0
+  jala_websocket: ^0.8.0
+  jala_grpc: ^0.8.0
 ```
 
-Do not mix `0.6.x` adapters with `0.7.x` core/ui.
+Do not mix `0.7.x` adapters with `0.8.x` core/ui.
 
 ## What 0.x means here
 
@@ -39,7 +41,7 @@ breaking changes may land in a minor bump until **1.0.0**. We still:
 
 ## Runtime floors
 
-| Constraint | Current (0.7.x) |
+| Constraint | Current (0.8.x) |
 |---|---|
 | Dart SDK | `^3.11.0` |
 | Flutter (packages that need it: `jala`, `jala_ui`) | `>=3.35.0` |

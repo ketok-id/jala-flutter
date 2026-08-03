@@ -11,7 +11,7 @@ export/import. Pure presentation over `jala_core`.
 |---|---|
 | **Audience** | Rarely direct — most apps install [`jala`](../jala) instead |
 | **Depends on** | `jala_core` (Flutter) |
-| **Lockstep** | `0.7.x` — [COMPAT.md](../../docs/COMPAT.md) |
+| **Lockstep** | `0.8.x` — [COMPAT.md](../../docs/COMPAT.md) |
 | **Requires** | Flutter `>=3.35`, Dart `^3.11` |
 
 ---
@@ -22,15 +22,15 @@ Prefer the facade:
 
 ```yaml
 dependencies:
-  jala: ^0.7.0   # depends on jala_ui
+  jala: ^0.8.0   # depends on jala_ui
 ```
 
 Direct dependency only if you host the inspector yourself:
 
 ```yaml
 dependencies:
-  jala_ui: ^0.7.0
-  jala_core: ^0.7.0
+  jala_ui: ^0.8.0
+  jala_core: ^0.8.0
 ```
 
 ## Setup (via facade)
