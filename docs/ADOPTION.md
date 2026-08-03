@@ -343,7 +343,9 @@ optional host glob (`*.example.com`).
   response is paced per chunk; a buffered one is held for the equivalent
   time (same total duration, no progressive delivery).  
 - `package:http`: latency + drop + upload/download pacing.  
-- WebSocket frames: not throttled.
+- WebSocket frames: not throttled.  
+- gRPC: not throttled and never mocked — `ClientInterceptor` cannot
+  fabricate or delay a response ([jala_grpc](../packages/jala_grpc)).
 
 ### Session share (QA → eng)
 

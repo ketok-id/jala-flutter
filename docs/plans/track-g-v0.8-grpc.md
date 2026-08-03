@@ -106,7 +106,7 @@ Covered by 12 tests across `jala_store_test`, `jala_filter_test` and
 payload ring reuse, filter terms, session round-trip, and that a non-gRPC
 entry omits all three fields from its JSON).
 
-## G2. `jala_grpc` (new package) — after G1
+## G2. `jala_grpc` (new package) — ✅ DONE (capture-only, per Q1 below)
 
 - Deps: `grpc: ^5.1.0` + `jala_core`. Pure Dart, no Flutter.
 - API: `JalaGrpcInterceptor()`, added to a generated client's
@@ -160,9 +160,14 @@ a proto3-JSON message, and capture failure never breaking the call.
 
 ## Open questions to settle before G2
 
-1. Streaming response capture: accept the v1 limitation, or take the
-   upstream / channel-subclass route? (Decides G2's shape and G3's note.)
+1. ~~Streaming response capture: accept the v1 limitation, or take the
+   upstream / channel-subclass route?~~ **Answered: accept it.** G2 shipped
+   capture-only. The channel-subclass route was re-confirmed unviable while
+   building the test harness — `ClientChannelBase` and `ClientConnection`
+   are not exported from `package:grpc`, so a wrapping channel cannot
+   dispatch its own `ClientCall` subclass. Revisit only via upstream.
 2. gRPC-web: `GrpcWebClientChannel` uses the same `Client` interceptor
-   path, so it should work unchanged — verify, don't assume.
+   path, so it should work unchanged — **still unverified**, and the one
+   claim in the README that rests on reasoning rather than a test.
 3. ~~Trailers in `responseHeaders`: merged, or separate?~~ **Answered in
    G1: separate field.**

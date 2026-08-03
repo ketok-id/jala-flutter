@@ -17,7 +17,7 @@ dart analyze --fatal-infos            # CI gate; run from root
 
 # Tests — pure-Dart packages use `dart test`, Flutter packages `flutter test`
 (cd packages/jala_core && dart test)
-(cd packages/jala_dio && dart test)          # also: jala_http, jala_graphql, jala_websocket
+(cd packages/jala_dio && dart test)          # also: jala_http, jala_graphql, jala_websocket, jala_grpc
 (cd packages/jala_ui && flutter test)        # also: jala, examples/jala_example
 
 # Single file / single test
@@ -45,15 +45,16 @@ CI (`.github/workflows/ci.yaml`) runs exactly: `flutter pub get`,
 
 ```
 jala (facade, Flutter)  →  jala_ui  →  jala_core
-jala_dio / jala_http / jala_graphql / jala_websocket  →  jala_core
+jala_dio / jala_http / jala_graphql / jala_websocket / jala_grpc
+                                                     →  jala_core
 ```
 
 - `jala_core` is **pure Dart with zero Flutter dependency** — models, event
   bus, store, redaction, filter grammar, exporters, import codecs, diff,
   mocks, throttle, session codec. Never add a Flutter import here.
-- Adapters (`jala_dio`, `jala_http`, `jala_graphql`, `jala_websocket`)
-  depend only on `jala_core` and their client library. They never import
-  `jala_ui` or `jala`.
+- Adapters (`jala_dio`, `jala_http`, `jala_graphql`, `jala_websocket`,
+  `jala_grpc`) depend only on `jala_core` and their client library. They
+  never import `jala_ui` or `jala`.
 - `jala_ui` owns all screens/widgets; `jala` is a thin static facade
   (`Jala.initialize`, `Jala.open/close`, `JalaOverlay`) plus the only
   `dart:io` conditional-import in the tree (file-backed mock persistence).
@@ -146,8 +147,8 @@ entries with `replayOf` set. Imported (HAR/session) entries disable replay.
 
 ## Testing notes
 
-- `jala_core`, `jala_dio`, `jala_http`, `jala_graphql`, `jala_websocket`
-  use `package:test`; `jala_ui`, `jala`, and the example use
+- `jala_core`, `jala_dio`, `jala_http`, `jala_graphql`, `jala_websocket`,
+  `jala_grpc` use `package:test`; `jala_ui`, `jala`, and the example use
   `flutter_test`. Each has a `test/test_helpers.dart` with entry/event
   builders (`makeEntry`, `emitCompletedCall`, `initJalaBinding`) — use them
   instead of hand-rolling fixtures.
