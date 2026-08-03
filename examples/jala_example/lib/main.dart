@@ -16,6 +16,8 @@ import 'package:jala_websocket/jala_websocket.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
+import 'grpc_demo.dart';
+
 /// Manual QA rig for Jala.
 ///
 /// Fires a variety of requests so you can exercise filters, export, replay,
@@ -134,7 +136,8 @@ class _DemoHomeState extends State<_DemoHome> {
             'WS echo: wss://ws.postman-echo.com/raw\n'
             'GraphQL: countries.trevorblades.com\n'
             'Power tools: Slow 3G + Large, session export/import\n'
-            'Inspect deeper: cURL/HAR import + call diff',
+            'Inspect deeper: cURL/HAR import + call diff\n'
+            'gRPC: canned in-memory RPCs (no server needed)',
           ),
           const Divider(height: 32),
           _btn('GET json', () => _run('GET json', () async {
@@ -452,6 +455,37 @@ class _DemoHomeState extends State<_DemoHome> {
               if (!mounted) return;
               await Navigator.of(context).push(JalaCallDiffScreen.route(a, b));
             }),
+          ),
+          const Divider(height: 32),
+          Text(
+            'gRPC (v0.8 — capture only)',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Canned in-memory RPCs through the real JalaGrpcInterceptor — no '
+            'server, works offline. Tiles show service/method with an RPC-kind '
+            'chip and the gRPC status name. gRPC is never mocked or throttled, '
+            'and a streaming RPC records its envelope but not its response '
+            'messages (the detail screen says so).',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 8),
+          _btn(
+            'gRPC unary (OK)',
+            () => _run('grpc unary ok', grpcUnaryOk),
+          ),
+          _btn(
+            'gRPC unary (NOT_FOUND)',
+            () => _run('grpc unary not found', grpcUnaryNotFound),
+          ),
+          _btn(
+            'gRPC unary (redaction check)',
+            () => _run('grpc redaction', grpcUnaryWithSecret),
+          ),
+          _btn(
+            'gRPC streaming (RouteChat)',
+            () => _run('grpc streaming', grpcStreaming),
           ),
         ],
       ),

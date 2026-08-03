@@ -163,14 +163,25 @@ Covered by 8 widget tests across `jala_call_list_tile_test` and
 RPC is not coloured the same as a successful one, and that a non-gRPC entry
 grows no trailers section.
 
-## G4. Example, smoke, release
+## G4. Example, smoke, release — 🚧 example done, smoke + release pending
 
-- `examples/jala_example`: a gRPC panel driven by a stub in-process
-  server or a canned fake channel (no network dependency in CI).
-- On-device smoke per the standing rule.
-- Release: lockstep 0.8.0 across all eight packages, seven existing
-  CHANGELOGs get their `## Unreleased` heading retitled, `docs/COMPAT.md`
-  and `docs/ROADMAP.md` updated, `dart pub publish --dry-run` clean.
+- ✅ `examples/jala_example`: a gRPC panel with four buttons (unary OK,
+  unary NOT_FOUND, redaction check, streaming). It drives the **real**
+  `JalaGrpcInterceptor` over a canned in-memory `ClientCall` rather than
+  fabricating events, so the rig exercises the adapter itself — and needs
+  no server, so it works offline and in CI. Four widget tests assert the
+  captured entries.
+- ⬜ **On-device smoke** per the standing rule. Cannot be automated: needs a
+  real device or simulator and a human looking at the inspector. Check the
+  gRPC tile presentation (kind chip, status name, error colour), the
+  trailers section, and the streaming note.
+- ⬜ **gRPC-web** still unverified — same `Client` interceptor path in
+  theory, but the README claims it and nothing tests it.
+- ⬜ **Release**: lockstep 0.8.0 across all eight packages (`jala_grpc`'s
+  pubspec still carries the 0.7.0 lockstep placeholder), every
+  `## Unreleased` heading retitled, `docs/COMPAT.md` and `docs/ROADMAP.md`
+  updated, `dart pub publish --dry-run` clean, then assign `jala_grpc` to
+  the `ketok.id` publisher after first publish.
 
 ## Open questions to settle before G2
 
