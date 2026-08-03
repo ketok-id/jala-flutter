@@ -1,6 +1,6 @@
 # Jala roadmap
 
-Status as of 2026-07-28. Detailed execution plans live in `docs/plans/`.
+Status as of 2026-08-03. Detailed execution plans live in `docs/plans/`.
 
 | Track | Goal | Shipped as | Status |
 |---|---|---|---|
@@ -11,6 +11,7 @@ Status as of 2026-07-28. Detailed execution plans live in `docs/plans/`.
 | E | Power tools: throttling, session share, subscription payloads | 0.5.0 | ✅ DONE — [plan](plans/track-e-v0.5.md) |
 | F | Inspect deeper: call diff, JSON virtualization, cURL/HAR import | 0.6.0 | ✅ DONE — [plan](plans/track-f-v0.6-inspect-deeper.md) |
 | — | Read the URL: decoded query-param table, capture-time URL redaction | 0.7.0 | ✅ DONE |
+| — | Capture-integrity hardening: body redaction across all adapters, Dio bandwidth throttling, replay/HAR/bubble fixes | 0.8.0 (rides with G) | 🚧 STAGED — `## Unreleased` in every CHANGELOG |
 | G | `jala_grpc` adapter (gRPC / gRPC-web) | 0.8.0 | 📋 PROPOSED |
 | H | Localization (en + id-ID) | 0.8.x | 📋 PROPOSED |
 
@@ -76,6 +77,28 @@ streaming timeline reusing the WS/subscription frame UI. Filter grammar:
 `is:grpc`; `op:` reuses the method name. New package → assign to `ketok.id`
 after first publish (standing rule). Detailed plan written when the track
 starts.
+
+**0.8.0 also carries the capture-integrity hardening** already staged under
+`## Unreleased` in every CHANGELOG (decision: user, 2026-08-03 — it rides
+with Track G rather than taking a release of its own). Two of those fixes
+constrain how `jala_grpc` must be written, so read them before starting the
+adapter:
+
+- **Bodies are redacted through `CapturedBody.captureRedacted`, never
+  `CapturedBody.capture`.** The old per-adapter "redact it if it's already
+  a `String`" rule is exactly what let `jala_http` ship with no body
+  redaction at all and `jala_dio` skip its own default paths. gRPC messages
+  arrive as decoded objects (`toProto3Json`), which is precisely the shape
+  that used to slip through — `captureRedacted` encodes and redacts them.
+- **Throttling must cover the adapter's normal path, not just its streaming
+  one.** Dio's bandwidth caps silently applied only to `ResponseType.stream`
+  for two releases. A gRPC interceptor should apply latency/drop to every
+  RPC and pace both unary and streaming messages.
+
+Whoever writes the `jala_grpc` plan should also decide whether streaming
+RPCs reuse `WsConnectionEntry`'s parallel collection or
+`NetworkCallEntry.payloads` (the GraphQL-subscription ring buffer) — the
+latter is the closer fit for a call that has one request and N responses.
 
 ## Track H — v0.8.x proposal: localization
 
