@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../model/captured_body.dart';
 import '../model/network_call_entry.dart';
+import '../util/query_params.dart';
 
 /// Exports [NetworkCallEntry]s as HAR 1.2 JSON
 /// (http://www.softwareishard.com/blog/har-12-spec/).
@@ -46,10 +47,15 @@ class HarExporter {
       'httpVersion': 'HTTP/1.1',
       'cookies': <Object?>[],
       'headers': _headers(e.requestHeaders),
+      // Parsed segment-wise rather than via `Uri.queryParameters`, which
+      // collapses repeated keys to the last value — `?tag=a&tag=b` would
+      // export as a single `tag=b` and silently lose a parameter the app
+      // actually sent. HAR models `queryString` as an array precisely so
+      // repeats survive. A valueless parameter (`?q`) has no value on the
+      // wire; HAR has no null, so it is reported as an empty string.
       'queryString': [
-        for (final MapEntry<String, String> param
-            in e.uri.queryParameters.entries)
-          <String, Object?>{'name': param.key, 'value': param.value},
+        for (final JalaQueryParam param in parseQueryParams(e.uri))
+          <String, Object?>{'name': param.name, 'value': param.value ?? ''},
       ],
       'headersSize': -1,
       'bodySize': e.requestSize ?? e.requestBody.originalSize ?? -1,

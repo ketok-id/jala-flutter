@@ -56,6 +56,13 @@ class JalaHttpReplayer implements JalaReplayer {
     Map<String, String>? headers,
     String? bodyOverride,
   }) {
+    // An explicit body override is the developer supplying the real
+    // content, so it is always allowed; only reusing Jala's own capture has
+    // to be faithful to what actually went over the wire.
+    if (bodyOverride == null) {
+      final String? blocked = entry.replayBlockedReason;
+      if (blocked != null) throw JalaReplayException(blocked);
+    }
     final Map<String, String> sourceHeaders =
         headers ?? entry.requestHeaders;
     // An explicit override (edit-and-resend) is the developer retyping the
@@ -101,9 +108,15 @@ class JalaHttpReplayer implements JalaReplayer {
     switch (body.kind) {
       case BodyKind.json:
       case BodyKind.text:
-      case BodyKind.truncated:
         final String? text = body.text;
         return text == null ? null : utf8.encode(text);
+      case BodyKind.truncated:
+        // Unreachable: `_buildRequest` rejects a truncated body before it
+        // gets here. Kept explicit so the switch stays exhaustive and this
+        // never silently degrades to sending a prefix.
+        throw const JalaReplayException(
+          'Refusing to replay a truncated request body',
+        );
       case BodyKind.bytes:
       case BodyKind.stream:
       case BodyKind.image:

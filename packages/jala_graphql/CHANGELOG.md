@@ -1,3 +1,12 @@
+## Unreleased
+
+### Fixed
+
+- **Response payloads are now redacted.** `Response.data` is a decoded
+  `Map` and was captured as-is, so body redaction applied to GraphQL
+  requests but never to responses — a mutation returning a token stored it
+  in the clear.
+
 ## 0.7.0
 
 - The captured endpoint URL goes through `JalaRedactor.redactUri`, masking

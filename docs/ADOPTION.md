@@ -339,8 +339,9 @@ Inspector → **speed** icon → Slow 3G / Fast 3G / Flaky / Offline / custom +
 optional host glob (`*.example.com`).
 
 - Banner shows while active.  
-- Dio: latency + drop always; bandwidth pacing only for
-  `ResponseType.stream`.  
+- Dio: latency + drop + upload/download bandwidth. A `ResponseType.stream`
+  response is paced per chunk; a buffered one is held for the equivalent
+  time (same total duration, no progressive delivery).  
 - `package:http`: latency + drop + upload/download pacing.  
 - WebSocket frames: not throttled.
 
@@ -428,7 +429,7 @@ Full table and deep dives: **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)**.
 | Auth header is `••••••` | Default capture-time redaction | Expected; [CONFIG.md](CONFIG.md) for debug-only unmask |
 | Auth header visible as real token | Custom redactor emptied defaults, or other logger | Keep default header redaction; fix other loggers |
 | “Works in debug, empty in release QA” | Default `enabled: kDebugMode` | Internal QA flavor: `JalaConfig(enabled: true)` |
-| Large download not slow under throttle (Dio) | Non-stream response type | Use `ResponseType.stream` or test with `jala_http` |
+| Download arrives all at once under throttle (Dio) | Buffered response types can't be delivered progressively | Expected: total time still matches the cap; use `ResponseType.stream` for chunk-by-chunk pacing |
 | WS not slowing under Slow 3G | By design in v0.5 | Throttle is HTTP-only |
 | Install prompt / blank screen on Android smoke | MIUI/vendor install UX; store-only tests have no UI | Approve install; blank screen during integration_test is expected |
 

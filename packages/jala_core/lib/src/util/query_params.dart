@@ -1,4 +1,5 @@
-/// Query-string parsing for the call detail's "Query parameters" section.
+/// Wire-faithful query-string parsing, shared by the call detail's "Query
+/// parameters" section and `HarExporter`'s `queryString` array.
 library;
 
 /// One query-string parameter, in the order it appeared on the wire.
@@ -21,6 +22,10 @@ class JalaQueryParam {
 
 /// Splits [uri]'s raw query into decoded [JalaQueryParam]s, preserving wire
 /// order and repeated keys (`?tag=a&tag=b` stays two rows, in that order).
+///
+/// Use this rather than [Uri.queryParameters] anywhere the query is being
+/// *shown* or *exported*: that getter collapses repeated keys to the last
+/// value, so `?tag=a&tag=b` silently becomes a single `tag=b`.
 ///
 /// Decoding is best-effort: a component that is not valid percent-encoding
 /// is kept verbatim rather than throwing, because the inspector has to

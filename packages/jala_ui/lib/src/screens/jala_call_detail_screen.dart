@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:jala_core/jala_core.dart';
 
 import '../util/format.dart';
-import '../util/query_params.dart';
 import '../widgets/jala_body_view.dart';
 import '../widgets/jala_headers_table.dart';
 import '../widgets/jala_json_tree.dart';
@@ -65,11 +64,20 @@ class _JalaCallDetailScreenState extends State<JalaCallDetailScreen>
   }
 
   Future<void> _replay(BuildContext context, NetworkCallEntry entry) async {
-    final bool ok = await JalaBinding.instance.replayRegistry.replay(entry);
+    String message;
+    try {
+      final bool ok = await JalaBinding.instance.replayRegistry.replay(entry);
+      message = ok ? 'Replay sent' : 'No replayer attached';
+    } on JalaReplayException catch (e) {
+      // The Replay button is already disabled for these, so this is a
+      // backstop — but it must surface as a message, never as an unhandled
+      // async error inside the overlay.
+      message = e.message;
+    }
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(ok ? 'Replay sent' : 'No replayer attached')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   /// Lets the user pick another captured call to diff against [current], then
@@ -147,6 +155,12 @@ class _JalaCallDetailScreenState extends State<JalaCallDetailScreen>
               final bool hasReplayer =
                   JalaBinding.instance.replayRegistry.hasReplayer;
               final bool imported = entry.imported;
+              // Non-null when replaying as-captured would be unfaithful —
+              // currently a request body that hit the capture cap, which
+              // would otherwise be resent as a silently corrupt prefix.
+              final String? replayBlocked = entry.replayBlockedReason;
+              final bool canReplay =
+                  !imported && hasReplayer && replayBlocked == null;
               final String pathTitle = entry.uri.path.isEmpty
                   ? '/'
                   : entry.uri.path;
@@ -296,12 +310,12 @@ class _JalaCallDetailScreenState extends State<JalaCallDetailScreen>
                         Tooltip(
                           message: imported
                               ? "Imported entries can't be replayed"
-                              : (hasReplayer
-                                    ? 'Replay this call'
-                                    : 'No replayer attached — use '
-                                          'JalaDio.attach(dio)'),
+                              : (!hasReplayer
+                                    ? 'No replayer attached — use '
+                                          'JalaDio.attach(dio)'
+                                    : (replayBlocked ?? 'Replay this call')),
                           child: FilledButton.icon(
-                            onPressed: (!imported && hasReplayer)
+                            onPressed: canReplay
                                 ? () => _replay(context, entry)
                                 : null,
                             icon: const Icon(Icons.replay, size: 18),

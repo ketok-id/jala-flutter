@@ -256,8 +256,22 @@ class _CapturingWebSocketSink implements WebSocketSink {
     _inner.addError(error, stackTrace);
   }
 
+  /// Reports every element to [onAdd] as it passes through, so frames sent
+  /// via `sink.addStream(...)` are captured just like `sink.add(...)` ones
+  /// — previously this delegated straight through and those frames were
+  /// invisible to the inspector.
+  ///
+  /// The map is lazy, so elements are still forwarded one at a time as the
+  /// source produces them; the stream is never buffered or drained here.
   @override
-  Future<dynamic> addStream(Stream<dynamic> stream) => _inner.addStream(stream);
+  Future<dynamic> addStream(Stream<dynamic> stream) {
+    return _inner.addStream(
+      stream.map((dynamic data) {
+        onAdd(data);
+        return data;
+      }),
+    );
+  }
 
   @override
   Future<dynamic> close([int? closeCode, String? closeReason]) {

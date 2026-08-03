@@ -1,3 +1,25 @@
+## Unreleased
+
+### Fixed
+
+- **The overlay bubble keeps its position when the inspector closes.**
+  `JalaOverlay` unmounts the bubble while the inspector is open, which
+  disposed the `State` holding its position — so closing the inspector
+  snapped it back to the default right-edge spot every time, discarding
+  wherever the user had dragged it. The dragged position is now retained
+  across mount/unmount (`JalaOverlayButton.resetPositionForTesting` clears
+  it in tests) and re-clamped to the current bounds on read, so a position
+  stored before a rotation or resize cannot strand the bubble off-screen.
+- Replay is disabled, with an explanatory tooltip, for a call whose request
+  body was truncated at capture time; replaying it would have sent an
+  incomplete body. **Edit & resend** stays available as the escape hatch.
+
+### Changed
+
+- `parseQueryParams` / `JalaQueryParam` moved to `jala_core` (they were
+  never exported from this package's barrel). The HAR exporter now shares
+  the same parser.
+
 ## 0.7.0
 
 - Call detail Request tab: new **Query parameters** section breaking the

@@ -1,5 +1,6 @@
 import '../model/captured_body.dart';
 import '../model/network_call_entry.dart';
+import '../redact/jala_redactor.dart';
 
 /// Exports a [NetworkCallEntry] as a runnable Dart snippet using
 /// `package:dio`.
@@ -7,7 +8,15 @@ class DartSnippetExporter {
   const DartSnippetExporter._();
 
   /// Renders [entry] as a copy-pasteable `dio.request(...)` snippet.
-  static String export(NetworkCallEntry entry) {
+  ///
+  /// When [redacted] is true (the default) headers whose value was masked
+  /// at capture time keep the mask placeholder, flagged with a trailing
+  /// comment so the snippet cannot quietly be run with a credential that
+  /// was never real. When false those headers are omitted entirely —
+  /// matching `CurlExporter.export`'s `redacted` flag, and for the same
+  /// reason: redaction happens at capture time, so there is no original
+  /// value for either mode to reveal.
+  static String export(NetworkCallEntry entry, {bool redacted = true}) {
     final StringBuffer buffer = StringBuffer()
       ..writeln('final dio = Dio();')
       ..writeln('final response = await dio.request(')
@@ -15,10 +24,20 @@ class DartSnippetExporter {
       ..writeln('  options: Options(');
     buffer.writeln('    method: ${_string(entry.method)},');
 
-    if (entry.requestHeaders.isNotEmpty) {
+    final Map<String, String> headers = redacted
+        ? entry.requestHeaders
+        : <String, String>{
+            for (final MapEntry<String, String> h
+                in entry.requestHeaders.entries)
+              if (h.value != JalaRedactor.mask) h.key: h.value,
+          };
+    if (headers.isNotEmpty) {
       buffer.writeln('    headers: {');
-      entry.requestHeaders.forEach((name, value) {
-        buffer.writeln('      ${_string(name)}: ${_string(value)},');
+      headers.forEach((name, value) {
+        final String masked = value == JalaRedactor.mask
+            ? ' // redacted at capture — replace with the real value'
+            : '';
+        buffer.writeln('      ${_string(name)}: ${_string(value)},$masked');
       });
       buffer.writeln('    },');
     }

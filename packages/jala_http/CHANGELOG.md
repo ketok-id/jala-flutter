@@ -1,3 +1,19 @@
+## Unreleased
+
+### Fixed
+
+- **Request and response bodies are now redacted.** This adapter never
+  called `JalaRedactor.redactBody` at all, so neither the built-in
+  JSON/form secret-key patterns nor a caller's `redactedBodyPatterns`
+  applied to anything it captured: passwords and tokens in bodies reached
+  the store, the inspector UI, and every cURL / HAR / session export
+  verbatim, contradicting the capture-time redaction guarantee.
+- An over-cap response is still reported as truncated once redaction has
+  shrunk it. Truncation was forced by capping at one byte below the
+  buffered length, which masking could push the body back under.
+- `JalaHttpReplayer` refuses to replay an entry whose request body was
+  truncated at capture time instead of resending the retained prefix.
+
 ## 0.7.0
 
 - Sensitive query-parameter values (`?access_token=…`) are masked at

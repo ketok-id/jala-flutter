@@ -333,4 +333,142 @@ void main() {
       );
     });
   });
+
+  group('CapturedBody.captureRedacted', () {
+    // Regression: body redaction used to be applied by each adapter only to
+    // already-`String` bodies, so the Map/List and raw-bytes shapes — which
+    // is what Dio's `data: {...}`, its default ResponseType.json, and
+    // package:http hand over — silently bypassed it entirely.
+    final JalaRedactor redactor = JalaRedactor();
+
+    test('redacts a String body', () {
+      final body = CapturedBody.captureRedacted(
+        '{"user":"ada","password":"s3cret"}',
+        redactor: redactor,
+        contentType: 'application/json',
+      );
+      expect(body.text, '{"user":"ada","password":"••••••"}');
+      expect(body.kind, BodyKind.json);
+    });
+
+    test('redacts an already-decoded Map body', () {
+      final body = CapturedBody.captureRedacted(
+        <String, dynamic>{'user': 'ada', 'password': 's3cret'},
+        redactor: redactor,
+      );
+      expect(body.text, contains('••••••'));
+      expect(body.text, isNot(contains('s3cret')));
+      expect(body.kind, BodyKind.json);
+    });
+
+    test('redacts a List body', () {
+      final body = CapturedBody.captureRedacted(
+        <Object?>[
+          <String, dynamic>{'access_token': 'abc.def'},
+        ],
+        redactor: redactor,
+      );
+      expect(body.text, isNot(contains('abc.def')));
+    });
+
+    test('redacts textual raw bytes', () {
+      final body = CapturedBody.captureRedacted(
+        utf8.encode('{"refresh_token":"r3fr3sh"}'),
+        redactor: redactor,
+        contentType: 'application/json',
+      );
+      expect(body.text, isNot(contains('r3fr3sh')));
+    });
+
+    test('applies custom redactedBodyPatterns', () {
+      final body = CapturedBody.captureRedacted(
+        <String, dynamic>{'ssn': '123-45-6789'},
+        redactor: JalaRedactor(
+          redactedBodyPatterns: <Pattern>[RegExp(r'\d{3}-\d{2}-\d{4}')],
+        ),
+      );
+      expect(body.text, isNot(contains('123-45-6789')));
+      expect(body.text, contains('••••••'));
+    });
+
+    test('non-textual bytes retain nothing, so there is nothing to redact', () {
+      final body = CapturedBody.captureRedacted(
+        <int>[0x00, 0x01, 0x02],
+        redactor: redactor,
+        contentType: 'application/octet-stream',
+      );
+      expect(body.kind, BodyKind.bytes);
+      expect(body.text, isNull);
+    });
+
+    test('null and Stream bodies pass through unchanged', () {
+      expect(
+        CapturedBody.captureRedacted(null, redactor: redactor).kind,
+        BodyKind.none,
+      );
+      expect(
+        CapturedBody.captureRedacted(
+          const Stream<List<int>>.empty(),
+          redactor: redactor,
+        ).kind,
+        BodyKind.stream,
+      );
+    });
+
+    test('the cap applies to the redacted text, not the raw body', () {
+      final body = CapturedBody.captureRedacted(
+        '{"password":"s3cret","pad":"${'x' * 400}"}',
+        redactor: redactor,
+        contentType: 'application/json',
+        maxBytes: 64,
+      );
+      expect(body.kind, BodyKind.truncated);
+      expect(body.truncated, isTrue);
+      expect(utf8.encode(body.text!).length, lessThanOrEqualTo(64));
+      // The mask survived truncation; the secret never entered the buffer.
+      expect(body.text, contains('••••••'));
+      expect(body.text, isNot(contains('s3cret')));
+    });
+
+    test('masking can bring an over-cap body back under it', () {
+      // Not a bug: what gets retained really does fit, because the secret
+      // was replaced before anything was measured. Documented so the
+      // interaction with `knownTruncated` below is unambiguous.
+      final body = CapturedBody.captureRedacted(
+        '{"password":"${'x' * 400}"}',
+        redactor: redactor,
+        contentType: 'application/json',
+        maxBytes: 64,
+      );
+      expect(body.kind, BodyKind.json);
+      expect(body.truncated, isFalse);
+      expect(body.text, '{"password":"••••••"}');
+    });
+
+    test('knownTruncated flags a body the caller already cut short', () {
+      // Regression: jala_http forced truncation by passing a cap of
+      // `buffered.length - 1`. Redaction shrinks the text, so the redacted
+      // body could land back under that cap and be reported as complete.
+      final body = CapturedBody.captureRedacted(
+        '{"password":"s3cret-and-then-some-padding-to-shrink"}',
+        redactor: redactor,
+        contentType: 'application/json',
+        maxBytes: 1024,
+        knownTruncated: true,
+      );
+      expect(body.kind, BodyKind.truncated);
+      expect(body.truncated, isTrue);
+      expect(body.text, isNot(contains('s3cret')));
+    });
+
+    test('capture (unredacted) still retains what it is handed', () {
+      // The non-redacting entry point is still used by import/session
+      // decode, where content has already been through capture-time
+      // redaction on the machine that recorded it.
+      expect(
+        CapturedBody.capture('{"password":"s3cret"}').text,
+        '{"password":"s3cret"}',
+      );
+    });
+  });
 }

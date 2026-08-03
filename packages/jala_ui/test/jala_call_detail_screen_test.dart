@@ -531,4 +531,79 @@ void main() {
       expect(find.textContaining('Query parameters'), findsNothing);
     });
   });
+
+  group('truncated request bodies', () {
+    // Regression: replay was gated only on `imported`/`hasReplayer`, so a
+    // call whose request body hit the capture cap could be replayed — and
+    // the replayer silently sent the retained prefix, delivering a corrupt
+    // payload to a live endpoint.
+    Future<void> pumpTruncated(WidgetTester tester) async {
+      final JalaBinding binding = initJalaBinding();
+      binding.replayRegistry.register(_NoopReplayer());
+      emitCompletedCall(
+        binding.bus,
+        'trunc-1',
+        method: 'POST',
+        requestBody: CapturedBody.capture(
+          '{"blob":"${'x' * 400}"}',
+          contentType: 'application/json',
+          maxBytes: 64,
+        ),
+      );
+      await flush();
+      await pumpJalaApp(tester, const JalaCallDetailScreen(entryId: 'trunc-1'));
+      await pumpJalaSettle(tester);
+    }
+
+    testWidgets('Replay is disabled and explains why', (
+      WidgetTester tester,
+    ) async {
+      await pumpTruncated(tester);
+
+      final FilledButton replay = tester.widget<FilledButton>(
+        find.ancestor(
+          of: find.text('Replay'),
+          matching: find.byType(FilledButton),
+        ),
+      );
+      expect(replay.onPressed, isNull);
+
+      final Tooltip tooltip = tester.widget<Tooltip>(
+        find.ancestor(of: find.text('Replay'), matching: find.byType(Tooltip)),
+      );
+      expect(tooltip.message, contains('truncated'));
+      expect(tooltip.message, contains('Edit & resend'));
+    });
+
+    testWidgets('Edit & resend stays available as the escape hatch', (
+      WidgetTester tester,
+    ) async {
+      await pumpTruncated(tester);
+
+      final TextButton edit = tester.widget<TextButton>(
+        find.ancestor(
+          of: find.text('Edit & resend'),
+          matching: find.byType(TextButton),
+        ),
+      );
+      expect(edit.onPressed, isNotNull);
+    });
+  });
+}
+
+/// A replayer that records nothing and does nothing — enough to make
+/// `replayRegistry.hasReplayer` true so the UI's other gating conditions
+/// are what's under test.
+class _NoopReplayer implements JalaReplayer {
+  @override
+  Future<void> replay(NetworkCallEntry entry) async {}
+
+  @override
+  Future<void> replayModified(
+    NetworkCallEntry entry, {
+    String? method,
+    Uri? uri,
+    Map<String, String>? headers,
+    String? body,
+  }) async {}
 }

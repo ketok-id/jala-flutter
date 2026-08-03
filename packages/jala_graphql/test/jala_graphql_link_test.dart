@@ -437,4 +437,64 @@ void main() {
       expect(entry.errorMessage, contains('socket closed'));
     });
   });
+
+  group('JalaGraphQLLink response redaction', () {
+    // Regression: request bodies were redacted but responses were not —
+    // `Response.data` is a decoded Map and was captured as-is, so a
+    // GraphQL mutation returning a token stored it in the clear.
+    test('redacts default secret keys in a response payload', () async {
+      JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+      final FakeTerminatingLink terminating = FakeTerminatingLink()
+        ..respondWith(<Response>[
+          gqlResponse(<String, dynamic>{
+            'login': <String, dynamic>{'access_token': 'abc.def.ghi'},
+          }),
+        ]);
+      final JalaGraphQLLink link = JalaGraphQLLink(
+        endpoint: Uri.parse('https://api.example.com/graphql'),
+      );
+
+      await link
+          .request(
+            buildRequest(
+              'mutation Login { login { access_token } }',
+              operationName: 'Login',
+            ),
+            terminating.request,
+          )
+          .toList();
+      await pump();
+
+      final NetworkCallEntry entry = JalaBinding.instance.store.entries.single;
+      expect(entry.responseBody.text, isNot(contains('abc.def.ghi')));
+      expect(entry.responseBody.text, contains('••••••'));
+    });
+
+    test('applies custom redactedBodyPatterns to a response payload',
+        () async {
+      JalaBinding.instance.initialize(
+        config: JalaConfig(
+          enabled: true,
+          redactor: JalaRedactor(
+            redactedBodyPatterns: <Pattern>['super-secret'],
+          ),
+        ),
+      );
+      final FakeTerminatingLink terminating = FakeTerminatingLink()
+        ..respondWith(<Response>[
+          gqlResponse(<String, dynamic>{'note': 'super-secret'}),
+        ]);
+      final JalaGraphQLLink link = JalaGraphQLLink(
+        endpoint: Uri.parse('https://api.example.com/graphql'),
+      );
+
+      await link
+          .request(buildRequest('query Q { note }'), terminating.request)
+          .toList();
+      await pump();
+
+      final NetworkCallEntry entry = JalaBinding.instance.store.entries.single;
+      expect(entry.responseBody.text, isNot(contains('super-secret')));
+    });
+  });
 }

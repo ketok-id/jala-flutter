@@ -155,6 +155,60 @@ void main() {
     test('binding exposes a replay registry', () {
       expect(JalaBinding.instance.replayRegistry, isA<JalaReplayRegistry>());
     });
+
+    test('refuses to replay an entry with a truncated request body', () async {
+      // Regression: replay resent whatever prefix survived the capture cap,
+      // silently delivering a corrupt payload to a live endpoint.
+      final registry = JalaReplayRegistry();
+      final replayer = _RecordingReplayer();
+      registry.register(replayer);
+
+      final entry = makeEntry(
+        method: 'POST',
+        requestBody: CapturedBody.capture(
+          '{"blob":"${'x' * 400}"}',
+          contentType: 'application/json',
+          maxBytes: 64,
+        ),
+      );
+      expect(entry.requestBody.kind, BodyKind.truncated);
+      expect(entry.replayBlockedReason, isNotNull);
+
+      await expectLater(
+        registry.replay(entry),
+        throwsA(isA<JalaReplayException>()),
+      );
+      expect(replayer.replayed, isEmpty);
+    });
+
+    test('a complete request body reports no replay blocker', () {
+      expect(makeEntry().replayBlockedReason, isNull);
+      expect(
+        makeEntry(
+          requestBody: CapturedBody.capture('{"a":1}'),
+        ).replayBlockedReason,
+        isNull,
+      );
+    });
+
+    test('replayModified is not blocked — the developer supplies the body',
+        () async {
+      final registry = JalaReplayRegistry();
+      final replayer = _RecordingReplayer();
+      registry.register(replayer);
+
+      final entry = makeEntry(
+        requestBody: CapturedBody.capture(
+          '{"blob":"${'x' * 400}"}',
+          contentType: 'application/json',
+          maxBytes: 64,
+        ),
+      );
+      expect(
+        await registry.replayModified(entry, body: '{"full":"body"}'),
+        isTrue,
+      );
+    });
   });
 
   group('JalaBinding.throttleRegistry', () {

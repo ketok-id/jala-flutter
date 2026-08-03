@@ -88,6 +88,11 @@ JalaRedactor({
 | `includeDefaultBodyPatterns` | When true, mask common JSON/form secret keys |
 | `redactedBodyPatterns` | Extra `Pattern`s applied after defaults |
 
+Both body settings apply to every captured body shape — including
+already-decoded `Map`/`List` bodies, which are encoded to JSON and redacted
+before capture. See [SECURITY.md](SECURITY.md#defaults) for the
+over-the-cap caveat.
+
 ---
 
 ## Defaults (what is masked out of the box)

@@ -1,5 +1,5 @@
-import 'package:flutter_test/flutter_test.dart';
-import 'package:jala_ui/src/util/query_params.dart';
+import 'package:jala_core/jala_core.dart';
+import 'package:test/test.dart';
 
 void main() {
   List<String> pairs(Uri uri) => parseQueryParams(uri)
