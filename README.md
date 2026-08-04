@@ -6,7 +6,7 @@
 a Chrome DevTools Network tab you drop into your own app. A product of
 [Ketok](https://ketok.id).
 
-**Docs:** [docs/README.md](docs/README.md) · **Lockstep:** `0.7.x` ·
+**Docs:** [docs/README.md](docs/README.md) · **Lockstep:** `0.8.x` ·
 **Requires:** Dart `^3.11`, Flutter `>=3.35`
 
 ---
@@ -38,8 +38,8 @@ teams often reach for it in the same “see what the app is doing” spot.
 
 ```yaml
 dependencies:
-  jala: ^0.7.0
-  jala_dio: ^0.7.0
+  jala: ^0.8.0
+  jala_dio: ^0.8.0
   dio: ^5.9.0
 ```
 

@@ -13,7 +13,7 @@ throttle, session codec, and call/JSON diff.
 |---|---|
 | **Audience** | Adapter authors, headless tooling — **not** a typical app install |
 | **Depends on** | Dart only (`dart:core` / `dart:convert`) |
-| **Lockstep** | `0.7.x` — [COMPAT.md](../../docs/COMPAT.md) |
+| **Lockstep** | `0.8.x` — [COMPAT.md](../../docs/COMPAT.md) |
 | **Requires** | Dart `^3.11` |
 
 **Building an app?** Install [`jala`](../jala) instead (pulls in UI + core).
@@ -28,7 +28,7 @@ throttle, session codec, and call/JSON diff.
 
 ```yaml
 dependencies:
-  jala_core: ^0.7.0
+  jala_core: ^0.8.0
 ```
 
 ## Setup (without Flutter)

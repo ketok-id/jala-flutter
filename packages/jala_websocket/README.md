@@ -10,7 +10,7 @@ lifecycle (connect / open / close / error) and every frame sent or received.
 |---|---|
 | **Audience** | Apps using `WebSocketChannel` |
 | **Depends on** | `jala_core`, `web_socket_channel` |
-| **Lockstep** | `0.7.x` — [COMPAT.md](../../docs/COMPAT.md) |
+| **Lockstep** | `0.8.x` — [COMPAT.md](../../docs/COMPAT.md) |
 | **Requires** | Dart `^3.11` |
 
 Wire the facade with [`jala`](../jala). Brownfield:
@@ -24,8 +24,8 @@ Wire the facade with [`jala`](../jala). Brownfield:
 
 ```yaml
 dependencies:
-  jala: ^0.7.0
-  jala_websocket: ^0.7.0
+  jala: ^0.8.0
+  jala_websocket: ^0.8.0
 ```
 
 ## Setup

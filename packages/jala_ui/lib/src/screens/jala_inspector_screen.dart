@@ -94,6 +94,7 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
         ('Errors', 's:error'),
         ('Mocked', 'is:mocked'),
         ('GraphQL', 'is:graphql'),
+        ('gRPC', 'is:grpc'),
         ('WS', 'is:ws'),
       ];
 

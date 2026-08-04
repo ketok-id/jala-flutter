@@ -122,6 +122,82 @@ void main() {
     step('8 PASS');
   });
 
+  // Bandwidth is deliberately a separate test with a *real* download: a
+  // mock short-circuits before the pacing path, so a mocked call can never
+  // exercise it. This is the only on-device coverage of the 0.8.0 fix that
+  // made Dio honour bandwidth caps on its default (buffered) response type
+  // — before it, "Slow 3G" applied latency and drops but ignored its own
+  // KB/s figure for most Dio traffic.
+  testWidgets('E2b bandwidth cap paces a real buffered download', (
+    WidgetTester tester,
+  ) async {
+    step('1 initialize binding');
+    JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+    addTearDown(JalaBinding.resetForTesting);
+
+    final Dio dio = Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 30),
+      ),
+    );
+    JalaDio.attach(dio);
+
+    // 256 KB at 128 KB/s => ~2s of pacing on top of real transfer time.
+    const int bytes = 256 * 1024;
+    const int perSec = 128 * 1024;
+    step('2 activate ${perSec ~/ 1024} KB/s cap for a $bytes B download');
+    JalaBinding.instance.throttleRegistry.setActive(
+      const JalaThrottleProfile(
+        id: 'smoke-bandwidth',
+        name: 'Smoke bandwidth',
+        latencyMs: 0,
+        downloadBytesPerSec: perSec,
+      ),
+    );
+
+    final Stopwatch sw = Stopwatch()..start();
+    final Response<dynamic> response = await dio.get<dynamic>(
+      'https://speed.cloudflare.com/__down?bytes=$bytes',
+      options: Options(responseType: ResponseType.bytes),
+    );
+    sw.stop();
+    step('3 download returned in ${sw.elapsedMilliseconds}ms (expect >=1800)');
+
+    expect(response.statusCode, 200);
+    // Lower bound only: a slow network makes this *more* likely to hold, so
+    // the assertion cannot flake on a bad connection — only on the pacing
+    // silently not applying, which is exactly what regressed before.
+    expect(sw.elapsedMilliseconds, greaterThanOrEqualTo(1800));
+
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    await tester.pump();
+
+    final NetworkCallEntry entry = JalaBinding.instance.store.entries
+        .firstWhere(
+          (NetworkCallEntry e) => e.throttledBy == 'smoke-bandwidth',
+          orElse: () =>
+              throw StateError('no throttledBy=smoke-bandwidth entry'),
+        );
+    step('4 entry.duration=${entry.duration?.inMilliseconds}ms '
+        'size=${entry.responseSize}');
+
+    // The reported duration must match what the app actually waited. This
+    // is the 0.8.0 regression guard: pacing used to be applied *after* the
+    // response event was emitted, so the inspector showed milliseconds for
+    // a call that took seconds.
+    expect(
+      entry.duration!.inMilliseconds,
+      greaterThanOrEqualTo(1800),
+      reason: 'entry.duration must include the bandwidth pacing',
+    );
+    expect(entry.responseSize, bytes);
+
+    step('5 clear throttle');
+    JalaBinding.instance.throttleRegistry.clear();
+    step('6 PASS');
+  });
+
   testWidgets('E1 session codec round-trip store-only', (
     WidgetTester tester,
   ) async {

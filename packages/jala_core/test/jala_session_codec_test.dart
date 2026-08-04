@@ -339,4 +339,36 @@ void main() {
       expect(decoded.entries.single.responseBody.kind, BodyKind.none);
     });
   });
+
+  group('gRPC fields round-trip (Track G G1)', () {
+    test('rpcKind, grpcStatusCode and trailers survive encode/decode', () {
+      final bus = enabledBus();
+      final store = JalaStore(bus: bus);
+      addTearDown(store.dispose);
+
+      emitRequest(bus, 'rpc-1', client: 'grpc', rpcKind: 'bidi');
+      emitResponse(
+        bus,
+        'rpc-1',
+        grpcStatusCode: 5,
+        trailers: const <String, String>{'grpc-message': 'nope'},
+      );
+
+      return pump().then((_) {
+        final decoded = JalaSessionCodec.decode(JalaSessionCodec.encode(store));
+        final entry = decoded.entries.single;
+        expect(entry.rpcKind, 'bidi');
+        expect(entry.grpcStatusCode, 5);
+        expect(entry.trailers, <String, String>{'grpc-message': 'nope'});
+      });
+    });
+
+    test('a non-gRPC entry omits the fields entirely', () {
+      final json = makeEntry().toJson();
+      expect(json.containsKey('rpcKind'), isFalse);
+      expect(json.containsKey('grpcStatusCode'), isFalse);
+      expect(json.containsKey('trailers'), isFalse);
+      expect(NetworkCallEntry.fromJson(json).trailers, isEmpty);
+    });
+  });
 }

@@ -14,6 +14,10 @@ void main() {
     String url = 'https://api.example.com/users',
     String? operationName,
     String? operationType,
+    String client = 'test',
+    String? rpcKind,
+    int? grpcStatusCode,
+    String? throttledBy,
   }) {
     return NetworkCallEntry(
       id: 'x',
@@ -26,9 +30,12 @@ void main() {
       responseBody: CapturedBody.none,
       statusCode: 200,
       status: JalaCallStatus.success,
-      client: 'test',
+      client: client,
       operationName: operationName,
       operationType: operationType,
+      rpcKind: rpcKind,
+      grpcStatusCode: grpcStatusCode,
+      throttledBy: throttledBy,
     );
   }
 
@@ -123,4 +130,78 @@ void main() {
       expect(find.text('POST'), findsOneWidget);
     },
   );
+
+  group('gRPC entries (Track G G3)', () {
+    NetworkCallEntry grpcEntry({
+      int grpcStatusCode = 0,
+      String rpcKind = 'unary',
+    }) => entry(
+      method: 'POST',
+      url: 'https://api.example.com/routeguide.RouteGuide/GetFeature',
+      client: 'grpc',
+      operationName: 'GetFeature',
+      rpcKind: rpcKind,
+      grpcStatusCode: grpcStatusCode,
+    );
+
+    testWidgets('shows service/method and the RPC kind chip', (
+      WidgetTester tester,
+    ) async {
+      await pumpTile(tester, grpcEntry());
+
+      expect(find.text('routeguide.RouteGuide/GetFeature'), findsOneWidget);
+      expect(find.text('UNARY'), findsOneWidget);
+      // Not the HTTP method — every gRPC call is a POST, which tells the
+      // developer nothing.
+      expect(find.text('POST'), findsNothing);
+    });
+
+    testWidgets('shows the gRPC status name, not the HTTP code', (
+      WidgetTester tester,
+    ) async {
+      await pumpTile(tester, grpcEntry(grpcStatusCode: 5));
+
+      expect(find.text('NOT_FOUND'), findsOneWidget);
+      expect(find.text('200'), findsNothing);
+    });
+
+    testWidgets('a failed RPC is not coloured as a success', (
+      WidgetTester tester,
+    ) async {
+      // Regression guard: a gRPC failure rides on an HTTP 200, so colouring
+      // by statusCode alone paints every NOT_FOUND green.
+      await pumpTile(tester, grpcEntry(grpcStatusCode: 5));
+      final Text failed = tester.widget<Text>(find.text('NOT_FOUND'));
+
+      await pumpTile(tester, grpcEntry());
+      final Text ok = tester.widget<Text>(find.text('OK'));
+
+      expect(failed.style?.color, isNot(ok.style?.color));
+    });
+
+    testWidgets('a plain HTTP entry keeps its method and code', (
+      WidgetTester tester,
+    ) async {
+      await pumpTile(tester, entry());
+
+      expect(find.text('GET'), findsOneWidget);
+      expect(find.text('200'), findsOneWidget);
+    });
+  });
+
+  group('throttle indicator (0.8.0)', () {
+    testWidgets('a throttled call is marked, an untouched one is not', (
+      WidgetTester tester,
+    ) async {
+      // The inspector's throttle banner only says a profile is *active* —
+      // not whether it applied to any given call (a host-scoped profile may
+      // skip most of them). Without a per-entry mark there is no way to
+      // confirm throttling actually shaped a request.
+      await pumpTile(tester, entry(throttledBy: 'slow3g'));
+      expect(find.byIcon(Icons.speed), findsOneWidget);
+
+      await pumpTile(tester, entry());
+      expect(find.byIcon(Icons.speed), findsNothing);
+    });
+  });
 }

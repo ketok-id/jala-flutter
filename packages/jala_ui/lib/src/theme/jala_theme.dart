@@ -61,6 +61,14 @@ class JalaTheme {
       case JalaCallStatus.error:
         return serverErrorColor;
       case JalaCallStatus.success:
+        // A gRPC failure rides on an HTTP 200 — colouring by `statusCode`
+        // alone would paint every NOT_FOUND / PERMISSION_DENIED green.
+        final int? grpcCode = entry.grpcStatusCode;
+        if (grpcCode != null) {
+          return JalaGrpcStatus.isError(grpcCode)
+              ? clientErrorColor
+              : successColor;
+        }
         final int? code = entry.statusCode;
         if (code == null) return pendingColor;
         if (code < 300) return successColor;

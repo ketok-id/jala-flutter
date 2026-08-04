@@ -10,7 +10,7 @@ progress, supports one-tap **replay**, and applies network **throttling**.
 |---|---|
 | **Audience** | Apps using Dio |
 | **Depends on** | `jala_core`, `dio` |
-| **Lockstep** | `0.7.x` with `jala` / `jala_core` — [COMPAT.md](../../docs/COMPAT.md) |
+| **Lockstep** | `0.8.x` with `jala` / `jala_core` — [COMPAT.md](../../docs/COMPAT.md) |
 | **Requires** | Dart `^3.11` |
 
 Wire the facade with [`jala`](../jala) (`Jala.initialize` + `JalaOverlay`).
@@ -22,8 +22,8 @@ Brownfield: [ADOPTION.md](../../docs/ADOPTION.md).
 
 ```yaml
 dependencies:
-  jala: ^0.7.0
-  jala_dio: ^0.7.0
+  jala: ^0.8.0
+  jala_dio: ^0.8.0
   dio: ^5.0.0
 ```
 

@@ -29,6 +29,11 @@ class JalaCallListTile extends StatelessWidget {
   final bool dense;
 
   String _statusText() {
+    // A gRPC call always reports HTTP 200, so the useful status is its gRPC
+    // code — shown by name (`NOT_FOUND`), which is how gRPC tooling and
+    // error messages refer to it.
+    final int? grpcCode = entry.grpcStatusCode;
+    if (grpcCode != null) return JalaGrpcStatus.nameOf(grpcCode);
     switch (entry.status) {
       case JalaCallStatus.pending:
         return 'pending';
@@ -39,6 +44,14 @@ class JalaCallListTile extends StatelessWidget {
       case JalaCallStatus.success:
         return '${entry.statusCode}';
     }
+  }
+
+  /// `pkg.Service/Method` from a gRPC path, for the primary line.
+  static String grpcLabel(Uri uri) {
+    final String path = uri.path.startsWith('/')
+        ? uri.path.substring(1)
+        : uri.path;
+    return path.isEmpty ? '/' : path;
   }
 
   /// Path (+ query) for the primary line — what developers scan for.
@@ -64,11 +77,20 @@ class JalaCallListTile extends StatelessWidget {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final String? operationName = entry.operationName;
-    final bool isGraphQl = operationName != null;
-    final String chipLabel = isGraphQl
-        ? (entry.operationType?.toUpperCase() ?? entry.method)
-        : entry.method;
-    final String titleText = isGraphQl ? operationName : pathLabel(uri);
+    final String? rpcKind = entry.rpcKind;
+    final bool isGrpc = rpcKind != null;
+    // gRPC entries also carry `operationName` (the method), but they get
+    // their own presentation, so the GraphQL branch must not claim them.
+    final bool isGraphQl = !isGrpc && operationName != null;
+    final bool isOperation = isGrpc || isGraphQl;
+    final String chipLabel = isGrpc
+        ? rpcKind.toUpperCase()
+        : (isGraphQl
+              ? (entry.operationType?.toUpperCase() ?? entry.method)
+              : entry.method);
+    final String titleText = isGrpc
+        ? grpcLabel(uri)
+        : (isGraphQl ? operationName : pathLabel(uri));
     final bool longTitle = titleText.length > 36;
     final Color statusColor = JalaTheme.statusColorFor(entry);
 
@@ -79,7 +101,7 @@ class JalaCallListTile extends StatelessWidget {
       visualDensity: dense
           ? VisualDensity.compact
           : VisualDensity.standard,
-      isThreeLine: !dense && longTitle && !isGraphQl,
+      isThreeLine: !dense && longTitle && !isOperation,
       leading: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
@@ -90,10 +112,12 @@ class JalaCallListTile extends StatelessWidget {
       ),
       title: Text(
         titleText,
-        maxLines: isGraphQl || dense ? 1 : 2,
+        maxLines: isOperation || dense ? 1 : 2,
         overflow: TextOverflow.ellipsis,
         style: textTheme.bodyMedium?.copyWith(
           fontWeight: FontWeight.w600,
+          // gRPC paths read as code, like URLs — GraphQL operation names
+          // are prose-ish identifiers and stay in the body font.
           fontFamily: isGraphQl ? null : 'monospace',
           fontSize: isGraphQl ? null : (dense ? 12 : 13),
           height: 1.25,
@@ -135,6 +159,22 @@ class JalaCallListTile extends StatelessWidget {
                     Icons.replay,
                     size: 14,
                     color: textTheme.bodySmall?.color,
+                  ),
+                ),
+              // Confirms per call that a throttle profile actually applied.
+              // The inspector's throttle banner only says a profile is
+              // active — not whether it touched this request (it may be
+              // scoped to a host glob this call didn't match).
+              if (entry.throttledBy != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: Tooltip(
+                    message: 'Throttled by ${entry.throttledBy}',
+                    child: Icon(
+                      Icons.speed,
+                      size: 14,
+                      color: textTheme.bodySmall?.color,
+                    ),
                   ),
                 ),
               Text(

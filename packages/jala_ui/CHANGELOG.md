@@ -1,4 +1,4 @@
-## Unreleased
+## 0.8.0 — 2026-08-03
 
 ### Fixed
 
@@ -13,6 +13,16 @@
 - Replay is disabled, with an explanatory tooltip, for a call whose request
   body was truncated at capture time; replaying it would have sent an
   incomplete body. **Edit & resend** stays available as the escape hatch.
+
+### Added
+
+- gRPC presentation (Track G, G3): call tiles show `service/method` with an
+  RPC-kind chip and the gRPC status name instead of the HTTP method and
+  code, `JalaTheme.statusColorFor` colours by `grpcStatusCode` first (a
+  failed RPC rides on an HTTP 200, so status-only colouring painted every
+  NOT_FOUND green), the detail screen renders trailers as their own section
+  and explains why a streaming RPC has no response body, and a `gRPC`
+  quick-filter chip joins GraphQL/WS.
 
 ### Changed
 

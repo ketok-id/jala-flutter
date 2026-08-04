@@ -852,4 +852,122 @@ void main() {
       expect(cleared.closeReason, isNull);
     });
   });
+
+  group('gRPC calls (Track G G1)', () {
+    test('rpcKind flows from the request event onto the entry', () async {
+      final bus = enabledBus();
+      final store = JalaStore(bus: bus);
+      addTearDown(store.dispose);
+
+      emitRequest(
+        bus,
+        'rpc-1',
+        method: 'POST',
+        url: 'https://api.example.com/routeguide.RouteGuide/GetFeature',
+        client: 'grpc',
+        operationName: 'GetFeature',
+        rpcKind: 'unary',
+      );
+      await pump();
+
+      final entry = store.byId('rpc-1')!;
+      expect(entry.rpcKind, 'unary');
+      expect(entry.client, 'grpc');
+      expect(entry.operationName, 'GetFeature');
+      expect(entry.grpcStatusCode, isNull);
+      expect(entry.trailers, isEmpty);
+    });
+
+    test('response event carries the gRPC status and trailers', () async {
+      final bus = enabledBus();
+      final store = JalaStore(bus: bus);
+      addTearDown(store.dispose);
+
+      emitRequest(bus, 'rpc-1', client: 'grpc', rpcKind: 'unary');
+      emitResponse(
+        bus,
+        'rpc-1',
+        grpcStatusCode: 0,
+        trailers: const <String, String>{'grpc-status': '0'},
+      );
+      await pump();
+
+      final entry = store.byId('rpc-1')!;
+      expect(entry.grpcStatusCode, 0);
+      expect(entry.trailers, <String, String>{'grpc-status': '0'});
+      expect(entry.status, JalaCallStatus.success);
+    });
+
+    test('a failed RPC keeps its status code and trailers', () async {
+      final bus = enabledBus();
+      final store = JalaStore(bus: bus);
+      addTearDown(store.dispose);
+
+      emitRequest(bus, 'rpc-1', client: 'grpc', rpcKind: 'unary');
+      bus.emit(
+        NetworkErrorEvent(
+          callId: 'rpc-1',
+          timestamp: DateTime.utc(2026, 7, 15, 12, 0, 1),
+          errorMessage: 'NOT_FOUND: no such feature',
+          grpcStatusCode: 5,
+          trailers: const <String, String>{'grpc-message': 'no such feature'},
+        ),
+      );
+      await pump();
+
+      final entry = store.byId('rpc-1')!;
+      expect(entry.status, JalaCallStatus.error);
+      expect(entry.grpcStatusCode, 5);
+      expect(entry.trailers['grpc-message'], 'no such feature');
+    });
+
+    test('an error event without gRPC fields keeps what the entry had',
+        () async {
+      final bus = enabledBus();
+      final store = JalaStore(bus: bus);
+      addTearDown(store.dispose);
+
+      emitRequest(bus, 'rpc-1', client: 'grpc', rpcKind: 'serverStreaming');
+      emitResponse(
+        bus,
+        'rpc-1',
+        grpcStatusCode: 0,
+        trailers: const <String, String>{'x-trace': 'abc'},
+      );
+      await pump();
+      bus.emit(
+        NetworkErrorEvent(
+          callId: 'rpc-1',
+          timestamp: DateTime.utc(2026, 7, 15, 12, 0, 2),
+          errorMessage: 'stream broke',
+        ),
+      );
+      await pump();
+
+      final entry = store.byId('rpc-1')!;
+      expect(entry.grpcStatusCode, 0);
+      expect(entry.trailers['x-trace'], 'abc');
+    });
+
+    test('streaming messages reuse the subscription payload ring buffer',
+        () async {
+      // A gRPC RPC is one request and N responses — the GraphQL
+      // subscription shape — so it reuses `payloads` rather than adding a
+      // second collection.
+      final bus = enabledBus();
+      final store = JalaStore(bus: bus, maxSubscriptionPayloads: 2);
+      addTearDown(store.dispose);
+
+      emitRequest(bus, 'rpc-1', client: 'grpc', rpcKind: 'serverStreaming');
+      for (var i = 0; i < 3; i++) {
+        emitSubscriptionPayload(bus, 'rpc-1', seq: i);
+      }
+      await pump();
+
+      final entry = store.byId('rpc-1')!;
+      expect(entry.payloadCount, 3, reason: 'true total survives eviction');
+      expect(entry.payloads, hasLength(2));
+      expect(entry.payloads.last.text, contains('2'));
+    });
+  });
 }

@@ -39,6 +39,9 @@ class NetworkCallEntry {
     this.operationName,
     this.operationType,
     this.throttledBy,
+    this.rpcKind,
+    this.grpcStatusCode,
+    this.trailers = const <String, String>{},
     this.payloads = const <CapturedBody>[],
     this.payloadCount = 0,
     this.imported = false,
@@ -101,6 +104,9 @@ class NetworkCallEntry {
       operationName: json['operationName'] as String?,
       operationType: json['operationType'] as String?,
       throttledBy: json['throttledBy'] as String?,
+      rpcKind: json['rpcKind'] as String?,
+      grpcStatusCode: json['grpcStatusCode'] as int?,
+      trailers: _stringMapFromJson(json['trailers']),
       payloads: payloadsRaw is List
           ? payloadsRaw.map(_bodyFromJson).toList(growable: false)
           : const <CapturedBody>[],
@@ -190,6 +196,33 @@ class NetworkCallEntry {
   /// throttling was off or did not apply to this call.
   final String? throttledBy;
 
+  /// The shape of a gRPC call — `unary`, `serverStreaming`,
+  /// `clientStreaming`, or `bidi` — when captured by `jala_grpc` (see
+  /// docs/plans/track-g-v0.8-grpc.md G1). Null for every other client.
+  ///
+  /// A gRPC RPC is a [NetworkCallEntry] like any other, not a parallel
+  /// entity: it has one request and N responses, which is the GraphQL
+  /// subscription shape, so streaming messages reuse [payloads] rather than
+  /// introducing a second collection. (`WsConnectionEntry` is separate for
+  /// the opposite reason — a socket has no request/response pairing at all.)
+  final String? rpcKind;
+
+  /// Numeric gRPC status code (`0` = OK, `5` = NOT_FOUND, …), or null for
+  /// non-gRPC calls.
+  ///
+  /// Distinct from [statusCode]: a gRPC call reports application failures in
+  /// its trailers over an HTTP 200, so [statusCode] alone would make every
+  /// failed RPC look successful. `JalaFilter`'s `s:error` accounts for this.
+  final int? grpcStatusCode;
+
+  /// gRPC trailing metadata, already redacted at capture time. Empty for
+  /// non-gRPC calls.
+  ///
+  /// Kept out of [responseHeaders] deliberately: merging would render
+  /// `grpc-status` as an ordinary HTTP header in the headers table and in
+  /// HAR exports, which misreports what the server actually sent.
+  final Map<String, String> trailers;
+
   /// GraphQL subscription payloads observed for this call, oldest first,
   /// capped at `JalaConfig.maxSubscriptionPayloads` (a per-call ring
   /// buffer — see [NetworkSubscriptionPayloadEvent] and
@@ -234,6 +267,9 @@ class NetworkCallEntry {
     Object? operationName = _unset,
     Object? operationType = _unset,
     Object? throttledBy = _unset,
+    Object? rpcKind = _unset,
+    Object? grpcStatusCode = _unset,
+    Map<String, String>? trailers,
     List<CapturedBody>? payloads,
     int? payloadCount,
     bool? imported,
@@ -285,6 +321,11 @@ class NetworkCallEntry {
       throttledBy: identical(throttledBy, _unset)
           ? this.throttledBy
           : throttledBy as String?,
+      rpcKind: identical(rpcKind, _unset) ? this.rpcKind : rpcKind as String?,
+      grpcStatusCode: identical(grpcStatusCode, _unset)
+          ? this.grpcStatusCode
+          : grpcStatusCode as int?,
+      trailers: trailers ?? this.trailers,
       payloads: payloads ?? this.payloads,
       payloadCount: payloadCount ?? this.payloadCount,
       imported: imported ?? this.imported,
@@ -317,6 +358,9 @@ class NetworkCallEntry {
     if (operationName != null) 'operationName': operationName,
     if (operationType != null) 'operationType': operationType,
     if (throttledBy != null) 'throttledBy': throttledBy,
+    if (rpcKind != null) 'rpcKind': rpcKind,
+    if (grpcStatusCode != null) 'grpcStatusCode': grpcStatusCode,
+    if (trailers.isNotEmpty) 'trailers': trailers,
     if (payloads.isNotEmpty)
       'payloads': payloads.map((CapturedBody p) => p.toJson()).toList(),
     'payloadCount': payloadCount,

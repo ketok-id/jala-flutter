@@ -11,7 +11,7 @@ network **throttling** (latency, drop, upload + download pacing).
 |---|---|
 | **Audience** | Apps using `package:http` |
 | **Depends on** | `jala_core`, `http` |
-| **Lockstep** | `0.7.x` — [COMPAT.md](../../docs/COMPAT.md) |
+| **Lockstep** | `0.8.x` — [COMPAT.md](../../docs/COMPAT.md) |
 | **Requires** | Dart `^3.11` |
 
 Wire the facade with [`jala`](../jala). Brownfield:
@@ -23,8 +23,8 @@ Wire the facade with [`jala`](../jala). Brownfield:
 
 ```yaml
 dependencies:
-  jala: ^0.7.0
-  jala_http: ^0.7.0
+  jala: ^0.8.0
+  jala_http: ^0.8.0
 ```
 
 ## Setup

@@ -6,7 +6,7 @@ rewiring the app.
 
 Target readers: mid-level implementers *and* seniors reviewing the PR.
 
-Lockstep version for this doc: **0.7.0** (requires Dart `^3.11`, Flutter
+Lockstep version for this doc: **0.8.0** (requires Dart `^3.11`, Flutter
 `>=3.35` for `jala` / `jala_ui`). Doc index: [README.md](README.md).
 
 ---
@@ -34,8 +34,8 @@ never need on-device inspection, you may not need Jala. That’s fine.
 
 ```yaml
 dependencies:
-  jala: ^0.7.0
-  jala_dio: ^0.7.0
+  jala: ^0.8.0
+  jala_dio: ^0.8.0
   # dio: you already have this
 ```
 
@@ -89,7 +89,7 @@ migration.
 
 ## Which packages do I need?
 
-Install **only** what you use. All versions lockstep at `^0.6.0`.
+Install **only** what you use. All versions lockstep at `^0.8.0`.
 
 | You use… | Add | Setup |
 |---|---|---|
@@ -98,6 +98,7 @@ Install **only** what you use. All versions lockstep at `^0.6.0`.
 | `package:http` | `jala_http` | `JalaHttp.wrap(client)` |
 | GraphQL (`gql_link` / ferry / graphql_flutter) | `jala_graphql` | `JalaGraphQLLink` **before** terminating link |
 | WebSockets (`web_socket_channel`) | `jala_websocket` | `JalaWebSocketChannel.wrap(ch, uri: uri)` |
+| gRPC (`package:grpc`) | `jala_grpc` | `JalaGrpcInterceptor()` in the client's `interceptors:` |
 
 `jala` already depends on `jala_core` + `jala_ui`. You do **not** need to
 depend on `jala_core` or `jala_ui` directly unless you are building a
@@ -343,7 +344,9 @@ optional host glob (`*.example.com`).
   response is paced per chunk; a buffered one is held for the equivalent
   time (same total duration, no progressive delivery).  
 - `package:http`: latency + drop + upload/download pacing.  
-- WebSocket frames: not throttled.
+- WebSocket frames: not throttled.  
+- gRPC: not throttled and never mocked — `ClientInterceptor` cannot
+  fabricate or delay a response ([jala_grpc](../packages/jala_grpc)).
 
 ### Session share (QA → eng)
 
@@ -453,7 +456,7 @@ Full table and deep dives: **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)**.
 ```text
 Add Jala (in-app network inspector) for debug/QA.
 
-- jala + jala_dio ^0.7.0
+- jala + jala_dio ^0.8.0
 - installJala() in debug bootstrap; JalaOverlay at root
 - Attach primary Dio (and list any secondary clients)
 - Default enabled: kDebugMode (no-op in store release)

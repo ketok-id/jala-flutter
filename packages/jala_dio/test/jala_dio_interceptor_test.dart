@@ -797,6 +797,73 @@ void main() {
       expect(sw.elapsed.inMilliseconds, lessThan(500));
     });
 
+    test('the reported duration includes buffered bandwidth pacing', () async {
+      // Regression: pacing was applied *after* the response event was
+      // emitted, so the app waited seconds while the inspector reported
+      // milliseconds — making throttling look broken and the Duration
+      // column untrustworthy. `jala_http` always reported the paced time;
+      // Dio now matches.
+      JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+      JalaBinding.instance.throttleRegistry.setActive(
+        const JalaThrottleProfile(
+          id: 'cap',
+          name: 'cap',
+          latencyMs: 0,
+          downloadBytesPerSec: 4096,
+        ),
+      );
+      final harness = buildDio(
+        (options) async =>
+            ResponseBody.fromBytes(Uint8List(2048), 200), // ~500ms
+      );
+
+      final Stopwatch sw = Stopwatch()..start();
+      await harness.dio.get<dynamic>(
+        '/x',
+        options: Options(responseType: ResponseType.bytes),
+      );
+      sw.stop();
+      await pump();
+
+      final entry = JalaBinding.instance.store.entries.single;
+      expect(sw.elapsed.inMilliseconds, greaterThanOrEqualTo(400));
+      expect(
+        entry.duration!.inMilliseconds,
+        greaterThanOrEqualTo(400),
+        reason: 'the entry must report the time the app actually waited',
+      );
+      expect(entry.throttledBy, 'cap');
+    });
+
+    test('pacing uses the wire size, not the capped captured size', () async {
+      // A body larger than maxBodyBytes must still be paced as the full
+      // download — otherwise a big file appears to arrive far too fast.
+      JalaBinding.instance.initialize(
+        config: JalaConfig(enabled: true, maxBodyBytes: 128),
+      );
+      JalaBinding.instance.throttleRegistry.setActive(
+        const JalaThrottleProfile(
+          id: 'cap',
+          name: 'cap',
+          latencyMs: 0,
+          downloadBytesPerSec: 4096,
+        ),
+      );
+      final harness = buildDio(
+        (options) async => ResponseBody.fromBytes(Uint8List(2048), 200),
+      );
+
+      final Stopwatch sw = Stopwatch()..start();
+      await harness.dio.get<dynamic>(
+        '/x',
+        options: Options(responseType: ResponseType.bytes),
+      );
+      sw.stop();
+
+      // 2048 B at 4096 B/s ≈ 500ms; the 128 B cap would give ~30ms.
+      expect(sw.elapsed.inMilliseconds, greaterThanOrEqualTo(400));
+    });
+
     test('an inactive registry adds no latency', () async {
       JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
       final harness = buildDio(

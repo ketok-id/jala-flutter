@@ -589,6 +589,101 @@ void main() {
       expect(edit.onPressed, isNotNull);
     });
   });
+
+  group('gRPC detail (Track G G3)', () {
+    Future<void> pumpResponseTab(WidgetTester tester, String id) async {
+      await pumpJalaApp(tester, JalaCallDetailScreen(entryId: id));
+      await pumpJalaSettle(tester);
+      await tester.tap(find.text('Response'));
+      await pumpJalaSettle(tester);
+    }
+
+    testWidgets('renders trailers as their own section', (
+      WidgetTester tester,
+    ) async {
+      final JalaBinding binding = initJalaBinding();
+      emitCompletedCall(
+        binding.bus,
+        'rpc-1',
+        method: 'POST',
+        url: 'https://api.example.com/routeguide.RouteGuide/GetFeature',
+        client: 'grpc',
+        operationName: 'GetFeature',
+        rpcKind: 'unary',
+        grpcStatusCode: 0,
+        trailers: const <String, String>{'grpc-status': '0'},
+      );
+      await flush();
+      await pumpResponseTab(tester, 'rpc-1');
+
+      // Trailers get their own heading rather than being merged into the
+      // headers table, where grpc-status would read as an HTTP header.
+      expect(find.textContaining('Trailers'), findsOneWidget);
+      expect(find.text('grpc-status'), findsOneWidget);
+    });
+
+    testWidgets('a streaming RPC explains the missing response body', (
+      WidgetTester tester,
+    ) async {
+      final JalaBinding binding = initJalaBinding();
+      emitCompletedCall(
+        binding.bus,
+        'rpc-2',
+        method: 'POST',
+        url: 'https://api.example.com/routeguide.RouteGuide/RouteChat',
+        client: 'grpc',
+        operationName: 'RouteChat',
+        rpcKind: 'bidi',
+        grpcStatusCode: 0,
+      );
+      await flush();
+      await pumpResponseTab(tester, 'rpc-2');
+
+      // An empty body must not read as "the server sent nothing".
+      expect(
+        find.textContaining('not captured for streaming RPCs'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a unary RPC shows its body normally', (
+      WidgetTester tester,
+    ) async {
+      final JalaBinding binding = initJalaBinding();
+      emitCompletedCall(
+        binding.bus,
+        'rpc-3',
+        method: 'POST',
+        url: 'https://api.example.com/routeguide.RouteGuide/GetFeature',
+        client: 'grpc',
+        operationName: 'GetFeature',
+        rpcKind: 'unary',
+        grpcStatusCode: 0,
+        responseBody: CapturedBody.capture(
+          '{"id":7}',
+          contentType: 'application/json',
+        ),
+      );
+      await flush();
+      await pumpResponseTab(tester, 'rpc-3');
+
+      expect(
+        find.textContaining('not captured for streaming RPCs'),
+        findsNothing,
+      );
+    });
+
+    testWidgets('a non-gRPC entry shows no trailers section', (
+      WidgetTester tester,
+    ) async {
+      final JalaBinding binding = initJalaBinding();
+      emitCompletedCall(binding.bus, 'http-1');
+      await flush();
+      await pumpResponseTab(tester, 'http-1');
+
+      expect(find.textContaining('Trailers'), findsNothing);
+    });
+  });
 }
 
 /// A replayer that records nothing and does nothing — enough to make

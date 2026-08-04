@@ -47,6 +47,10 @@ void emitCompletedCall(
   DateTime? startTime,
   String? operationName,
   String? operationType,
+  String? client,
+  String? rpcKind,
+  int? grpcStatusCode,
+  Map<String, String>? trailers,
 }) {
   final DateTime start = startTime ?? DateTime.utc(2026, 7, 15, 12);
   bus
@@ -58,10 +62,11 @@ void emitCompletedCall(
         uri: Uri.parse(url),
         headers: requestHeaders,
         body: requestBody ?? CapturedBody.none,
-        client: 'test',
+        client: client ?? 'test',
         replayOf: replayOf,
         operationName: operationName,
         operationType: operationType,
+        rpcKind: rpcKind,
       ),
     )
     ..emit(
@@ -74,6 +79,8 @@ void emitCompletedCall(
         body: responseBody ?? CapturedBody.none,
         size: responseSize,
         duration: duration,
+        grpcStatusCode: grpcStatusCode,
+        trailers: trailers,
       ),
     );
 }

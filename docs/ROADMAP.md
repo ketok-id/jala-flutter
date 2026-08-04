@@ -1,6 +1,6 @@
 # Jala roadmap
 
-Status as of 2026-07-28. Detailed execution plans live in `docs/plans/`.
+Status as of 2026-08-03. Detailed execution plans live in `docs/plans/`.
 
 | Track | Goal | Shipped as | Status |
 |---|---|---|---|
@@ -11,12 +11,21 @@ Status as of 2026-07-28. Detailed execution plans live in `docs/plans/`.
 | E | Power tools: throttling, session share, subscription payloads | 0.5.0 | ✅ DONE — [plan](plans/track-e-v0.5.md) |
 | F | Inspect deeper: call diff, JSON virtualization, cURL/HAR import | 0.6.0 | ✅ DONE — [plan](plans/track-f-v0.6-inspect-deeper.md) |
 | — | Read the URL: decoded query-param table, capture-time URL redaction | 0.7.0 | ✅ DONE |
-| G | `jala_grpc` adapter (gRPC / gRPC-web) | 0.8.0 | 📋 PROPOSED |
+| — | Capture-integrity hardening: body redaction across all adapters, Dio bandwidth throttling, replay/HAR/bubble fixes | 0.8.0 | ✅ DONE |
+| G | `jala_grpc` adapter (gRPC / gRPC-web) | 0.8.0 | 🚧 G1–G4 code DONE — [plan](plans/track-g-v0.8-grpc.md); on-device smoke + publish pending |
 | H | Localization (en + id-ID) | 0.8.x | 📋 PROPOSED |
+| I | Socket-level throttling (real byte pacing, covers all `dart:io` traffic) | 0.9.0 | 📋 PROPOSED — [plan](plans/track-i-v0.9-socket-throttle.md) |
 
-All five packages (`jala`, `jala_core`, `jala_dio`, `jala_http`, `jala_ui`)
-plus `jala_graphql` and `jala_websocket` are published on pub.dev at
-**0.7.x** in lockstep, all under the verified publisher `ketok.id`.
+Seven packages (`jala`, `jala_core`, `jala_dio`, `jala_http`, `jala_ui`,
+`jala_graphql`, `jala_websocket`) are published on pub.dev in lockstep under
+the verified publisher `ketok.id`. **`jala_grpc` is new in 0.8.0** and needs
+publisher assignment after its first publish (standing rule — the step that
+was missed for `jala_http`).
+
+**0.8.0 is version-bumped in the repo but NOT published.** Two gates remain:
+the on-device smoke test required by the standing rules below, and verifying
+the gRPC-web claim in `jala_grpc`'s README — it uses the same `Client`
+interceptor path in theory, but nothing tests it.
 
 ## Track D — v0.4.0 proposal: GraphQL + WebSocket
 
@@ -65,17 +74,47 @@ Detailed execution plan:
 [plans/track-f-v0.6-inspect-deeper.md](plans/track-f-v0.6-inspect-deeper.md)
 (written 2026-07-24).
 
-## Track G — v0.8.0 proposal: `jala_grpc`
+## Track G — v0.8.0: `jala_grpc`
 
-Next capture-surface expansion — gRPC / gRPC-web is effectively greenfield
-in Flutter, the same gap that GraphQL/WS were before Track D. New package
-`jala_grpc`: a `package:grpc` `ClientInterceptor` capturing unary and
-streaming RPCs — service/method, request/response messages (`toProto3Json`
-where available, else byte metadata), status code + trailers, and a
-streaming timeline reusing the WS/subscription frame UI. Filter grammar:
-`is:grpc`; `op:` reuses the method name. New package → assign to `ketok.id`
-after first publish (standing rule). Detailed plan written when the track
-starts.
+New capture surface — gRPC / gRPC-web was greenfield in Flutter, the same
+gap GraphQL/WS were before Track D. New package `jala_grpc`: a
+`package:grpc` `ClientInterceptor` capturing service/method, messages
+(`toProto3Json` where available, else byte metadata), status codes and
+trailers. Filter grammar: `is:grpc`; `op:` reuses the method name. Detailed
+execution plan: [plans/track-g-v0.8-grpc.md](plans/track-g-v0.8-grpc.md)
+(written 2026-08-03).
+
+**Shipped narrower than proposed, verified against grpc 5.1.0.**
+`ClientInterceptor` is a narrower hook than the other three adapters':
+
+- Unary RPCs capture in full.
+- **Streaming response messages cannot be captured.** `ResponseStream` is
+  single-subscription and only constructible from a `ClientCall` private to
+  the call site, so it can be neither tapped nor rebuilt. The original
+  proposal's "streaming timeline reusing the WS/subscription frame UI" is
+  therefore not buildable through this hook; a streaming RPC records its
+  envelope plus request-side byte progress, and the detail screen says so.
+- **Mocking and throttling do not apply to gRPC** — both need to fabricate
+  or delay a response.
+
+The escape routes (an upstream `grpc-dart` hook, or a `ClientChannel`
+returning a tapping `ClientCall` subclass) are documented in the plan. The
+channel route is **viable but fragile** — the exported concrete
+`ClientChannel` is subclassable and `createCall` is overridable, but
+starting the RPC needs `ClientConnection.dispatchCall`, and that type is
+unexported, so it only works through `dynamic`.
+
+**0.8.0 also carries the capture-integrity hardening** (decision: user,
+2026-08-03 — it rides with Track G rather than taking its own release). Two
+of those fixes constrain how any *future* adapter must be written:
+
+- **Bodies are redacted through `CapturedBody.captureRedacted`, never
+  `CapturedBody.capture`.** The old per-adapter "redact it if it's already
+  a `String`" rule is what let `jala_http` ship with no body redaction at
+  all and `jala_dio` skip its own default paths.
+- **Throttling must cover the adapter's normal path, not just its streaming
+  one.** Dio's bandwidth caps silently applied only to `ResponseType.stream`
+  for two releases.
 
 ## Track H — v0.8.x proposal: localization
 
@@ -86,7 +125,39 @@ non-blocking, so it can ride alongside Track F rather than gate a release.
 Deliberately *not* localized: the filter DSL grammar, HTTP method names, and
 other developer-facing technical tokens.
 
-## Horizon (beyond v0.7)
+## Track I — v0.9.0 proposal: socket-level throttling
+
+Today's throttle delays an already-decoded response inside an adapter Jala
+was explicitly attached to. That has a scope problem and a fidelity problem:
+`Image.network`, unattached `Dio` instances and raw `HttpClient`s ignore it
+entirely (the most confusing thing about the feature — it reads as broken),
+and connection setup plus the TLS handshake cost nothing.
+
+`dart:io` exposes two hooks that move the simulation down to the socket
+without native code or entitlements: `HttpClient.connectionFactory`
+(supply the actual `Socket`) and `HttpOverrides.global` (cover clients Jala
+never saw). Byte pacing on the real stream also makes drops fail as real
+connection failures and latency behave like RTT.
+
+Still out of reach, and to be stated plainly rather than implied: packet
+loss, jitter and DNS delay; native HTTP stacks (`cronet_http`,
+`cupertino_http`, native SDKs); and web, which has no `dart:io` and keeps
+the adapter-level path. HTTP/2 is moot — `dart:io`'s client is HTTP/1.1
+only. An on-device VPN would close the remaining gap and is **rejected**:
+native code both platforms, an iOS Network Extension entitlement, store
+review and a consent prompt make it a different product, the same reasoning
+that put the desktop companion on the horizon.
+
+Main cost is risk, not effort: `Socket` is a wide interface, and a decorator
+that gets one member wrong breaks host networking — which the project's
+capture invariants forbid.
+
+Detailed plan: [plans/track-i-v0.9-socket-throttle.md](plans/track-i-v0.9-socket-throttle.md)
+(written 2026-08-04). Open question worth settling first: whether the scope
+fix justifies the risk, or whether documenting "use Network Link Conditioner"
+is the better trade.
+
+## Horizon (beyond v0.8)
 
 - **Desktop / remote companion** (epic, spec-first). Stream capture over a
   localhost WS/HTTP channel (debug builds only, opt-in, pairing token) to a

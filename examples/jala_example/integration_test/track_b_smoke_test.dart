@@ -129,8 +129,10 @@ void main() {
     expect(largeEntry.progress!.receivedBytes, greaterThan(0));
 
     await openInspector(tester);
-    // List tile title is the path `/__down`.
-    final Finder downPath = find.text('/__down');
+    // The tile title is the path *plus its query string* — `/__down` alone
+    // has not matched since 0.5.2 added the query to the title, which this
+    // smoke never caught because it does not run in CI.
+    final Finder downPath = find.textContaining('/__down');
     expect(downPath, findsWidgets);
     await tester.tap(downPath.first);
     await pause(tester, 900);

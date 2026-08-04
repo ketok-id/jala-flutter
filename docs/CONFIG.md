@@ -3,7 +3,7 @@
 How to configure capture, caps, and redaction via `JalaConfig` /
 `JalaRedactor`.
 
-Lockstep packages: **0.7.x**. Threat model and residual risks:
+Lockstep packages: **0.8.x**. Threat model and residual risks:
 [SECURITY.md](SECURITY.md). Missing traffic or tokens:
 [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 
@@ -69,6 +69,7 @@ Replacement string: `JalaRedactor.mask` → `••••••`.
 | Header redaction + custom body patterns | **0.1.0** |
 | Expanded default headers; default JSON/form secret keys; `includeDefaultBodyPatterns` | **0.5.3** |
 | URL query redaction (`redactedQueryParams`, `redactUri`); replay strips masked query params | **0.7.0** |
+| Body redaction covers decoded `Map`/`List` bodies on every adapter (before this, Dio's default paths and all of `jala_http` were unredacted) | **0.8.0** |
 
 ### `JalaRedactor` constructor
 

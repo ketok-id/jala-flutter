@@ -229,6 +229,7 @@ class JalaStore {
       operationName: e.operationName,
       operationType: e.operationType,
       throttledBy: e.throttledBy,
+      rpcKind: e.rpcKind,
     );
     _entries.insert(0, entry);
     _enforceCapacity();
@@ -245,6 +246,8 @@ class JalaStore {
       duration: e.duration,
       responseSize: e.size,
       status: JalaCallStatus.success,
+      grpcStatusCode: e.grpcStatusCode,
+      trailers: e.trailers,
     );
     _entries[index] = updated;
   }
@@ -260,6 +263,8 @@ class JalaStore {
       duration: e.duration,
       status: JalaCallStatus.error,
       errorMessage: e.errorMessage,
+      grpcStatusCode: e.grpcStatusCode ?? current.grpcStatusCode,
+      trailers: e.trailers ?? current.trailers,
     );
     _entries[index] = updated;
   }

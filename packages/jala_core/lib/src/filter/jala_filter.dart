@@ -17,8 +17,9 @@ import '../util/glob.dart';
 /// - `method:get` / `m:get` — HTTP method; comma list allowed
 ///   (`m:get,post`). [NetworkCallEntry] only.
 /// - `status:404` / `s:404` — exact status code.
-/// - `status:4xx` — status class; `s:error` — statusCode >= 400 or the
-///   call errored/was cancelled; `s:pending` — still in flight.
+/// - `status:4xx` — status class; `s:error` — statusCode >= 400, a non-zero
+///   gRPC status, or the call errored/was cancelled; `s:pending` — still in
+///   flight.
 /// - `host:api.example.com` / `d:` — host, `*` wildcard allowed
 ///   (`host:*.example.com`).
 /// - `path:/users` — path substring. [NetworkCallEntry] only.
@@ -37,6 +38,8 @@ import '../util/glob.dart';
 /// - `is:graphql` — `operationName != null`. [NetworkCallEntry] only.
 /// - `is:subscription` — `operationType == 'subscription'`.
 ///   [NetworkCallEntry] only.
+/// - `is:grpc` — the call was captured by `jala_grpc`. [NetworkCallEntry]
+///   only.
 /// - `is:ws` — always false against [matches] (a [NetworkCallEntry] is
 ///   never a WS entry); always true against [matchesWs].
 /// - `body:token` — substring of captured request or response body text.
@@ -154,6 +157,10 @@ class JalaFilter {
     if (v == 'error') {
       return (e) =>
           (e.statusCode != null && e.statusCode! >= 400) ||
+          // A failed RPC rides on an HTTP 200 — its failure lives in the
+          // gRPC status code, so a status-only check would file every
+          // NOT_FOUND / PERMISSION_DENIED under "success".
+          (e.grpcStatusCode != null && e.grpcStatusCode != 0) ||
           e.status == JalaCallStatus.error ||
           e.status == JalaCallStatus.cancelled;
     }
@@ -215,6 +222,8 @@ class JalaFilter {
         return (e) => e.operationName != null;
       case 'subscription':
         return (e) => e.operationType == 'subscription';
+      case 'grpc':
+        return (e) => e.client == 'grpc';
       case 'ws':
         // A NetworkCallEntry is never a WS entry (see matchesWs for the
         // WS-side counterpart).

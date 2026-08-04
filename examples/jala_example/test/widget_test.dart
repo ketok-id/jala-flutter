@@ -73,4 +73,76 @@ void main() {
     expect(find.byType(JalaRequestComposerScreen), findsOneWidget);
     expect(find.textContaining('api.example.com/orders'), findsWidgets);
   });
+
+  group('gRPC panel (Track G G4)', () {
+    Future<void> tapGrpc(WidgetTester tester, String label) async {
+      Jala.initialize(config: JalaConfig(enabled: true));
+      await tester.pumpWidget(JalaOverlay(child: JalaExampleApp(dio: Dio())));
+      await tester.pump();
+
+      await tester.scrollUntilVisible(find.text(label), 200);
+      // scrollUntilVisible stops as soon as the widget exists; the gRPC
+      // panel is the last section, so the button can still be below the
+      // fold and untappable.
+      await tester.ensureVisible(find.text(label));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(label));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('a unary RPC captures both messages and its trailers', (
+      WidgetTester tester,
+    ) async {
+      await tapGrpc(tester, 'gRPC unary (OK)');
+
+      final NetworkCallEntry entry =
+          JalaBinding.instance.store.entries.single;
+      expect(entry.client, 'grpc');
+      expect(entry.rpcKind, 'unary');
+      expect(entry.operationName, 'GetFeature');
+      expect(entry.grpcStatusCode, 0);
+      expect(entry.trailers['grpc-status'], '0');
+      expect(entry.requestBody.text, contains('latitude'));
+      expect(entry.responseBody.text, contains('Berkshire'));
+    });
+
+    testWidgets('a failed RPC records its gRPC status, not just HTTP 200', (
+      WidgetTester tester,
+    ) async {
+      await tapGrpc(tester, 'gRPC unary (NOT_FOUND)');
+
+      final NetworkCallEntry entry =
+          JalaBinding.instance.store.entries.single;
+      expect(entry.status, JalaCallStatus.error);
+      expect(entry.grpcStatusCode, 5);
+      expect(entry.errorMessage, contains('NOT_FOUND'));
+    });
+
+    testWidgets('proto3-JSON messages are redacted at capture time', (
+      WidgetTester tester,
+    ) async {
+      await tapGrpc(tester, 'gRPC unary (redaction check)');
+
+      final NetworkCallEntry entry =
+          JalaBinding.instance.store.entries.single;
+      expect(entry.requestBody.text, isNot(contains('hunter2')));
+      expect(entry.responseBody.text, isNot(contains('eyJhbGciOi')));
+      expect(entry.requestBody.text, contains(JalaRedactor.mask));
+    });
+
+    testWidgets('a streaming RPC records its envelope but no messages', (
+      WidgetTester tester,
+    ) async {
+      await tapGrpc(tester, 'gRPC streaming (RouteChat)');
+
+      final NetworkCallEntry entry =
+          JalaBinding.instance.store.entries.single;
+      expect(entry.rpcKind, 'bidi');
+      expect(entry.operationName, 'RouteChat');
+      expect(entry.trailers['grpc-status'], '0');
+      // Documented limitation, surfaced by the detail screen's note.
+      expect(entry.responseBody.kind, BodyKind.none);
+      expect(entry.progress?.sentBytes, greaterThan(0));
+    });
+  });
 }

@@ -2,7 +2,7 @@
 
 Which package to install, what it depends on, and when you need it.
 
-**Lockstep:** all seven packages share one version (currently **`0.7.x`**).
+**Lockstep:** all eight packages share one version (currently **`0.8.x`**).
 Do not mix minors — see [COMPAT.md](COMPAT.md).
 
 ---
@@ -15,6 +15,7 @@ Do not mix minors — see [COMPAT.md](COMPAT.md).
 | Flutter app + `package:http` | `jala` + `jala_http` |
 | GraphQL (`graphql_flutter` / ferry / `gql_link`) | `jala` + `jala_graphql` (+ HTTP adapter only if you also want non-GraphQL traffic) |
 | WebSockets (`web_socket_channel`) | `jala` + `jala_websocket` |
+| gRPC / gRPC-web (`package:grpc`) | `jala` + `jala_grpc` |
 | Custom client / CLI / headless tooling | `jala_core` only |
 | Custom inspector UI | `jala_ui` + `jala_core` (unusual — most apps use `jala`) |
 
@@ -24,7 +25,8 @@ Do not mix minors — see [COMPAT.md](COMPAT.md).
 
 ```
 jala (facade, Flutter)  →  jala_ui  →  jala_core
-jala_dio / jala_http / jala_graphql / jala_websocket  →  jala_core
+jala_dio / jala_http / jala_graphql / jala_websocket / jala_grpc
+                                                     →  jala_core
 ```
 
 - Adapters **never** import `jala_ui` or `jala`.
@@ -125,6 +127,20 @@ Connections live in a **parallel** store collection (not HTTP entries).
 Frame timeline is not throttled (HTTP-only in v0.5+).
 
 → [packages/jala_websocket/README.md](../packages/jala_websocket/README.md)
+
+### `jala_grpc` — gRPC adapter
+
+| | |
+|---|---|
+| **Depends on** | `jala_core`, `grpc` |
+| **Public surface** | `JalaGrpcInterceptor` |
+| **Install if** | You use `package:grpc` (gRPC or gRPC-web) |
+
+**Capture only.** gRPC calls are never mocked, throttled or dropped, and
+streaming *response* messages are not captured — `ClientInterceptor` cannot
+tap or reconstruct a `ResponseStream`. Unary RPCs capture in full.
+
+→ [packages/jala_grpc/README.md](../packages/jala_grpc/README.md)
 
 ---
 

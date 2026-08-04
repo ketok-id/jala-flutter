@@ -36,6 +36,7 @@ class NetworkRequestEvent extends JalaEvent {
     this.operationName,
     this.operationType,
     this.throttledBy,
+    this.rpcKind,
   });
 
   /// HTTP method, uppercased.
@@ -82,6 +83,11 @@ class NetworkRequestEvent extends JalaEvent {
   /// `JalaThrottleRegistry`, docs/plans/track-e-v0.5.md E1/E2), or null if
   /// throttling was off or did not apply (e.g. host didn't match).
   final String? throttledBy;
+
+  /// The shape of a gRPC call — `unary`, `serverStreaming`,
+  /// `clientStreaming`, or `bidi` — when captured by `jala_grpc` (see
+  /// docs/plans/track-g-v0.8-grpc.md G1). Null for every other client.
+  final String? rpcKind;
 }
 
 /// Emitted when a response is received for a call.
@@ -95,6 +101,8 @@ class NetworkResponseEvent extends JalaEvent {
     required this.duration,
     this.statusMessage,
     this.size,
+    this.grpcStatusCode,
+    this.trailers,
   });
 
   /// HTTP status code.
@@ -114,6 +122,17 @@ class NetworkResponseEvent extends JalaEvent {
 
   /// Wall-clock duration of the call.
   final Duration duration;
+
+  /// Numeric gRPC status code (`0` = OK, `5` = NOT_FOUND, …) when captured
+  /// by `jala_grpc`. Null for every other client.
+  ///
+  /// Carried separately from [statusCode] because a gRPC call reports
+  /// application failures in trailers over an HTTP 200 — the same
+  /// convention `jala_graphql` uses for its `errors` array.
+  final int? grpcStatusCode;
+
+  /// gRPC trailing metadata, already redacted. Null for non-gRPC clients.
+  final Map<String, String>? trailers;
 }
 
 /// Emitted when a call fails at the transport/client level (as opposed to
@@ -127,6 +146,8 @@ class NetworkErrorEvent extends JalaEvent {
     this.headers,
     this.body,
     this.duration,
+    this.grpcStatusCode,
+    this.trailers,
   });
 
   /// Human-readable error description.
@@ -143,6 +164,13 @@ class NetworkErrorEvent extends JalaEvent {
 
   /// Wall-clock duration until the error, if known.
   final Duration? duration;
+
+  /// Numeric gRPC status code for a failed RPC (e.g. `4` = DEADLINE_EXCEEDED),
+  /// when captured by `jala_grpc`. Null for every other client.
+  final int? grpcStatusCode;
+
+  /// gRPC trailing metadata received before the failure, already redacted.
+  final Map<String, String>? trailers;
 }
 
 /// Emitted when a call is cancelled before completion.
