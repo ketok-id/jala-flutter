@@ -14,7 +14,7 @@ Status as of 2026-08-03. Detailed execution plans live in `docs/plans/`.
 | — | Capture-integrity hardening: body redaction across all adapters, Dio bandwidth throttling, replay/HAR/bubble fixes | 0.8.0 | ✅ DONE |
 | G | `jala_grpc` adapter (gRPC / gRPC-web) | 0.8.0 | 🚧 G1–G4 code DONE — [plan](plans/track-g-v0.8-grpc.md); on-device smoke + publish pending |
 | H | Localization (en + id-ID) | 0.8.x | 📋 PROPOSED |
-| I | Socket-level throttling (real byte pacing, covers all `dart:io` traffic) | 0.9.0 | 📋 PROPOSED — [plan](plans/track-i-v0.9-socket-throttle.md) |
+| I | Socket-level throttling (real byte pacing, covers all `dart:io` traffic) | 0.8.1 | 📋 PROPOSED — [plan](plans/track-i-v0.8.1-socket-throttle.md) |
 
 Seven packages (`jala`, `jala_core`, `jala_dio`, `jala_http`, `jala_ui`,
 `jala_graphql`, `jala_websocket`) are published on pub.dev in lockstep under
@@ -125,7 +125,7 @@ non-blocking, so it can ride alongside Track F rather than gate a release.
 Deliberately *not* localized: the filter DSL grammar, HTTP method names, and
 other developer-facing technical tokens.
 
-## Track I — v0.9.0 proposal: socket-level throttling
+## Track I — v0.8.1 proposal: socket-level throttling
 
 Today's throttle delays an already-decoded response inside an adapter Jala
 was explicitly attached to. That has a scope problem and a fidelity problem:
@@ -152,7 +152,13 @@ Main cost is risk, not effort: `Socket` is a wide interface, and a decorator
 that gets one member wrong breaks host networking — which the project's
 capture invariants forbid.
 
-Detailed plan: [plans/track-i-v0.9-socket-throttle.md](plans/track-i-v0.9-socket-throttle.md)
+Shipped as a **patch (0.8.1)** under `COMPAT.md`'s "sometimes patch if tiny"
+exception for backward-compatible features — which holds only while the
+track stays strictly additive and opt-in (`Jala.enableSocketThrottling()`,
+never `Jala.initialize`, defaults untouched). If socket mode ever becomes
+the default, it is a behaviour change and the release becomes 0.9.0.
+
+Detailed plan: [plans/track-i-v0.8.1-socket-throttle.md](plans/track-i-v0.8.1-socket-throttle.md)
 (written 2026-08-04). Open question worth settling first: whether the scope
 fix justifies the risk, or whether documenting "use Network Link Conditioner"
 is the better trade.
