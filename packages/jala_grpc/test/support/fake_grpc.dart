@@ -45,7 +45,7 @@ ClientUnaryInvoker<Q, R> unaryInvoker<Q, R>({
   Map<String, String> trailers = const <String, String>{},
 }) {
   return (ClientMethod<Q, R> method, Q request, CallOptions options) {
-    final call = _FakeClientCall<Q, R>(
+    final call = FakeClientCall<Q, R>(
       method,
       Stream<Q>.value(request),
       options,
@@ -68,7 +68,7 @@ ClientStreamingInvoker<Q, R> streamingInvoker<Q, R>({
   List<Q>? sentRequests,
 }) {
   return (ClientMethod<Q, R> method, Stream<Q> requests, CallOptions options) {
-    final call = _FakeClientCall<Q, R>(
+    final call = FakeClientCall<Q, R>(
       method,
       requests,
       options,
@@ -87,12 +87,12 @@ ClientStreamingInvoker<Q, R> streamingInvoker<Q, R>({
 ///
 /// Subclassing is the only way to hand `ResponseFuture`/`ResponseStream` a
 /// call object — their constructors take one and nothing else.
-class _FakeClientCall<Q, R> extends ClientCall<Q, R> {
+class FakeClientCall<Q, R> extends ClientCall<Q, R> {
   // Explicit (not super) parameters: the request stream has to be readable
   // in the body to drive the fake, and a super parameter is not in scope
   // there.
   // ignore: use_super_parameters
-  _FakeClientCall(
+  FakeClientCall(
     ClientMethod<Q, R> method,
     Stream<Q> requests,
     CallOptions options, {
@@ -161,4 +161,85 @@ class _FakeClientCall<Q, R> extends ClientCall<Q, R> {
 
   @override
   Future<void> cancel() async {}
+}
+
+/// A [ClientChannel] subclass that hands back [FakeClientCall]s.
+///
+/// Exists to exercise the **real** wiring path: `Client.$createUnaryCall`
+/// builds the interceptor chain and then calls `channel.createCall(...)`, so
+/// a test that goes through `Client` proves the interceptor is invoked the
+/// way a generated stub invokes it — not just when called directly.
+///
+/// Being channel-agnostic is the point. `GrpcWebClientChannel` is just
+/// another `ClientChannelBase`, and interceptors are applied *above* the
+/// channel by `Client`, so whatever holds for this fake holds for grpc-web
+/// too. The grpc-web transport itself cannot be exercised here: its
+/// `xhr_transport.dart` imports `dart:js_interop` and `package:web`, so it
+/// does not load on the VM.
+///
+/// Subclassing (rather than implementing) is forced: `package:grpc` exports
+/// the *concrete* HTTP/2 `ClientChannel`, not the abstract interface of the
+/// same name, so `implements ClientChannel` would demand `host`, `port`,
+/// `options`, `createConnection` and `getConnection`. Overriding
+/// `createCall` means the connection machinery is never reached, so nothing
+/// dials `fake.invalid`.
+class FakeChannel extends ClientChannel {
+  FakeChannel({
+    this.response,
+    this.error,
+    this.headers = const <String, String>{},
+    this.trailers = const <String, String>{},
+  }) : super('fake.invalid');
+
+  /// Single response message replayed for every call, or null for none.
+  final Object? response;
+
+  /// When set, the call terminates with this error instead.
+  final Object? error;
+
+  final Map<String, String> headers;
+  final Map<String, String> trailers;
+
+  /// Every method path this channel was asked to call, in order.
+  final List<String> calls = <String>[];
+
+  @override
+  ClientCall<Q, R> createCall<Q, R>(
+    ClientMethod<Q, R> method,
+    Stream<Q> requests,
+    CallOptions options,
+  ) {
+    calls.add(method.path);
+    return FakeClientCall<Q, R>(
+      method,
+      requests,
+      options,
+      responses: response == null ? <R>[] : <R>[response as R],
+      headerMetadata: headers,
+      trailerMetadata: trailers,
+      error: error,
+    );
+  }
+
+}
+
+/// Stands in for a protoc-generated client stub: a [Client] subclass whose
+/// methods go through `$createUnaryCall` / `$createStreamingCall`, which is
+/// where `package:grpc` applies interceptors.
+class DemoClient extends Client {
+  DemoClient(super.channel, {super.interceptors});
+
+  static final ClientMethod<FakeMessage, FakeMessage> getFeature =
+      fakeMethod<FakeMessage, FakeMessage>();
+
+  static final ClientMethod<FakeMessage, FakeMessage> routeChat =
+      fakeMethod<FakeMessage, FakeMessage>(
+        path: '/routeguide.RouteGuide/RouteChat',
+      );
+
+  ResponseFuture<FakeMessage> unary(FakeMessage request) =>
+      $createUnaryCall(getFeature, request);
+
+  ResponseStream<FakeMessage> streaming(Stream<FakeMessage> requests) =>
+      $createStreamingCall(routeChat, requests);
 }

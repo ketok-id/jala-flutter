@@ -352,4 +352,103 @@ void main() {
       expect(JalaGrpcInterceptor.methodNameOf('/trailing/'), '/trailing/');
     });
   });
+
+  group('wiring through Client (covers grpc-web)', () {
+    // These exercise the *real* path a generated stub uses:
+    // Client.$createUnaryCall builds the interceptor chain and then calls
+    // channel.createCall(...). The tests above call interceptUnary /
+    // interceptStreaming directly; these prove the interceptor is actually
+    // reached when wired the way users wire it.
+    //
+    // Interceptors are applied by `Client`, *above* the channel, so this is
+    // also the verification for gRPC-web: `GrpcWebClientChannel` is just
+    // another `ClientChannelBase`, and nothing in the interceptor path knows
+    // or cares which transport is underneath. The grpc-web transport itself
+    // can't run here — `xhr_transport.dart` imports `dart:js_interop` and
+    // `package:web`, so it does not load on the VM.
+
+    test('a unary call through Client is captured', () async {
+      JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+      final FakeChannel channel = FakeChannel(
+        response: const FakeMessage(<String, Object?>{'id': 7}),
+        trailers: const <String, String>{'grpc-status': '0'},
+      );
+      final DemoClient client = DemoClient(
+        channel,
+        interceptors: <ClientInterceptor>[
+          JalaGrpcInterceptor(endpoint: Uri.parse('grpc://api.example.com')),
+        ],
+      );
+
+      final FakeMessage result = await client.unary(
+        const FakeMessage(<String, Object?>{'name': 'ada'}),
+      );
+      expect(result.fields['id'], 7);
+      await pump();
+
+      expect(channel.calls, <String>['/routeguide.RouteGuide/GetFeature']);
+      final NetworkCallEntry entry = onlyEntry;
+      expect(entry.client, 'grpc');
+      expect(entry.rpcKind, 'unary');
+      expect(entry.operationName, 'GetFeature');
+      expect(entry.grpcStatusCode, 0);
+      expect(entry.requestBody.text, '{"name":"ada"}');
+      expect(entry.responseBody.text, '{"id":7}');
+    });
+
+    test('a streaming call through Client is captured', () async {
+      JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+      final DemoClient client = DemoClient(
+        FakeChannel(
+          response: const FakeMessage(<String, Object?>{'ack': true}),
+          trailers: const <String, String>{'grpc-status': '0'},
+        ),
+        interceptors: <ClientInterceptor>[JalaGrpcInterceptor()],
+      );
+
+      await client
+          .streaming(
+            Stream<FakeMessage>.value(
+              const FakeMessage(<String, Object?>{'msg': 'hi'}),
+            ),
+          )
+          .toList();
+      await pump();
+
+      final NetworkCallEntry entry = onlyEntry;
+      expect(entry.rpcKind, 'bidi');
+      expect(entry.operationName, 'RouteChat');
+      expect(entry.trailers['grpc-status'], '0');
+    });
+
+    test('a Client with no interceptors captures nothing', () async {
+      JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+      final DemoClient client = DemoClient(
+        FakeChannel(response: const FakeMessage(<String, Object?>{})),
+      );
+
+      await client.unary(const FakeMessage(<String, Object?>{}));
+      await pump();
+
+      // Guards against the capture coming from somewhere other than the
+      // interceptor — e.g. a stray global hook.
+      expect(JalaBinding.instance.store.entries, isEmpty);
+    });
+
+    test('a disabled binding leaves a Client call untouched', () async {
+      final FakeChannel channel = FakeChannel(
+        response: const FakeMessage(<String, Object?>{'id': 1}),
+      );
+      final DemoClient client = DemoClient(
+        channel,
+        interceptors: <ClientInterceptor>[JalaGrpcInterceptor()],
+      );
+
+      final FakeMessage result = await client.unary(
+        const FakeMessage(<String, Object?>{}),
+      );
+      expect(result.fields['id'], 1);
+      expect(JalaBinding.instance.isInitialized, isFalse);
+    });
+  });
 }

@@ -62,14 +62,23 @@ both out of scope here and to be decided before G2 starts:
 
 1. **Upstream.** PR a response-tap hook (or a public `ClientCall.response`
    override point) to `grpc-dart`. Cleanest, slowest.
-2. **Channel subclass.** `ClientCall.response` *is* an overridable getter
-   (`call.dart:489`), and both `ResponseFuture` and `ResponseStream` read it
-   at construction — so a `ClientChannel` whose `createCall` returns a
-   `ClientCall` subclass would see every message. But dispatching that call
-   requires `getConnection()` / `ClientConnection.dispatchCall`, and
-   `ClientConnection` is **not exported** from `package:grpc`. Fragile,
-   version-coupled, and it changes the host's channel construction rather
-   than adding to an interceptor list. Prototype before committing.
+2. **Channel subclass.** Reachable, but version-fragile. Verified
+   2026-08-04: `package:grpc` exports the *concrete* HTTP/2 `ClientChannel`
+   (not the abstract interface of the same name), and it is subclassable;
+   `ClientChannelBase.createCall` is overridable; `ClientCall.response` is
+   an overridable getter (`call.dart:489`) that both `ResponseFuture` and
+   `ResponseStream` read at construction. So a channel subclass returning a
+   tapping `ClientCall` **would** see every message, including streaming
+   ones. `getConnection()`, `ClientCall.isCancelled` and
+   `ClientCall.onConnectionError` are all public.
+
+   The single blocker is that `ClientConnection` is not exported, so the
+   `dispatchCall(call)` that actually starts the RPC has to be invoked
+   through `dynamic` — reimplementing `ClientChannelBase.createCall`'s body
+   against unexported internals, with no compile-time protection when they
+   change. It also moves the integration point from "add an interceptor" to
+   "replace your channel", a much bigger ask of the host app. Still not v1
+   material, but the cost is fragility, not impossibility.
 
 ## G1. Core model extensions (`jala_core`) — ✅ DONE
 
@@ -175,8 +184,11 @@ grows no trailers section.
   real device or simulator and a human looking at the inspector. Check the
   gRPC tile presentation (kind chip, status name, error colour), the
   trailers section, and the streaming note.
-- ⬜ **gRPC-web** still unverified — same `Client` interceptor path in
-  theory, but the README claims it and nothing tests it.
+- ✅ **gRPC-web** verified structurally: interceptors are applied by
+  `Client`, above the channel, so the transport underneath is irrelevant.
+  Covered by the "wiring through Client" tests, which drive a real `Client`
+  over a substitute channel. The grpc-web transport itself cannot run on the
+  VM (`xhr_transport.dart` imports `dart:js_interop` / `package:web`).
 - ⬜ **Release**: lockstep 0.8.0 across all eight packages (`jala_grpc`'s
   pubspec still carries the 0.7.0 lockstep placeholder), every
   `## Unreleased` heading retitled, `docs/COMPAT.md` and `docs/ROADMAP.md`
@@ -187,10 +199,16 @@ grows no trailers section.
 
 1. ~~Streaming response capture: accept the v1 limitation, or take the
    upstream / channel-subclass route?~~ **Answered: accept it.** G2 shipped
-   capture-only. The channel-subclass route was re-confirmed unviable while
-   building the test harness — `ClientChannelBase` and `ClientConnection`
-   are not exported from `package:grpc`, so a wrapping channel cannot
-   dispatch its own `ClientCall` subclass. Revisit only via upstream.
+   capture-only.
+
+   **Correction (2026-08-04):** an earlier note here claimed the
+   channel-subclass route was *impossible* because `ClientChannelBase` and
+   `ClientConnection` are unexported. That was wrong — the exported concrete
+   `ClientChannel` is subclassable and `createCall` is overridable, as the
+   test harness's `FakeChannel` now demonstrates. The route is **viable but
+   fragile**: only `ClientConnection.dispatchCall` needs a `dynamic` call
+   against unexported internals. The v1 decision is unchanged; the reason is
+   "fragile and a bigger integration ask", not "cannot".
 2. gRPC-web: `GrpcWebClientChannel` uses the same `Client` interceptor
    path, so it should work unchanged — **still unverified**, and the one
    claim in the README that rests on reasoning rather than a test.

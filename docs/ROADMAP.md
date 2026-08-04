@@ -97,9 +97,11 @@ execution plan: [plans/track-g-v0.8-grpc.md](plans/track-g-v0.8-grpc.md)
   or delay a response.
 
 The escape routes (an upstream `grpc-dart` hook, or a `ClientChannel`
-returning a `ClientCall` subclass) are documented in the plan. The
-channel route was re-confirmed unviable while building the tests:
-`ClientChannelBase` and `ClientConnection` are not exported.
+returning a tapping `ClientCall` subclass) are documented in the plan. The
+channel route is **viable but fragile** — the exported concrete
+`ClientChannel` is subclassable and `createCall` is overridable, but
+starting the RPC needs `ClientConnection.dispatchCall`, and that type is
+unexported, so it only works through `dynamic`.
 
 **0.8.0 also carries the capture-integrity hardening** (decision: user,
 2026-08-03 — it rides with Track G rather than taking its own release). Two
