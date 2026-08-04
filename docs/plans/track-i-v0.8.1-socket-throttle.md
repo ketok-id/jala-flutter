@@ -1,7 +1,23 @@
-# Track I — v0.9.0 proposal: socket-level throttling
+# Track I — v0.8.1 proposal: socket-level throttling
 
 Proposal written 2026-08-04, after auditing the 0.8.0 throttle work. **Not
 part of 0.8.0.** Decide before starting — see "Open questions".
+
+## Why 0.8.1 and not 0.9.0
+
+`docs/COMPAT.md` ships new features as a **minor** by default —
+"sometimes patch if tiny" is the exception this track claims. That is only
+honest if the track stays **strictly additive and opt-in**:
+
+- `JalaConfig` defaults unchanged; throttling behaves exactly as 0.8.0 does
+  until a caller opts in.
+- `HttpOverrides.global` is set **only** from an explicit
+  `Jala.enableSocketThrottling()` call — never from `Jala.initialize`.
+- No existing public type changes shape.
+
+**If any of those stops holding — in particular if socket mode becomes the
+default or replaces the adapter path — the release becomes 0.9.0.** Version
+choice is a constraint on the design here, not a label applied afterwards.
 
 Today's throttle is an honest simulation, but it simulates the wrong layer.
 This proposes moving it down to the socket, which fixes both its scope
