@@ -60,13 +60,24 @@ class JalaRedactor {
   /// `"password":"s3cret"` → `"password":"••••••"`.
   ///
   /// Applied only when [includeDefaultBodyPatterns] is true.
+  ///
+  /// The value may end either at its closing quote or at the end of the
+  /// text (`(?:"|$)`). The end-of-text branch matters for bodies captured
+  /// over the size cap: `jala_http` stops buffering at `maxBodyBytes`, so
+  /// the redactor can be handed JSON cut mid-value — `{"password":"s3cr`
+  /// with no closing quote. Requiring one there would leave the visible
+  /// prefix of a secret unmasked in the stored body.
+  ///
+  /// A cut that lands inside the *key* (`{"passw`) cannot be recognized by
+  /// any pattern; that residue is bounded by the cap and is why
+  /// `maxBodyBytes` is a redaction control as much as a memory one.
   static final RegExp defaultJsonSecretValues = RegExp(
     r'("(?:'
     r'password|passwd|pwd|secret|token|'
     r'access[_-]?token|refresh[_-]?token|id[_-]?token|'
     r'api[_-]?key|apikey|client[_-]?secret|private[_-]?key|'
     r'auth[_-]?token|session[_-]?token|bearer|client[_-]?id'
-    r')"\s*:\s*)"(?:\\.|[^"\\])*"',
+    r')"\s*:\s*)"(?:\\.|[^"\\])*(?:"|$)',
     caseSensitive: false,
   );
 

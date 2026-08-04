@@ -723,16 +723,21 @@ void main() {
     );
 
     test(
-      'a non-stream response is not paced — only latency/drop apply '
-      '(documented limitation)',
+      'a buffered (non-stream) response is paced by downloadBytesPerSec',
       () async {
+        // Regression: bandwidth caps used to apply only to
+        // `ResponseType.stream` responses, so on Dio's default buffered
+        // path picking "Slow 3G" silently applied latency and drops but
+        // ignored its 50 KB/s cap entirely. A buffered body can't be paced
+        // chunk-by-chunk, so the whole response is held for the time those
+        // bytes would have taken.
         JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
         JalaBinding.instance.throttleRegistry.setActive(
           const JalaThrottleProfile(
             id: 'test-pace-buffered',
             name: 'Test Pace Buffered',
             latencyMs: 0,
-            downloadBytesPerSec: 1, // Would take ~seconds if paced.
+            downloadBytesPerSec: 100, // 26 bytes ≈ 260ms.
           ),
         );
         final harness = buildDio(
@@ -744,9 +749,53 @@ void main() {
         await harness.dio.get<dynamic>('/x');
         sw.stop();
 
-        expect(sw.elapsed.inMilliseconds, lessThan(500));
+        expect(sw.elapsed.inMilliseconds, greaterThanOrEqualTo(150));
       },
     );
+
+    test('a buffered request body is paced by uploadBytesPerSec', () async {
+      // Regression: Dio never applied upload caps at all.
+      JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+      JalaBinding.instance.throttleRegistry.setActive(
+        const JalaThrottleProfile(
+          id: 'test-pace-upload',
+          name: 'Test Pace Upload',
+          latencyMs: 0,
+          uploadBytesPerSec: 100,
+        ),
+      );
+      final harness = buildDio(
+        (options) async => jsonResponseBody(<String, dynamic>{'ok': true}),
+      );
+
+      final Stopwatch sw = Stopwatch()..start();
+      await harness.dio.post<dynamic>('/x', data: <String, dynamic>{
+        'padding': 'y' * 40,
+      });
+      sw.stop();
+
+      expect(sw.elapsed.inMilliseconds, greaterThanOrEqualTo(300));
+    });
+
+    test('pacing is skipped when the profile has no bandwidth cap', () async {
+      JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+      JalaBinding.instance.throttleRegistry.setActive(
+        const JalaThrottleProfile(
+          id: 'latency-only',
+          name: 'Latency only',
+          latencyMs: 0,
+        ),
+      );
+      final harness = buildDio(
+        (options) async => jsonResponseBody(<String, dynamic>{'ok': true}),
+      );
+
+      final Stopwatch sw = Stopwatch()..start();
+      await harness.dio.get<dynamic>('/x');
+      sw.stop();
+
+      expect(sw.elapsed.inMilliseconds, lessThan(500));
+    });
 
     test('an inactive registry adds no latency', () async {
       JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
@@ -785,6 +834,118 @@ void main() {
       final NetworkCallEntry entry = JalaBinding.instance.store.entries.single;
       expect(entry.throttledBy, isNull);
       expect(entry.status, JalaCallStatus.success);
+    });
+  });
+
+  group('JalaDioInterceptor body redaction', () {
+    // Regression: redaction was applied only to already-`String` bodies, so
+    // Dio's two idiomatic shapes — a `Map` request body and the default
+    // `ResponseType.json` (also a Map) — bypassed it entirely, and the
+    // built-in secret-key patterns silently did nothing on the default path.
+    test('redacts a Map request body', () async {
+      JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+      final harness = buildDio(
+        (options) async => jsonResponseBody(<String, dynamic>{'ok': true}),
+      );
+
+      await harness.dio.post<dynamic>(
+        '/login',
+        data: <String, dynamic>{'user': 'ada', 'password': 's3cret'},
+      );
+      await pump();
+
+      final entry = JalaBinding.instance.store.entries.single;
+      expect(entry.requestBody.text, contains('••••••'));
+      expect(entry.requestBody.text, isNot(contains('s3cret')));
+    });
+
+    test('redacts a default ResponseType.json response body', () async {
+      JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+      final harness = buildDio(
+        (options) async =>
+            jsonResponseBody(<String, dynamic>{'access_token': 'abc.def.ghi'}),
+      );
+
+      await harness.dio.get<dynamic>('/token');
+      await pump();
+
+      final entry = JalaBinding.instance.store.entries.single;
+      expect(entry.responseBody.text, '{"access_token":"••••••"}');
+    });
+
+    test('applies custom redactedBodyPatterns to a Map body', () async {
+      JalaBinding.instance.initialize(
+        config: JalaConfig(
+          enabled: true,
+          redactor: JalaRedactor(
+            redactedBodyPatterns: <Pattern>[RegExp(r'\d{3}-\d{2}-\d{4}')],
+          ),
+        ),
+      );
+      final harness = buildDio(
+        (options) async => jsonResponseBody(<String, dynamic>{'ok': true}),
+      );
+
+      await harness.dio.post<dynamic>(
+        '/forms',
+        data: <String, dynamic>{'ssn': '123-45-6789'},
+      );
+      await pump();
+
+      final entry = JalaBinding.instance.store.entries.single;
+      expect(entry.requestBody.text, isNot(contains('123-45-6789')));
+    });
+
+    test('the real request body still reaches the network unredacted',
+        () async {
+      // Redaction is a capture-time concern; it must never alter what the
+      // host app actually sends.
+      JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+      final harness = buildDio(
+        (options) async => jsonResponseBody(<String, dynamic>{'ok': true}),
+      );
+
+      await harness.dio.post<dynamic>(
+        '/login',
+        data: <String, dynamic>{'password': 's3cret'},
+      );
+      await pump();
+
+      final sent = harness.adapter.requests.single.data;
+      expect((sent! as Map)['password'], 's3cret');
+    });
+  });
+
+  group('JalaDioReplayer truncated bodies', () {
+    test('refuses to resend a body Jala only captured a prefix of', () async {
+      JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+      final harness = buildDio(
+        (options) async => jsonResponseBody(<String, dynamic>{'ok': true}),
+      );
+      final entry = NetworkCallEntry(
+        id: 'truncated-1',
+        startTime: DateTime.utc(2024),
+        method: 'POST',
+        uri: Uri.parse('https://api.example.com/upload'),
+        requestHeaders: const <String, String>{},
+        requestBody: CapturedBody.capture(
+          '{"blob":"${'x' * 400}"}',
+          contentType: 'application/json',
+          maxBytes: 64,
+        ),
+        responseHeaders: const <String, String>{},
+        responseBody: CapturedBody.none,
+        status: JalaCallStatus.success,
+        statusCode: 200,
+        client: 'dio',
+      );
+
+      expect(
+        () => JalaDioReplayer(harness.dio).replay(entry),
+        throwsA(isA<JalaReplayException>()),
+      );
+      // Nothing was put on the wire.
+      expect(harness.adapter.requests, isEmpty);
     });
   });
 }

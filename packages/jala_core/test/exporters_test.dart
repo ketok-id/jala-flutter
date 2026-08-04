@@ -387,5 +387,84 @@ print(response.data);''');
       expect(content['text'], contains('image/png'));
       expect(content['text'], contains('67'));
     });
+
+    test('queryString keeps repeated keys in wire order', () {
+      // Regression: built from Uri.queryParameters, which collapses
+      // repeated keys to the last value — `?tag=a&tag=b` exported as a
+      // single `tag=b`, silently losing a parameter the app really sent.
+      final entry = makeEntry(url: 'https://x.dev/s?tag=a&tag=b&page=1');
+      final har =
+          jsonDecode(HarExporter.exportCall(entry)) as Map<String, Object?>;
+      final request = _firstRequest(har);
+      expect(request['queryString'], <Map<String, Object?>>[
+        <String, Object?>{'name': 'tag', 'value': 'a'},
+        <String, Object?>{'name': 'tag', 'value': 'b'},
+        <String, Object?>{'name': 'page', 'value': '1'},
+      ]);
+    });
+
+    test('queryString keeps valueless params and decodes names', () {
+      final entry = makeEntry(url: 'https://x.dev/s?q&item%5B%5D=12');
+      final har =
+          jsonDecode(HarExporter.exportCall(entry)) as Map<String, Object?>;
+      final request = _firstRequest(har);
+      expect(request['queryString'], <Map<String, Object?>>[
+        // HAR has no null; a valueless param reports an empty value.
+        <String, Object?>{'name': 'q', 'value': ''},
+        <String, Object?>{'name': 'item[]', 'value': '12'},
+      ]);
+    });
+
+    test('url keeps the raw query untouched', () {
+      final entry = makeEntry(url: 'https://x.dev/s?tag=a&tag=b');
+      final har =
+          jsonDecode(HarExporter.exportCall(entry)) as Map<String, Object?>;
+      expect(_firstRequest(har)['url'], 'https://x.dev/s?tag=a&tag=b');
+    });
   });
+
+  group('DartSnippetExporter redaction', () {
+    NetworkCallEntry entryWithMaskedHeader() => makeEntry(
+      requestHeaders: <String, String>{
+        'authorization': JalaRedactor.mask,
+        'accept': 'application/json',
+      },
+    );
+
+    test('flags a masked header instead of looking like a real value', () {
+      // Regression: the mask was emitted as a plain string literal, so the
+      // snippet looked runnable but would send a knowingly-bogus
+      // credential and fail at the server for no visible reason.
+      final snippet = DartSnippetExporter.export(entryWithMaskedHeader());
+      expect(snippet, contains('redacted at capture'));
+      expect(snippet, contains("'accept': 'application/json',"));
+    });
+
+    test('redacted: false drops masked headers entirely', () {
+      final snippet = DartSnippetExporter.export(
+        entryWithMaskedHeader(),
+        redacted: false,
+      );
+      expect(snippet, isNot(contains('authorization')));
+      expect(snippet, isNot(contains('redacted at capture')));
+      expect(snippet, contains("'accept': 'application/json',"));
+    });
+
+    test('an entry with only masked headers omits the headers map', () {
+      final snippet = DartSnippetExporter.export(
+        makeEntry(
+          requestHeaders: <String, String>{'authorization': JalaRedactor.mask},
+        ),
+        redacted: false,
+      );
+      expect(snippet, isNot(contains('headers:')));
+    });
+  });
+}
+
+Map<String, Object?> _firstRequest(Map<String, Object?> har) {
+  final log = har['log']! as Map<String, Object?>;
+  final entries = log['entries']! as List<Object?>;
+  return (entries.single! as Map<String, Object?>)['request']!
+      as Map<String, Object?>;
 }

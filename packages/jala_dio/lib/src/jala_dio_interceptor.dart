@@ -120,6 +120,19 @@ class JalaDioInterceptor extends Interceptor {
         shouldDrop = throttle.shouldDrop();
         if (!shouldDrop) {
           latency = throttle.latencyFor();
+          // Upload pacing, folded into the pre-flight delay. A buffered
+          // request body is handed to Dio's transformer whole, so — as with
+          // the response side — the only faithful simulation of an upload
+          // cap is to hold the request back for as long as those bytes
+          // would have taken to go out. A `Stream` body is left alone: it
+          // is consumed lazily by the transport, so delaying here would
+          // charge for bytes that have not been produced yet.
+          if (options.data is! Stream) {
+            latency += throttle.paceFor(
+              bodyCapture.size ?? 0,
+              profile.uploadBytesPerSec,
+            );
+          }
         }
       }
     } catch (_) {
@@ -213,11 +226,52 @@ class JalaDioInterceptor extends Interceptor {
       handler.next(response);
       return;
     }
+    int? capturedSize;
     try {
-      _captureResponse(response);
+      capturedSize = _captureResponse(response);
     } catch (_) {
       // A capture bug must never break the app's networking.
     }
+    final Duration pacing = _bufferedDownloadPacing(response, capturedSize);
+    if (pacing > Duration.zero) {
+      unawaited(_delayThenNextResponse(response, handler, pacing));
+    } else {
+      handler.next(response);
+    }
+  }
+
+  /// How long to hold a **buffered** response back to simulate the active
+  /// profile's `downloadBytesPerSec`.
+  ///
+  /// Dio resolves every non-stream response to bytes inside its own
+  /// transformer, off a stream this interceptor never sees, so such a
+  /// response cannot be paced chunk-by-chunk the way
+  /// [_wireDownloadPacing] paces a `ResponseType.stream` one. Delaying the
+  /// whole response by the time those bytes would have taken to arrive
+  /// reproduces the end-to-end timing a developer is actually asking for
+  /// when they pick "Slow 3G" — previously the bandwidth half of every
+  /// profile silently did nothing on Dio's default path, and only latency
+  /// and drops applied.
+  Duration _bufferedDownloadPacing(Response<dynamic> response, int? size) {
+    final RequestOptions options = response.requestOptions;
+    // Streamed responses are already paced per chunk; don't double-charge.
+    if (options.responseType == ResponseType.stream) return Duration.zero;
+    final int? perSec = options.extra[_throttleDownloadBpsExtraKey] as int?;
+    if (perSec == null || size == null) return Duration.zero;
+    try {
+      return JalaBinding.instance.throttleRegistry.paceFor(size, perSec);
+    } catch (_) {
+      // A capture bug must never break the app's networking.
+      return Duration.zero;
+    }
+  }
+
+  Future<void> _delayThenNextResponse(
+    Response<dynamic> response,
+    ResponseInterceptorHandler handler,
+    Duration pacing,
+  ) async {
+    await Future<void>.delayed(pacing);
     handler.next(response);
   }
 
@@ -447,14 +501,17 @@ class JalaDioInterceptor extends Interceptor {
     );
   }
 
-  void _captureResponse(Response<dynamic> response) {
+  /// Captures [response] and returns its captured size in bytes (null when
+  /// unknown, or when there was nothing to correlate it with) — the caller
+  /// uses that for bandwidth pacing, see [_bufferedDownloadPacing].
+  int? _captureResponse(Response<dynamic> response) {
     final JalaBinding binding = JalaBinding.instance;
     final RequestOptions options = response.requestOptions;
     final String? id = options.extra[idExtraKey] as String?;
     if (id == null) {
       // Never captured on the way out (e.g. Jala was disabled during
       // onRequest); there is nothing to correlate this response with.
-      return;
+      return null;
     }
     final Stopwatch? stopwatch = options.extra[startExtraKey] as Stopwatch?;
 
@@ -499,6 +556,7 @@ class JalaDioInterceptor extends Interceptor {
         duration: stopwatch?.elapsed ?? Duration.zero,
       ),
     );
+    return capture.size;
   }
 
   void _captureError(DioException err) {
@@ -602,7 +660,11 @@ class JalaDioInterceptor extends Interceptor {
         );
         return _BodyCapture(body, body.originalSize);
       }
-      final CapturedBody body = CapturedBody.capture(data, maxBytes: maxBytes);
+      final CapturedBody body = CapturedBody.captureRedacted(
+        data,
+        redactor: redactor,
+        maxBytes: maxBytes,
+      );
       return _BodyCapture(body, body.originalSize);
     }
     final CapturedBody body = _redactedCapture(
@@ -620,18 +682,16 @@ class JalaDioInterceptor extends Interceptor {
     required int maxBytes,
     required JalaRedactor redactor,
   }) {
-    // SPEC-NOTE: `JalaRedactor.redactedBodyPatterns` (empty by default) is
-    // applied only to already-`String` bodies, *before* capture. This keeps
-    // `CapturedBody.truncated`/`originalSize` correct for the common case
-    // without needing to reconstruct a `CapturedBody` after the fact (its
-    // fields cannot be set independently post-capture — only produced via
-    // `CapturedBody.capture`). Non-string bodies (Map/List/bytes) are
-    // captured as-is; only header redaction applies to them.
-    final dynamic redactable = data is String
-        ? redactor.redactBody(data)
-        : data;
-    return CapturedBody.capture(
-      redactable,
+    // `captureRedacted` redacts whatever text form it ends up retaining —
+    // including the `Map`/`List` bodies that Dio's idiomatic
+    // `data: {...}` request and default `ResponseType.json` response both
+    // produce. Redacting only already-`String` bodies (as this did before)
+    // meant the two most common Dio shapes bypassed body redaction
+    // entirely, so `redactedBodyPatterns` and the built-in JSON secret-key
+    // patterns silently did nothing on the default path.
+    return CapturedBody.captureRedacted(
+      data,
+      redactor: redactor,
       contentType: contentType,
       maxBytes: maxBytes,
     );

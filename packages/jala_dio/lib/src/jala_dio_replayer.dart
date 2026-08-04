@@ -65,6 +65,13 @@ class JalaDioReplayer implements JalaReplayer {
     Map<String, String>? headers,
     String? bodyOverride,
   }) {
+    // An explicit body override is the developer supplying the real
+    // content, so it is always allowed; only reusing Jala's own capture has
+    // to be faithful to what actually went over the wire.
+    if (bodyOverride == null) {
+      final String? blocked = entry.replayBlockedReason;
+      if (blocked != null) throw JalaReplayException(blocked);
+    }
     final Map<String, String> sourceHeaders =
         headers ?? entry.requestHeaders;
     final Map<String, dynamic> rebuiltHeaders = <String, dynamic>{
@@ -101,8 +108,14 @@ class JalaDioReplayer implements JalaReplayer {
         final String? text = body.text;
         return text == null ? null : jsonDecode(text);
       case BodyKind.text:
-      case BodyKind.truncated:
         return body.text;
+      case BodyKind.truncated:
+        // Unreachable: `_rebuildRequestOptions` rejects a truncated body
+        // before it gets here. Kept explicit so the switch stays
+        // exhaustive and this never silently degrades to sending a prefix.
+        throw const JalaReplayException(
+          'Refusing to replay a truncated request body',
+        );
       case BodyKind.image:
         // The raw bytes were retained specifically for preview/replay;
         // Dio sends a `Uint8List` body as-is (see `DioMixin._transformData`),

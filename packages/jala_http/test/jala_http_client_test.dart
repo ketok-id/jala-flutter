@@ -760,4 +760,139 @@ void main() {
       },
     );
   });
+
+  group('JalaHttpClient body redaction', () {
+    // Regression: this adapter never called JalaRedactor.redactBody at all,
+    // so neither the built-in JSON/form secret patterns nor a caller's
+    // redactedBodyPatterns applied to any body it captured — passwords and
+    // tokens reached the store, the UI, and every export verbatim.
+    Future<NetworkCallEntry> capture({
+      required String requestBody,
+      required String responseBody,
+      JalaRedactor? redactor,
+    }) async {
+      JalaBinding.instance.initialize(
+        config: JalaConfig(enabled: true, redactor: redactor),
+      );
+      final FakeHttpClient fake = FakeHttpClient(
+        (request) async => http.StreamedResponse(
+          Stream<List<int>>.value(utf8.encode(responseBody)),
+          200,
+          headers: <String, String>{'content-type': 'application/json'},
+          request: request,
+        ),
+      );
+      await JalaHttpClient(inner: fake).post(
+        Uri.parse('https://api.example.com/login'),
+        headers: <String, String>{'content-type': 'application/json'},
+        body: requestBody,
+      );
+      await pump();
+      await pump();
+      return JalaBinding.instance.store.entries.single;
+    }
+
+    test('masks default JSON secret keys in the request body', () async {
+      final NetworkCallEntry entry = await capture(
+        requestBody: '{"user":"ada","password":"s3cret"}',
+        responseBody: '{"ok":true}',
+      );
+      expect(entry.requestBody.text, '{"user":"ada","password":"••••••"}');
+    });
+
+    test('masks default JSON secret keys in the response body', () async {
+      final NetworkCallEntry entry = await capture(
+        requestBody: '{"user":"ada"}',
+        responseBody: '{"access_token":"abc.def.ghi"}',
+      );
+      expect(entry.responseBody.text, '{"access_token":"••••••"}');
+    });
+
+    test('applies custom redactedBodyPatterns to both sides', () async {
+      final NetworkCallEntry entry = await capture(
+        requestBody: '{"pw":"hunter2"}',
+        responseBody: '{"echo":"hunter2"}',
+        redactor: JalaRedactor(redactedBodyPatterns: <Pattern>['hunter2']),
+      );
+      expect(entry.requestBody.text, isNot(contains('hunter2')));
+      expect(entry.responseBody.text, isNot(contains('hunter2')));
+    });
+
+    test('an over-cap response is still flagged truncated after masking',
+        () async {
+      // Regression: truncation used to be forced with a cap of
+      // `buffered.length - 1`; masking shrinks the text, which could put
+      // the redacted body back under that cap and report it as complete.
+      JalaBinding.instance.initialize(
+        config: JalaConfig(enabled: true, maxBodyBytes: 200),
+      );
+      final String big = '{"password":"${'x' * 400}","pad":"${'y' * 400}"}';
+      final FakeHttpClient fake = FakeHttpClient(
+        (request) async => http.StreamedResponse(
+          Stream<List<int>>.value(utf8.encode(big)),
+          200,
+          headers: <String, String>{'content-type': 'application/json'},
+          request: request,
+        ),
+      );
+      await JalaHttpClient(
+        inner: fake,
+      ).get(Uri.parse('https://api.example.com/big'));
+      await pump();
+      await pump();
+      final NetworkCallEntry entry = JalaBinding.instance.store.entries.single;
+      expect(entry.responseBody.kind, BodyKind.truncated);
+      expect(entry.responseBody.truncated, isTrue);
+      expect(entry.responseBody.text, isNot(contains('xxx')));
+      // The true wire size is still reported accurately.
+      expect(entry.responseSize, big.length);
+    });
+  });
+
+  group('JalaHttpReplayer truncated bodies', () {
+    test('refuses to resend a body Jala only captured a prefix of', () async {
+      JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+      final FakeHttpClient fake = FakeHttpClient(
+        (request) async => jsonStreamedResponse(<String, dynamic>{'ok': true}),
+      );
+      final NetworkCallEntry entry = makeTruncatedEntry();
+      expect(
+        () => JalaHttpReplayer(JalaHttpClient(inner: fake)).replay(entry),
+        throwsA(isA<JalaReplayException>()),
+      );
+    });
+
+    test('an explicit body override is still sent', () async {
+      JalaBinding.instance.initialize(config: JalaConfig(enabled: true));
+      final FakeHttpClient fake = FakeHttpClient(
+        (request) async => jsonStreamedResponse(<String, dynamic>{'ok': true}),
+      );
+      await JalaHttpReplayer(
+        JalaHttpClient(inner: fake),
+      ).replayModified(makeTruncatedEntry(), body: '{"full":"body"}');
+      expect(fake.requests.single.url.path, '/upload');
+    });
+  });
+}
+
+/// An entry whose request body hit the capture cap, so only a prefix of it
+/// was ever retained.
+NetworkCallEntry makeTruncatedEntry() {
+  return NetworkCallEntry(
+    id: 'truncated-1',
+    startTime: DateTime.utc(2024),
+    method: 'POST',
+    uri: Uri.parse('https://api.example.com/upload'),
+    requestHeaders: const <String, String>{},
+    requestBody: CapturedBody.capture(
+      '{"blob":"${'x' * 400}"}',
+      contentType: 'application/json',
+      maxBytes: 64,
+    ),
+    responseHeaders: const <String, String>{},
+    responseBody: CapturedBody.none,
+    status: JalaCallStatus.success,
+    statusCode: 200,
+    client: 'http',
+  );
 }

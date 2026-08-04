@@ -100,8 +100,12 @@ Uses `JalaThrottleRegistry` when a profile is active and the host matches:
 
 - **Drop** (e.g. Offline) → connection-error `DioException` before the adapter
 - **Latency** (± jitter) before forward
-- **Download bandwidth** only for `ResponseType.stream` — default buffered
-  responses never see the stream, so they get latency/drop only
+- **Bandwidth** (up and down) applies to every response type. A
+  `ResponseType.stream` response is paced chunk by chunk; a buffered one is
+  resolved to bytes inside Dio's own transformer, off a stream the
+  interceptor never sees, so it is instead held for the time those bytes
+  would have taken. End-to-end timing matches either way; only buffered
+  responses lack progressive delivery.
 
 ### Production safety
 

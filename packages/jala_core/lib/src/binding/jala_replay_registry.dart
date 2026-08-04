@@ -1,4 +1,43 @@
+import '../model/captured_body.dart';
 import '../model/network_call_entry.dart';
+
+/// Thrown when a captured call cannot be faithfully re-issued.
+///
+/// Replay puts real bytes on a real server. Where Jala cannot reproduce the
+/// original request exactly, it refuses rather than sending something
+/// subtly wrong — see [JalaReplayability.replayBlockedReason].
+class JalaReplayException implements Exception {
+  /// Creates the exception with a user-facing [message].
+  const JalaReplayException(this.message);
+
+  /// Why the call could not be replayed, phrased for display.
+  final String message;
+
+  @override
+  String toString() => 'JalaReplayException: $message';
+}
+
+/// Whether a captured call can be re-issued as-is.
+extension JalaReplayability on NetworkCallEntry {
+  /// Why replaying this entry unmodified would be unfaithful, or null when
+  /// it can be replayed as captured.
+  ///
+  /// Currently one case: a request body that hit the capture cap. Jala
+  /// deliberately never retained the rest of it (see
+  /// `CapturedBody.defaultMaxBytes`), so resending the prefix it does have
+  /// would silently deliver a corrupt payload — a truncated JSON document
+  /// or a half-uploaded file — to a live endpoint. Edit-and-resend still
+  /// works: an explicit body override is the developer supplying the real
+  /// content, so it is sent as given.
+  String? get replayBlockedReason {
+    if (requestBody.kind == BodyKind.truncated || requestBody.truncated) {
+      return 'The request body was truncated at capture time, so replaying '
+          'it would send an incomplete body. Use Edit & resend to supply '
+          'the full body.';
+    }
+    return null;
+  }
+}
 
 /// Something that can re-issue a previously captured network call.
 ///
@@ -62,9 +101,16 @@ class JalaReplayRegistry {
   /// replayer is registered (spec allows returning false or throwing
   /// StateError for that case; returning false is chosen so callers can
   /// branch without try/catch).
+  ///
+  /// Throws [JalaReplayException] when [entry] cannot be replayed
+  /// faithfully — see [JalaReplayability.replayBlockedReason]. That is a
+  /// distinct outcome from "no replayer attached", which is why it is not
+  /// folded into the `false` return.
   Future<bool> replay(NetworkCallEntry entry) async {
     final JalaReplayer? replayer = _replayer;
     if (replayer == null) return false;
+    final String? blocked = entry.replayBlockedReason;
+    if (blocked != null) throw JalaReplayException(blocked);
     await replayer.replay(entry);
     return true;
   }

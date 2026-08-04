@@ -1,3 +1,41 @@
+## Unreleased
+
+### Fixed
+
+- **Body redaction now covers every captured body shape.** New
+  `CapturedBody.captureRedacted` runs `JalaRedactor.redactBody` over the
+  text form a capture actually retains — including already-decoded
+  `Map`/`List` bodies, which are encoded to JSON and redacted first.
+  Previously each adapter decided for itself when to redact and only
+  handled bodies that were already `String`, so the most common shapes in
+  the ecosystem bypassed redaction entirely. Adapters must use this rather
+  than `CapturedBody.capture` for anything off the wire.
+- `CapturedBody.captureRedacted` takes `knownTruncated` for callers that
+  already cut a body short upstream, replacing the "pass a cap one byte
+  below the buffer length" trick — which redaction, being free to shrink
+  the text, could silently defeat and report a truncated body as complete.
+- `JalaRedactor.defaultJsonSecretValues` also matches a secret value that
+  runs to the end of the text, so a body captured over the size cap does
+  not leave the visible prefix of a token unmasked.
+- `HarExporter` builds `queryString` from the raw query rather than
+  `Uri.queryParameters`, which collapses repeated keys — `?tag=a&tag=b`
+  exported as a single `tag=b`, losing a parameter the app really sent.
+- `DartSnippetExporter` marks masked header values with a trailing comment
+  instead of emitting them as ordinary string literals, and gained the
+  `redacted` flag `CurlExporter` already had (false drops masked headers).
+- `JalaReplayRegistry.replay` throws the new `JalaReplayException` for an
+  entry whose request body hit the capture cap. Replay used to resend
+  whatever prefix survived, silently delivering a corrupt payload to a live
+  endpoint. `replayModified` with an explicit body is unaffected — that is
+  the developer supplying the real content.
+
+### Added
+
+- `JalaReplayException` and `NetworkCallEntry.replayBlockedReason` (via the
+  `JalaReplayability` extension).
+- `parseQueryParams` / `JalaQueryParam`, moved here from `jala_ui` so the
+  detail screen and the HAR exporter share one wire-faithful parser.
+
 ## 0.7.0
 
 - Redaction now covers URLs: `JalaRedactor.redactUri` masks the values of

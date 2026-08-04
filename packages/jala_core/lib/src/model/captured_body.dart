@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import '../redact/jala_redactor.dart';
+
 /// The shape of data held by a [CapturedBody].
 enum BodyKind {
   /// No body was present (e.g. a GET request, or a 204 response).
@@ -85,7 +87,59 @@ class CapturedBody {
     dynamic data, {
     String? contentType,
     int maxBytes = defaultMaxBytes,
-  }) {
+  }) => CapturedBody._capture(data, contentType, maxBytes, null, false);
+
+  /// Captures [data] exactly as [capture] does, but runs every text form the
+  /// capture would retain through [JalaRedactor.redactBody] first.
+  ///
+  /// **Adapters must use this, not [capture], on any body that came off the
+  /// wire.** [capture] retains whatever it is handed; only this constructor
+  /// upholds the "redaction happens at capture time" invariant, so raw
+  /// secrets never enter the store and there is no reveal path.
+  ///
+  /// Redaction is applied to the body's *text* form, whatever shape the
+  /// adapter handed over:
+  /// - `String` -> redacted directly.
+  /// - `List<int>` with a textual [contentType] -> decoded, then redacted.
+  /// - `Map`/`List` (already-decoded JSON — the shape Dio's default
+  ///   `ResponseType.json` and `graphql`'s `Response.data` arrive in) ->
+  ///   `jsonEncode`d, then redacted. Without this, the most common body
+  ///   shape in the ecosystem would bypass redaction entirely.
+  /// - `BodyKind.bytes`/`stream`/`none` -> nothing is retained, so there is
+  ///   nothing to redact. Binary image captures go through [captureBytes],
+  ///   which likewise retains no text.
+  ///
+  /// [CapturedBody.originalSize] reflects the redacted text (the mask is a
+  /// different length than the secret it replaced); the adapter's own byte
+  /// counter is the accurate source for wire size, and it is what
+  /// `NetworkResponseEvent.size` carries.
+  /// Set [knownTruncated] when the caller already cut [data] short upstream
+  /// (e.g. `jala_http`'s response tee stops buffering at the cap): the
+  /// result is reported as [BodyKind.truncated] even though the content it
+  /// was handed fits within [maxBytes]. Without it, a caller would have to
+  /// force truncation by passing a cap derived from the raw byte length —
+  /// which redaction, being free to shrink the text, can silently defeat.
+  factory CapturedBody.captureRedacted(
+    dynamic data, {
+    required JalaRedactor redactor,
+    String? contentType,
+    int maxBytes = defaultMaxBytes,
+    bool knownTruncated = false,
+  }) => CapturedBody._capture(
+    data,
+    contentType,
+    maxBytes,
+    redactor,
+    knownTruncated,
+  );
+
+  factory CapturedBody._capture(
+    dynamic data,
+    String? contentType,
+    int maxBytes,
+    JalaRedactor? redactor,
+    bool knownTruncated,
+  ) {
     if (data == null) {
       return CapturedBody._(
         kind: BodyKind.none,
@@ -107,7 +161,13 @@ class CapturedBody {
     }
 
     if (data is String) {
-      return _captureText(data, contentType: contentType, maxBytes: maxBytes);
+      return _captureText(
+        data,
+        contentType: contentType,
+        maxBytes: maxBytes,
+        redactor: redactor,
+        knownTruncated: knownTruncated,
+      );
     }
 
     // Must be checked before the generic `List` branch below: a byte buffer
@@ -120,6 +180,8 @@ class CapturedBody {
           contentType: contentType,
           maxBytes: maxBytes,
           originalByteLength: data.length,
+          redactor: redactor,
+          knownTruncated: knownTruncated,
         );
       }
       return CapturedBody._(
@@ -138,6 +200,8 @@ class CapturedBody {
         contentType: contentType ?? 'application/json',
         maxBytes: maxBytes,
         forceJson: true,
+        redactor: redactor,
+        knownTruncated: knownTruncated,
       );
     }
 
@@ -150,6 +214,8 @@ class CapturedBody {
       data.toString(),
       contentType: contentType,
       maxBytes: maxBytes,
+      redactor: redactor,
+      knownTruncated: knownTruncated,
     );
   }
 
@@ -312,17 +378,23 @@ class CapturedBody {
   }
 
   static CapturedBody _captureText(
-    String text, {
+    String rawText, {
     required String? contentType,
     required int maxBytes,
     int? originalByteLength,
     bool forceJson = false,
+    JalaRedactor? redactor,
+    bool knownTruncated = false,
   }) {
+    // Redact before anything is measured or retained, so the mask — not the
+    // secret — is what gets encoded, size-checked, truncated and stored.
+    final String text =
+        redactor == null ? rawText : redactor.redactBody(rawText);
     final List<int> encoded = utf8.encode(text);
     final int originalSize = originalByteLength ?? encoded.length;
     final bool isJson = forceJson || _looksLikeJson(text, contentType);
 
-    if (encoded.length <= maxBytes) {
+    if (encoded.length <= maxBytes && !knownTruncated) {
       return CapturedBody._(
         kind: isJson ? BodyKind.json : BodyKind.text,
         text: text,
@@ -332,7 +404,10 @@ class CapturedBody {
       );
     }
 
-    final List<int> cut = encoded.sublist(0, maxBytes);
+    final List<int> cut = encoded.sublist(
+      0,
+      maxBytes < encoded.length ? maxBytes : encoded.length,
+    );
     final String truncatedText = utf8.decode(cut, allowMalformed: true);
     return CapturedBody._(
       kind: BodyKind.truncated,

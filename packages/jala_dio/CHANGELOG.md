@@ -1,3 +1,23 @@
+## Unreleased
+
+### Fixed
+
+- **Request and response bodies are now redacted on Dio's default paths.**
+  Redaction was applied only to bodies that were already `String`, so
+  `data: <String, dynamic>{...}` requests and the default
+  `ResponseType.json` responses — both decoded `Map`s — were stored
+  verbatim. `redactedBodyPatterns` and the built-in JSON secret-key
+  patterns silently did nothing for the majority of Dio traffic.
+- **Bandwidth throttling applies to buffered responses and requests.**
+  `downloadBytesPerSec` previously only affected `ResponseType.stream`
+  responses and `uploadBytesPerSec` was never applied at all, so picking
+  "Slow 3G" on a normal Dio app honored its latency and drop rate but
+  ignored its 50 KB/s cap. A buffered body cannot be delivered
+  progressively, so it is held for the time those bytes would have taken;
+  end-to-end timing now matches the streamed path.
+- `JalaDioReplayer` refuses to replay an entry whose request body was
+  truncated at capture time instead of resending the retained prefix.
+
 ## 0.7.0
 
 - Sensitive query-parameter values (`?access_token=…`) are masked at

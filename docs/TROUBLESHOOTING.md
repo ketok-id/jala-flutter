@@ -34,7 +34,8 @@ Common “it doesn’t show up” cases. Architecture background:
 | Replay fails auth | Masked headers/query dropped on purpose | Expected when redacted; need live auth interceptor or unredacted debug capture |
 | Duplicate GraphQL + HTTP rows | Dio/http + GraphQL link both capturing | Prefer `JalaGraphQLLink` only for that transport ([ADOPTION.md](ADOPTION.md)) |
 | Works in debug, empty in release QA | Default `enabled: kDebugMode` | Internal flavor: `JalaConfig(enabled: true)` + privacy review |
-| Large download not slow under Dio throttle | Non-stream response type | `ResponseType.stream` or test with `jala_http` |
+| Download arrives all at once under Dio throttle | Buffered response types can't be delivered progressively | Expected: total time still honors the cap; use `ResponseType.stream` for per-chunk pacing |
+| Replay greyed out with a "truncated" tooltip | Request body hit `maxBodyBytes`; only a prefix was kept | Use **Edit & resend** to supply the full body, or raise `maxBodyBytes` |
 | WebSocket not affected by Slow 3G | By design | Throttle is HTTP-only |
 | cURL missing Authorization when exporting “unredacted” | Export cannot recover mask | `redacted: false` **drops** masked headers; secrets were never stored |
 | Config change ignored | Second `initialize` or hot reload | Hot **restart**; first config wins |

@@ -1,3 +1,11 @@
+## Unreleased
+
+### Fixed
+
+- Frames sent via `sink.addStream(...)` are captured. Only `sink.add(...)`
+  was hooked, so a connection driven by `addStream` produced a silently
+  partial record in the inspector.
+
 ## 0.7.0
 
 - The captured handshake URL goes through `JalaRedactor.redactUri`. A

@@ -74,6 +74,7 @@ class JalaHttpClient extends http.BaseClient {
       bodyCapture = _captureRequestBody(
         request,
         maxBytes: binding.config.maxBodyBytes,
+        redactor: binding.config.redactor,
       );
     } catch (_) {
       // A capture bug must never break the app's networking; fall back to
@@ -309,6 +310,7 @@ class JalaHttpClient extends http.BaseClient {
   _BodyCapture _captureRequestBody(
     http.BaseRequest request, {
     required int maxBytes,
+    required JalaRedactor redactor,
   }) {
     if (request is http.MultipartRequest) {
       final List<JalaMultipartPart> parts = <JalaMultipartPart>[
@@ -350,8 +352,9 @@ class JalaHttpClient extends http.BaseClient {
         request.headers,
         'content-type',
       );
-      final CapturedBody body = CapturedBody.capture(
+      final CapturedBody body = CapturedBody.captureRedacted(
         bytes,
+        redactor: redactor,
         contentType: contentType,
         maxBytes: maxBytes,
       );
@@ -410,6 +413,7 @@ class JalaHttpClient extends http.BaseClient {
             contentType: contentType,
             maxBytes: maxBytes,
             truncated: truncated,
+            redactor: binding.config.redactor,
           );
           final Map<String, String> headers = binding.config.redactor
               .redactHeaders(response.headers);
@@ -463,24 +467,28 @@ class JalaHttpClient extends http.BaseClient {
     required String? contentType,
     required int maxBytes,
     required bool truncated,
+    required JalaRedactor redactor,
   }) {
     if (!truncated) {
       // The buffer holds the entire body (the stream never exceeded the
-      // cap): a plain capture() call already reports the correct
+      // cap): a plain capture already reports the correct
       // kind/size/truncated triple.
-      return CapturedBody.capture(
+      return CapturedBody.captureRedacted(
         buffered,
+        redactor: redactor,
         contentType: contentType,
         maxBytes: maxBytes,
       );
     }
     // The true body exceeded [maxBytes], but Jala only ever buffered up to
     // [maxBytes] real bytes of it (see [_teeAndCapture]) — deliberately
-    // never the full body. Asking `capture()` to treat that bounded buffer
-    // as one byte over its *own* length deterministically produces
-    // `BodyKind.truncated` from real captured content, rather than relying
-    // on `capture()`'s internal encode/decode round-trip to happen to
-    // exceed [maxBytes] on its own.
+    // never the full body. `knownTruncated` states that fact outright, so
+    // the result is `BodyKind.truncated` regardless of how the buffered
+    // content measures up against the cap on its own. (This previously
+    // forced truncation by passing a cap of `buffered.length - 1`, which
+    // capture-time redaction can defeat: masking shrinks the text, so the
+    // redacted body could land back under that cap and be reported as
+    // complete when it is not.)
     //
     // SPEC-NOTE: `CapturedBody.originalSize` in this branch reflects the
     // size of the bounded buffer (~[maxBytes]), not the true full body
@@ -493,11 +501,12 @@ class JalaHttpClient extends http.BaseClient {
     // is instead carried accurately by `NetworkResponseEvent.size` /
     // `NetworkCallEntry.responseSize`, which this adapter always sets from
     // its own byte counter — see the `totalLength` argument to `onDone`.
-    final int forcedCap = buffered.isEmpty ? 0 : buffered.length - 1;
-    return CapturedBody.capture(
+    return CapturedBody.captureRedacted(
       buffered,
+      redactor: redactor,
       contentType: contentType,
-      maxBytes: forcedCap,
+      maxBytes: maxBytes,
+      knownTruncated: true,
     );
   }
 

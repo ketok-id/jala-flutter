@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:gql/ast.dart';
 import 'package:gql/language.dart' show printNode;
 import 'package:gql_exec/gql_exec.dart';
@@ -230,15 +228,13 @@ class JalaGraphQLLink extends Link {
       'query': info.queryText,
       'variables': request.variables,
     };
-    final String rawJson = jsonEncode(payload);
-    // SPEC-NOTE: mirrors `JalaDioInterceptor`'s `_redactedCapture` — body
-    // patterns are applied to the full body text (here: the whole
-    // `{operationName, query, variables}` JSON), which in practice redacts
-    // whatever falls inside `variables` without needing to reconstruct the
-    // JSON after redacting only a substring.
-    final String redactedJson = binding.config.redactor.redactBody(rawJson);
-    final CapturedBody body = CapturedBody.capture(
-      redactedJson,
+    // SPEC-NOTE: body patterns are applied to the full body text (here: the
+    // whole `{operationName, query, variables}` JSON), which in practice
+    // redacts whatever falls inside `variables` without needing to
+    // reconstruct the JSON after redacting only a substring.
+    final CapturedBody body = CapturedBody.captureRedacted(
+      payload,
+      redactor: binding.config.redactor,
       contentType: 'application/json',
       maxBytes: binding.config.maxBodyBytes,
     );
@@ -337,11 +333,11 @@ class JalaGraphQLLink extends Link {
   /// `{"data": ..., "errors": [...]}` shape shared by [_emitResponse],
   /// [_emitSubscriptionPayload], and [_emitSubscriptionCompletion].
   ///
-  /// SPEC-NOTE: `response.data` is already a decoded `Map`/`null`, not a
-  /// `String` — like `JalaDioInterceptor`'s response capture, only
-  /// `String` bodies go through `JalaRedactor.redactBody` (pattern-based
-  /// redaction needs text to match against); a `Map` here is captured
-  /// as-is, same as the non-string branch of `_redactedCapture`.
+  /// `response.data` is already a decoded `Map`/`null`, not a `String`, so
+  /// this goes through `CapturedBody.captureRedacted`, which redacts the
+  /// JSON text it encodes the payload into. Capturing the `Map` as-is (as
+  /// this did before) meant every GraphQL *response* bypassed body
+  /// redaction, even though the matching request path redacted correctly.
   CapturedBody _capturePayload(JalaBinding binding, Response response) {
     final bool hasErrors =
         response.errors != null && response.errors!.isNotEmpty;
@@ -353,8 +349,9 @@ class JalaGraphQLLink extends Link {
             _errorToJson(error),
         ],
     };
-    return CapturedBody.capture(
+    return CapturedBody.captureRedacted(
       payload,
+      redactor: binding.config.redactor,
       contentType: 'application/json',
       maxBytes: binding.config.maxBodyBytes,
     );

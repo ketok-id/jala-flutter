@@ -1,3 +1,12 @@
+## Unreleased
+
+### Fixed
+
+- Picks up capture-time body redaction on every adapter, correct Dio
+  bandwidth throttling, a bubble that keeps its dragged position across
+  opening and closing the inspector, and replay that refuses to resend a
+  truncated request body. See the individual package changelogs.
+
 ## 0.7.0
 
 - Fix: screens pushed from the inspector (call detail, diff, mocks, mock

@@ -328,4 +328,65 @@ void main() {
       expect(JalaBinding.instance.store.wsConnections, isEmpty);
     });
   });
+
+  group('sink.addStream', () {
+    test('captures every frame sent through addStream', () async {
+      // Regression: addStream delegated straight to the inner sink with no
+      // capture hook, so frames sent that way were invisible in the
+      // inspector while sink.add ones showed up — a silently partial
+      // record of the connection.
+      final harness = connect();
+      await pump();
+
+      await harness.wrapped.sink.addStream(
+        Stream<dynamic>.fromIterable(<dynamic>['one', 'two', 'three']),
+      );
+      await pump();
+
+      final WsConnectionEntry entry =
+          JalaBinding.instance.store.wsConnections.single;
+      expect(entry.frameCount, 3);
+      expect(
+        entry.frames.map((WsFrame f) => f.preview),
+        <String>['one', 'two', 'three'],
+      );
+      expect(
+        entry.frames.map((WsFrame f) => f.direction),
+        everyElement(WsDirection.sent),
+      );
+    });
+
+    test('still forwards every element to the wire, in order', () async {
+      final harness = connect();
+      await pump();
+      final Future<List<Object?>> received = harness.server.stream.toList();
+
+      await harness.wrapped.sink.addStream(
+        Stream<dynamic>.fromIterable(<dynamic>['a', 'b']),
+      );
+      await harness.wrapped.sink.close();
+      await pump();
+
+      expect(await received, <Object?>['a', 'b']);
+    });
+
+    test('redacts frames sent through addStream', () async {
+      final harness = connect(
+        config: JalaConfig(
+          enabled: true,
+          redactor: JalaRedactor(redactedBodyPatterns: <Pattern>['s3cret']),
+        ),
+      );
+      await pump();
+
+      await harness.wrapped.sink.addStream(
+        Stream<dynamic>.fromIterable(<dynamic>['{"pw":"s3cret"}']),
+      );
+      await pump();
+
+      final WsConnectionEntry entry =
+          JalaBinding.instance.store.wsConnections.single;
+      expect(entry.frames.single.preview, isNot(contains('s3cret')));
+    });
+  });
 }

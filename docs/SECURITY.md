@@ -55,6 +55,20 @@ the UI.
   `bearer`, `client_id` (and common underscore/hyphen variants).
 - Form / query-style pairs: same key names as `key=value`.
 
+Body patterns apply to **every body shape an adapter captures**, not only
+the ones that arrive as a `String`: an already-decoded `Map`/`List` (Dio's
+`data: {...}` request, its default `ResponseType.json` response, a GraphQL
+`Response.data`) is encoded to JSON and redacted before anything is
+retained. Bodies Jala keeps no text for — raw binary, image previews,
+streams — have nothing to redact.
+
+> **Bodies over the cap.** `jala_http` stops buffering a response at
+> `maxBodyBytes`, so the redactor can be handed JSON cut mid-token. A value
+> running to the end of the captured text is still masked, but a cut landing
+> inside a *key* (`{"passw`) cannot be recognized by any pattern. The
+> residue is bounded by `maxBodyBytes`, which makes that setting a redaction
+> control as much as a memory one.
+
 **Default redacted URL query parameters** (`JalaRedactor.redactUri`, applied
 by every adapter at capture time; matched ignoring case, `-` and `_`):
 
