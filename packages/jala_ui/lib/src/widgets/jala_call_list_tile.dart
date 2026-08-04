@@ -161,6 +161,22 @@ class JalaCallListTile extends StatelessWidget {
                     color: textTheme.bodySmall?.color,
                   ),
                 ),
+              // Confirms per call that a throttle profile actually applied.
+              // The inspector's throttle banner only says a profile is
+              // active — not whether it touched this request (it may be
+              // scoped to a host glob this call didn't match).
+              if (entry.throttledBy != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: Tooltip(
+                    message: 'Throttled by ${entry.throttledBy}',
+                    child: Icon(
+                      Icons.speed,
+                      size: 14,
+                      color: textTheme.bodySmall?.color,
+                    ),
+                  ),
+                ),
               Text(
                 _statusText(),
                 style: textTheme.bodySmall?.copyWith(

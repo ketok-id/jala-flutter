@@ -226,18 +226,28 @@ class JalaDioInterceptor extends Interceptor {
       handler.next(response);
       return;
     }
-    int? capturedSize;
+    _ResponseCapture? capture;
     try {
-      capturedSize = _captureResponse(response);
+      capture = _prepareResponse(response);
     } catch (_) {
       // A capture bug must never break the app's networking.
     }
-    final Duration pacing = _bufferedDownloadPacing(response, capturedSize);
+    final Duration pacing = _bufferedDownloadPacing(response, capture?.body.size);
     if (pacing > Duration.zero) {
-      unawaited(_delayThenNextResponse(response, handler, pacing));
-    } else {
-      handler.next(response);
+      // Emitting happens after the delay so the entry stays pending while
+      // the simulated download "arrives", then completes with a duration
+      // the app actually experienced.
+      unawaited(_paceThenComplete(response, handler, capture, pacing));
+      return;
     }
+    if (capture != null) {
+      try {
+        _emitResponse(response, capture);
+      } catch (_) {
+        // A capture bug must never break the app's networking.
+      }
+    }
+    handler.next(response);
   }
 
   /// How long to hold a **buffered** response back to simulate the active
@@ -266,12 +276,20 @@ class JalaDioInterceptor extends Interceptor {
     }
   }
 
-  Future<void> _delayThenNextResponse(
+  Future<void> _paceThenComplete(
     Response<dynamic> response,
     ResponseInterceptorHandler handler,
+    _ResponseCapture? capture,
     Duration pacing,
   ) async {
     await Future<void>.delayed(pacing);
+    if (capture != null) {
+      try {
+        _emitResponse(response, capture);
+      } catch (_) {
+        // A capture bug must never break the app's networking.
+      }
+    }
     handler.next(response);
   }
 
@@ -501,10 +519,14 @@ class JalaDioInterceptor extends Interceptor {
     );
   }
 
-  /// Captures [response] and returns its captured size in bytes (null when
-  /// unknown, or when there was nothing to correlate it with) — the caller
-  /// uses that for bandwidth pacing, see [_bufferedDownloadPacing].
-  int? _captureResponse(Response<dynamic> response) {
+  /// Builds the response capture (and wires stream progress/pacing) without
+  /// emitting it, returning null when there is nothing to correlate this
+  /// response with.
+  ///
+  /// Split from [_emitResponse] so bandwidth pacing can sit *between* them:
+  /// the delay has to be inside the measured duration, or the inspector
+  /// reports a figure the app never experienced.
+  _ResponseCapture? _prepareResponse(Response<dynamic> response) {
     final JalaBinding binding = JalaBinding.instance;
     final RequestOptions options = response.requestOptions;
     final String? id = options.extra[idExtraKey] as String?;
@@ -513,7 +535,6 @@ class JalaDioInterceptor extends Interceptor {
       // onRequest); there is nothing to correlate this response with.
       return null;
     }
-    final Stopwatch? stopwatch = options.extra[startExtraKey] as Stopwatch?;
 
     final _ProgressState? progressState =
         options.extra[_progressStateExtraKey] as _ProgressState?;
@@ -539,9 +560,21 @@ class JalaDioInterceptor extends Interceptor {
       redactor: binding.config.redactor,
     );
 
+    return _ResponseCapture(callId: id, headers: headers, body: capture);
+  }
+
+  /// Emits [capture] as a [NetworkResponseEvent], timing the call as of
+  /// *now* — so any pacing awaited since [_prepareResponse] is included.
+  void _emitResponse(
+    Response<dynamic> response,
+    _ResponseCapture capture,
+  ) {
+    final JalaBinding binding = JalaBinding.instance;
+    final Stopwatch? stopwatch =
+        response.requestOptions.extra[startExtraKey] as Stopwatch?;
     binding.bus.emit(
       NetworkResponseEvent(
-        callId: id,
+        callId: capture.callId,
         timestamp: DateTime.now(),
         // SPEC-NOTE: `NetworkResponseEvent.statusCode` is non-nullable, but
         // `Response.statusCode` is nullable (it is only null for manually
@@ -550,13 +583,12 @@ class JalaDioInterceptor extends Interceptor {
         // practice.
         statusCode: response.statusCode ?? 0,
         statusMessage: response.statusMessage,
-        headers: headers,
-        body: capture.body,
-        size: capture.size,
+        headers: capture.headers,
+        body: capture.body.body,
+        size: capture.body.size,
         duration: stopwatch?.elapsed ?? Duration.zero,
       ),
     );
-    return capture.size;
   }
 
   void _captureError(DioException err) {
@@ -864,6 +896,20 @@ class JalaDioInterceptor extends Interceptor {
     if (values == null || values.isEmpty) return null;
     return values.join(', ');
   }
+}
+
+/// A response capture built but not yet emitted — see
+/// `JalaDioInterceptor._prepareResponse`.
+class _ResponseCapture {
+  const _ResponseCapture({
+    required this.callId,
+    required this.headers,
+    required this.body,
+  });
+
+  final String callId;
+  final Map<String, String> headers;
+  final _BodyCapture body;
 }
 
 /// Pairs a captured body with its best-effort original size in bytes.

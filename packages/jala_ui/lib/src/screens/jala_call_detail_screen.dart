@@ -404,6 +404,20 @@ class _OverviewTab extends StatelessWidget {
                 : entry.operationName!,
           ),
         ),
+      // gRPC status, by name — the HTTP status alone is always 200.
+      if (entry.grpcStatusCode != null)
+        (
+          'gRPC status',
+          Text(
+            '${JalaGrpcStatus.nameOf(entry.grpcStatusCode!)} '
+            '(${entry.grpcStatusCode})',
+          ),
+        ),
+      // Which throttle profile shaped this call. Without this the only
+      // signal that throttling applied is the global banner, which says
+      // nothing about any individual entry.
+      if (entry.throttledBy != null)
+        ('Throttled by', Text(entry.throttledBy!)),
       // Show whenever progress was observed — live while pending, and as a
       // final snapshot after the call completes (B4).
       if (entry.progress != null)

@@ -17,6 +17,7 @@ void main() {
     String client = 'test',
     String? rpcKind,
     int? grpcStatusCode,
+    String? throttledBy,
   }) {
     return NetworkCallEntry(
       id: 'x',
@@ -34,6 +35,7 @@ void main() {
       operationType: operationType,
       rpcKind: rpcKind,
       grpcStatusCode: grpcStatusCode,
+      throttledBy: throttledBy,
     );
   }
 
@@ -184,6 +186,22 @@ void main() {
 
       expect(find.text('GET'), findsOneWidget);
       expect(find.text('200'), findsOneWidget);
+    });
+  });
+
+  group('throttle indicator (0.8.0)', () {
+    testWidgets('a throttled call is marked, an untouched one is not', (
+      WidgetTester tester,
+    ) async {
+      // The inspector's throttle banner only says a profile is *active* —
+      // not whether it applied to any given call (a host-scoped profile may
+      // skip most of them). Without a per-entry mark there is no way to
+      // confirm throttling actually shaped a request.
+      await pumpTile(tester, entry(throttledBy: 'slow3g'));
+      expect(find.byIcon(Icons.speed), findsOneWidget);
+
+      await pumpTile(tester, entry());
+      expect(find.byIcon(Icons.speed), findsNothing);
     });
   });
 }
