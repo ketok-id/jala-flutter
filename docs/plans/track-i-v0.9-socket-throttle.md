@@ -1,0 +1,140 @@
+# Track I — v0.9.0 proposal: socket-level throttling
+
+Proposal written 2026-08-04, after auditing the 0.8.0 throttle work. **Not
+part of 0.8.0.** Decide before starting — see "Open questions".
+
+Today's throttle is an honest simulation, but it simulates the wrong layer.
+This proposes moving it down to the socket, which fixes both its scope
+problem and most of its fidelity problem — without native code, entitlements
+or a VPN.
+
+## Why
+
+Two complaints, one root cause: the delay is applied to a *decoded response*
+inside an adapter Jala was explicitly attached to.
+
+**Scope.** Only traffic through `JalaDio.attach`ed / `JalaHttp.wrap`ped
+clients is affected. A raw `HttpClient`, an unattached `Dio`, and — most
+visibly — `Image.network` all ignore the profile completely. "I set Slow 3G
+and my images still load instantly" is the single most confusing thing about
+the feature, and it looks like a bug.
+
+**Fidelity.** Delaying an already-decoded body simulates elapsed time and
+nothing else. Connection setup and the TLS handshake are free; a streamed
+download is paced by an artificial timer rather than by bytes actually
+arriving slowly.
+
+## The two hooks (verified against the Dart SDK in this repo, 3.41.9)
+
+- **`HttpClient.connectionFactory`** — `_http/http.dart:1547`. Returns
+  `Future<ConnectionTask<Socket>>`, i.e. the caller supplies the actual
+  socket. Wrap it and every byte of the connection is ours to pace.
+- **`HttpOverrides.global`** — `_http/overrides.dart:32`. Replaces
+  `HttpClient()` construction process-wide, so clients Jala never saw are
+  covered too.
+
+## What this does and does not buy
+
+| | 0.8.0 (adapter-level) | Track I (socket-level) |
+|---|---|---|
+| What is delayed | decoded response body | real socket bytes |
+| TCP connect + TLS handshake cost | free | ✅ shaped |
+| `Image.network`, unattached `Dio`, Dart SDKs | untouched | ✅ covered |
+| Streamed download pacing | artificial timer | ✅ bytes genuinely arrive slowly |
+| Drop simulation | synthetic exception after the fact | ✅ connection actually fails |
+| Latency | delay before the request is handed on | ✅ delay before connect, like real RTT |
+
+**Explicitly still not solved** — say so in the README rather than letting
+users assume otherwise:
+
+- **Packet loss, jitter, reordering, DNS delay.** This is byte pacing on an
+  established stream, not a network emulator.
+- **HTTP/2.** `dart:io`'s `HttpClient` speaks HTTP/1.1 only
+  (`http_impl.dart:1667`), so there is no h2 flow-control behaviour to
+  observe either way. (An earlier draft of this claim was wrong.)
+- **Native HTTP stacks.** `cronet_http`, `cupertino_http`, and any native
+  SDK (Firebase native, ad SDKs) never touch `dart:io` and are unaffected.
+- **Web.** No `dart:io`. Web keeps the adapter-level simulation.
+
+For genuine network conditions the answer stays "use the real tool" —
+Network Link Conditioner, the Android emulator's `-netspeed`, or a proxy.
+Track I narrows that gap; it does not close it. An on-device VPN
+(`NEPacketTunnelProvider` / `VpnService`) *would* close it and is
+**rejected** for the same reason in-app breakpoints were: native code on
+both platforms, an iOS Network Extension entitlement, App Store review, and
+a system consent prompt make it a different product.
+
+## I1. Core — `jala_core`, runs alone
+
+- `JalaThrottledSocket` — a `Socket` decorator that paces reads and writes
+  through the existing `JalaThrottleRegistry.paceFor`. No new profile model:
+  `JalaThrottleProfile` already carries latency, jitter, both bandwidth
+  directions and drop rate.
+- `JalaSocketThrottle.connectionFactory(...)` — a factory matching
+  `HttpClient.connectionFactory`'s signature that consults the registry,
+  applies connect latency, fails the connection outright when `shouldDrop`,
+  and otherwise returns a wrapped `ConnectionTask<Socket>`.
+- Host scoping comes free: `connectionFactory` receives the `Uri`, so
+  `hostMatches` applies exactly as it does today.
+
+**The interface-width risk is the main cost.** `Socket` is a large interface
+(`Stream<Uint8List>` + `IOSink` + address/port/option members). Decorating it
+by hand is tedious and easy to get subtly wrong — a missed `setOption`, a
+mishandled `destroy`, and the host app's networking breaks, which violates
+the project's "capture never breaks host networking" invariant. Budget real
+time for this and test the delegation surface exhaustively, not just the
+pacing.
+
+`dart:io` in `jala_core` needs a conditional import — core is currently
+Flutter-free *and* `dart:io`-free, and the web build must keep compiling.
+Follow the `jala`-package pattern (`file_jala_mock_store_io.dart` /
+`_stub.dart`).
+
+## I2. Wiring — `jala` facade
+
+- `Jala.enableSocketThrottling()` — opt-in, debug-only, sets
+  `HttpOverrides.global`. **Never on by default**: it is process-wide and
+  affects code that never asked for Jala.
+- Must be idempotent and reversible (restore the previous overrides), and a
+  no-op when the binding is disabled.
+- **Adapter-level pacing must switch off while socket throttling is active**,
+  or every call is charged twice. This is the sharpest correctness trap in
+  the track — one registry flag, checked in both places, with a test that
+  asserts total elapsed time matches a single application of the cap.
+
+## I3. UI + docs
+
+- The throttle screen states which mode is active and what it covers
+  ("adapter only" vs "all `dart:io` traffic").
+- The per-entry throttle badge added in 0.8.0 already answers "did it apply
+  to this call" and needs no change.
+- `docs/CONFIG.md` / `ADOPTION.md` / `TROUBLESHOOTING.md`: what each mode
+  covers, and a pointer to Network Link Conditioner for the rest.
+
+## I4. Verification
+
+The 0.8.0 audit is the template — measure, don't inspect:
+
+- Elapsed time for a known payload at a known cap, asserted against both the
+  app's observed wall time **and** `NetworkCallEntry.duration` (the 0.8.0
+  bug was these two disagreeing by two seconds).
+- `Image.network` under an active profile — the headline scope fix, and
+  currently the most visible failure.
+- Double-charge guard: adapter + socket throttling both configured, total
+  elapsed still matches one application.
+- Socket delegation: every `Socket` member forwards correctly with
+  throttling off, proving the decorator is transparent.
+- On-device smoke on real hardware, per the standing rules.
+
+## Open questions
+
+1. Is the scope fix (images, unattached clients) worth the `Socket`
+   decoration risk on its own? If the honest answer is "developers reach for
+   Network Link Conditioner anyway", the cheaper move is documentation plus
+   a UI note that throttling covers attached clients only.
+2. `HttpOverrides.global` opt-in, or attempt automatic wiring from
+   `Jala.initialize`? Automatic is friendlier and considerably more
+   dangerous — it changes networking for code that never opted in.
+3. Should socket-level mode also replace the adapter-level path entirely for
+   `dart:io`, rather than running two mechanisms behind a flag? Simpler to
+   reason about; loses the web fallback.

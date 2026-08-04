@@ -14,6 +14,7 @@ Status as of 2026-08-03. Detailed execution plans live in `docs/plans/`.
 | — | Capture-integrity hardening: body redaction across all adapters, Dio bandwidth throttling, replay/HAR/bubble fixes | 0.8.0 | ✅ DONE |
 | G | `jala_grpc` adapter (gRPC / gRPC-web) | 0.8.0 | 🚧 G1–G4 code DONE — [plan](plans/track-g-v0.8-grpc.md); on-device smoke + publish pending |
 | H | Localization (en + id-ID) | 0.8.x | 📋 PROPOSED |
+| I | Socket-level throttling (real byte pacing, covers all `dart:io` traffic) | 0.9.0 | 📋 PROPOSED — [plan](plans/track-i-v0.9-socket-throttle.md) |
 
 Seven packages (`jala`, `jala_core`, `jala_dio`, `jala_http`, `jala_ui`,
 `jala_graphql`, `jala_websocket`) are published on pub.dev in lockstep under
@@ -123,6 +124,38 @@ shipping `en` + `id-ID` first. On-brand for Ketok and low-risk — UI-only,
 non-blocking, so it can ride alongside Track F rather than gate a release.
 Deliberately *not* localized: the filter DSL grammar, HTTP method names, and
 other developer-facing technical tokens.
+
+## Track I — v0.9.0 proposal: socket-level throttling
+
+Today's throttle delays an already-decoded response inside an adapter Jala
+was explicitly attached to. That has a scope problem and a fidelity problem:
+`Image.network`, unattached `Dio` instances and raw `HttpClient`s ignore it
+entirely (the most confusing thing about the feature — it reads as broken),
+and connection setup plus the TLS handshake cost nothing.
+
+`dart:io` exposes two hooks that move the simulation down to the socket
+without native code or entitlements: `HttpClient.connectionFactory`
+(supply the actual `Socket`) and `HttpOverrides.global` (cover clients Jala
+never saw). Byte pacing on the real stream also makes drops fail as real
+connection failures and latency behave like RTT.
+
+Still out of reach, and to be stated plainly rather than implied: packet
+loss, jitter and DNS delay; native HTTP stacks (`cronet_http`,
+`cupertino_http`, native SDKs); and web, which has no `dart:io` and keeps
+the adapter-level path. HTTP/2 is moot — `dart:io`'s client is HTTP/1.1
+only. An on-device VPN would close the remaining gap and is **rejected**:
+native code both platforms, an iOS Network Extension entitlement, store
+review and a consent prompt make it a different product, the same reasoning
+that put the desktop companion on the horizon.
+
+Main cost is risk, not effort: `Socket` is a wide interface, and a decorator
+that gets one member wrong breaks host networking — which the project's
+capture invariants forbid.
+
+Detailed plan: [plans/track-i-v0.9-socket-throttle.md](plans/track-i-v0.9-socket-throttle.md)
+(written 2026-08-04). Open question worth settling first: whether the scope
+fix justifies the risk, or whether documenting "use Network Link Conditioner"
+is the better trade.
 
 ## Horizon (beyond v0.8)
 
