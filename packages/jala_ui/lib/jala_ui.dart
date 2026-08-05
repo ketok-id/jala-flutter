@@ -8,6 +8,9 @@ library;
 
 export 'src/export/jala_export_sink.dart';
 export 'src/jala_inspector.dart';
+export 'src/l10n/jala_localizations.dart';
+export 'src/l10n/jala_localizations_en.dart';
+export 'src/l10n/jala_localizations_id.dart';
 export 'src/screens/jala_call_detail_screen.dart';
 export 'src/screens/jala_call_diff_screen.dart';
 export 'src/screens/jala_inspector_screen.dart';
