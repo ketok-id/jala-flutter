@@ -1,6 +1,6 @@
 # Jala roadmap
 
-Status as of 2026-08-03. Detailed execution plans live in `docs/plans/`.
+Status as of 2026-08-05. Detailed execution plans live in `docs/plans/`.
 
 | Track | Goal | Shipped as | Status |
 |---|---|---|---|
@@ -12,20 +12,21 @@ Status as of 2026-08-03. Detailed execution plans live in `docs/plans/`.
 | F | Inspect deeper: call diff, JSON virtualization, cURL/HAR import | 0.6.0 | ✅ DONE — [plan](plans/track-f-v0.6-inspect-deeper.md) |
 | — | Read the URL: decoded query-param table, capture-time URL redaction | 0.7.0 | ✅ DONE |
 | — | Capture-integrity hardening: body redaction across all adapters, Dio bandwidth throttling, replay/HAR/bubble fixes | 0.8.0 | ✅ DONE |
-| G | `jala_grpc` adapter (gRPC / gRPC-web) | 0.8.0 | 🚧 G1–G4 code DONE — [plan](plans/track-g-v0.8-grpc.md); on-device smoke + publish pending |
+| G | `jala_grpc` adapter (gRPC / gRPC-web) | 0.8.0 | ✅ DONE (capture-only — see below) — [plan](plans/track-g-v0.8-grpc.md) |
 | H | Localization (en + id-ID) | 0.8.x | 📋 PROPOSED |
 | I | Socket-level throttling (real byte pacing, covers all `dart:io` traffic) | 0.8.1 | 📋 PROPOSED — [plan](plans/track-i-v0.8.1-socket-throttle.md) |
 
-Seven packages (`jala`, `jala_core`, `jala_dio`, `jala_http`, `jala_ui`,
-`jala_graphql`, `jala_websocket`) are published on pub.dev in lockstep under
-the verified publisher `ketok.id`. **`jala_grpc` is new in 0.8.0** and needs
-publisher assignment after its first publish (standing rule — the step that
-was missed for `jala_http`).
+Eight packages (`jala`, `jala_core`, `jala_dio`, `jala_http`, `jala_ui`,
+`jala_graphql`, `jala_websocket`, `jala_grpc`) are published on pub.dev in
+lockstep under the verified publisher `ketok.id`. `jala_grpc` was new in
+0.8.0 and its publisher assignment is done — the standing-rule step that was
+missed for `jala_http`.
 
-**0.8.0 is version-bumped in the repo but NOT published.** Two gates remain:
-the on-device smoke test required by the standing rules below, and verifying
-the gRPC-web claim in `jala_grpc`'s README — it uses the same `Client`
-interceptor path in theory, but nothing tests it.
+**0.8.0 shipped 2026-08-04**, all eight packages. Both release gates were
+met: device smokes passed on real hardware (track_g, track_e, track_d, and
+track_b after an assertion fix), and the gRPC-web claim in `jala_grpc`'s
+README is verified structurally — interceptors are applied by `Client`,
+above the channel, so the transport underneath is irrelevant.
 
 ## Track D — v0.4.0 proposal: GraphQL + WebSocket
 
