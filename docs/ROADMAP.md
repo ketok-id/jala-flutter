@@ -14,7 +14,7 @@ Status as of 2026-08-05. Detailed execution plans live in `docs/plans/`.
 | — | Capture-integrity hardening: body redaction across all adapters, Dio bandwidth throttling, replay/HAR/bubble fixes | 0.8.0 | ✅ DONE |
 | G | `jala_grpc` adapter (gRPC / gRPC-web) | 0.8.0 | ✅ DONE (capture-only — see below) — [plan](plans/track-g-v0.8-grpc.md) |
 | — | Android input/back fixes, honest export reporting, file-backed export | 0.8.1 | ✅ DONE |
-| H | Localization (en + id-ID) | 0.8.x | 📋 PROPOSED |
+| H | Localization (en + id-ID) | 0.9.0 (proposed) | 📋 PLANNED — [plan](plans/track-h-v0.9.0-l10n.md) |
 | I | Socket-level throttling (real byte pacing, covers all `dart:io` traffic) | 0.8.1 | 📋 PROPOSED — [plan](plans/track-i-v0.8.1-socket-throttle.md) |
 
 Eight packages (`jala`, `jala_core`, `jala_dio`, `jala_http`, `jala_ui`,
@@ -139,14 +139,31 @@ of those fixes constrain how any *future* adapter must be written:
   one.** Dio's bandwidth caps silently applied only to `ResponseType.stream`
   for two releases.
 
-## Track H — v0.8.x proposal: localization
+## Track H — v0.9.0 proposal: localization
 
 Internationalize the inspector chrome (labels, tooltips, empty states,
-action names) via `flutter gen-l10n` / ARB with a host-overridable delegate,
-shipping `en` + `id-ID` first. On-brand for Ketok and low-risk — UI-only,
-non-blocking, so it can ride alongside Track F rather than gate a release.
-Deliberately *not* localized: the filter DSL grammar, HTTP method names, and
-other developer-facing technical tokens.
+snackbars, action names) behind a host-overridable delegate, shipping `en`
++ `id-ID` first. UI-only — no capture path, no adapter, no core model
+change. Deliberately *not* localized: the filter DSL grammar, HTTP method
+names, gRPC status names, byte/duration formatting, and the machine-read
+export formats (HAR/cURL/session).
+
+Two decisions the detailed plan makes, both departures from this section's
+original sketch:
+
+- **Hand-rolled delegate, not `flutter gen-l10n` / ARB.**
+  `flutter_localizations` pins `intl` to an exact version, and `intl` is
+  currently absent from the workspace lockfile — a debugging library
+  should not dictate a host app's `intl` version. The usual reason to pay
+  that (ICU plurals) doesn't apply: the UI has three plural sites, and
+  Indonesian has no plural inflection.
+- **0.9.0, not 0.8.x.** Following the platform locale is a behaviour
+  change, and the delegate joins the `jala_ui` barrel — more than
+  `COMPAT.md`'s "sometimes patch if tiny" exception carries. If H lands
+  before Track I, I renumbers to 0.9.1.
+
+Detailed execution plan: [plans/track-h-v0.9.0-l10n.md](plans/track-h-v0.9.0-l10n.md)
+(written 2026-08-05).
 
 ## Track I — v0.8.1 proposal: socket-level throttling
 
