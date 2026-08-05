@@ -14,8 +14,8 @@ Status as of 2026-08-05. Detailed execution plans live in `docs/plans/`.
 | — | Capture-integrity hardening: body redaction across all adapters, Dio bandwidth throttling, replay/HAR/bubble fixes | 0.8.0 | ✅ DONE |
 | G | `jala_grpc` adapter (gRPC / gRPC-web) | 0.8.0 | ✅ DONE (capture-only — see below) — [plan](plans/track-g-v0.8-grpc.md) |
 | — | Android input/back fixes, honest export reporting, file-backed export | 0.8.1 | ✅ DONE |
-| H | Localization (en + id-ID) | 0.9.0 (proposed) | 📋 PLANNED — [plan](plans/track-h-v0.9.0-l10n.md) |
-| I | Socket-level throttling (real byte pacing, covers all `dart:io` traffic) | 0.8.1 | 📋 PROPOSED — [plan](plans/track-i-v0.8.1-socket-throttle.md) |
+| H | Localization (en + id-ID) | 0.8.1 | 📋 PLANNED — [plan](plans/track-h-v0.8.1-l10n.md) |
+| I | Socket-level throttling (real byte pacing, covers all `dart:io` traffic) | 0.8.2 | 📋 PROPOSED — [plan](plans/track-i-v0.8.1-socket-throttle.md) (filename still says 0.8.1) |
 
 Eight packages (`jala`, `jala_core`, `jala_dio`, `jala_http`, `jala_ui`,
 `jala_graphql`, `jala_websocket`, `jala_grpc`) are published on pub.dev in
@@ -139,7 +139,7 @@ of those fixes constrain how any *future* adapter must be written:
   one.** Dio's bandwidth caps silently applied only to `ResponseType.stream`
   for two releases.
 
-## Track H — v0.9.0 proposal: localization
+## Track H — v0.8.1: localization
 
 Internationalize the inspector chrome (labels, tooltips, empty states,
 snackbars, action names) behind a host-overridable delegate, shipping `en`
@@ -157,12 +157,24 @@ original sketch:
   should not dictate a host app's `intl` version. The usual reason to pay
   that (ICU plurals) doesn't apply: the UI has three plural sites, and
   Indonesian has no plural inflection.
-- **0.9.0, not 0.8.x.** Following the platform locale is a behaviour
-  change, and the delegate joins the `jala_ui` barrel — more than
-  `COMPAT.md`'s "sometimes patch if tiny" exception carries. If H lands
-  before Track I, I renumbers to 0.9.1.
+- **0.8.1, strictly opt-in** (decision: user, 2026-08-05). The inspector
+  does **not** follow the device locale — `JalaConfig.locale` unset means
+  English, and an app on an Indonesian device renders exactly as it did
+  before upgrading. That constraint is what keeps this inside
+  `COMPAT.md`'s "sometimes patch if tiny" exception; the moment id-ID
+  resolves without the host asking, it is a behaviour change and becomes
+  0.9.0. Accepted cost: the translation is invisible until a host opts
+  in, so the README and changelog entries are the feature's only
+  discovery path.
+- **Keep the common language in id-ID** (decision: user, 2026-08-05).
+  Dev jargon Indonesian developers already speak in English — `request`,
+  `response`, `header`, `payload`, `replay`, `mock` — stays English; the
+  connective prose around it gets translated.
 
-Detailed execution plan: [plans/track-h-v0.9.0-l10n.md](plans/track-h-v0.9.0-l10n.md)
+Track I renumbers to 0.8.2, since both cannot hold 0.8.1 and H is the one
+being built.
+
+Detailed execution plan: [plans/track-h-v0.8.1-l10n.md](plans/track-h-v0.8.1-l10n.md)
 (written 2026-08-05).
 
 ## Track I — v0.8.1 proposal: socket-level throttling
@@ -192,8 +204,9 @@ Main cost is risk, not effort: `Socket` is a wide interface, and a decorator
 that gets one member wrong breaks host networking — which the project's
 capture invariants forbid.
 
-Shipped as a **patch (0.8.1)** under `COMPAT.md`'s "sometimes patch if tiny"
-exception for backward-compatible features — which holds only while the
+Shipped as a **patch (0.8.2 — Track H took 0.8.1)** under `COMPAT.md`'s
+"sometimes patch if tiny" exception for backward-compatible features —
+which holds only while the
 track stays strictly additive and opt-in (`Jala.enableSocketThrottling()`,
 never `Jala.initialize`, defaults untouched). If socket mode ever becomes
 the default, it is a behaviour change and the release becomes 0.9.0.

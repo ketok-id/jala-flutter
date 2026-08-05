@@ -1,9 +1,15 @@
-# Track I — v0.8.1 proposal: socket-level throttling
+# Track I — v0.8.2 proposal: socket-level throttling
 
 Proposal written 2026-08-04, after auditing the 0.8.0 throttle work. **Not
 part of 0.8.0.** Decide before starting — see "Open questions".
 
-## Why 0.8.1 and not 0.9.0
+**Renumbered 0.8.1 → 0.8.2 on 2026-08-05**: Track H (localization) took
+0.8.1 and is the one being built. Nothing in the reasoning below changes —
+the argument is about the change staying additive and opt-in, not about
+the digits. The file name still says `v0.8.1`; rename it if this track is
+actually picked up. Flip both roadmap rows if H and I swap order.
+
+## Why a patch and not 0.9.0
 
 `docs/COMPAT.md` ships new features as a **minor** by default —
 "sometimes patch if tiny" is the exception this track claims. That is only

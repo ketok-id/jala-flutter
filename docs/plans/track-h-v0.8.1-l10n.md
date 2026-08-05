@@ -1,4 +1,4 @@
-# Track H — v0.9.0: localization (en + id-ID)
+# Track H — v0.8.1: localization (en + id-ID)
 
 Internationalize the inspector chrome — labels, tooltips, empty states,
 snackbars, action names — behind a host-overridable delegate, shipping
@@ -8,32 +8,39 @@ feel local to its home market.
 
 Written 2026-08-05. Roadmap row: Track H.
 
-## Why 0.9.0 and not 0.8.x
+## Why 0.8.1 — and the constraint that buys it
 
-The roadmap proposed this as "0.8.x", written before Track I claimed
-0.8.1. Two things push it to a minor:
+**Decision (user, 2026-08-05): stay at 0.8.x.** This lands as **0.8.1**,
+under the same `COMPAT.md` "sometimes patch if tiny" exception Track I
+invoked, and with the same precondition attached — which here is not a
+formality but a design constraint that reaches into H3:
 
-1. **It is a behaviour change by construction.** If the inspector follows
-   the device/host locale (see H3 — and it should, or nobody who hasn't
-   read the changelog ever sees a translation), then an app running on an
-   Indonesian device renders a different inspector after upgrading.
-   `COMPAT.md`'s own table puts "change default redaction" — the same
-   shape of change — in the **minor** row.
-2. **The public surface grows.** `JalaLocalizations` and its delegate go
-   in the `jala_ui` barrel, which `COMPAT.md` defines as the
-   semver-covered surface. That is more than the "sometimes patch if
-   tiny" exception is meant to carry.
+> **The track must stay strictly additive and opt-in. The inspector does
+> not change its language unless the host asks it to.**
 
-The escape hatch, if 0.9.0 feels too heavy: ship strictly opt-in (default
-stays `en`, host must pass a locale), which makes 0.8.x defensible. It
-also makes the feature invisible by default, which defeats the point. The
-recommendation is 0.9.0.
+Concretely, that forbids one thing the obvious implementation would do:
+**do not follow the device locale by default.** An app on an Indonesian
+device must render exactly the same inspector after upgrading as before.
+The moment id-ID resolves without the host opting in, this is a
+behaviour change — `COMPAT.md`'s table puts "change default redaction",
+the same shape of change, in the **minor** row — and the release becomes
+0.9.0. This mirrors Track I's own hedge verbatim ("if socket mode ever
+becomes the default … the release becomes 0.9.0").
 
-**Ordering note.** Track I is planned as 0.8.1. If H ships first, I
-becomes 0.9.1 and its "patch under the tiny exception" argument has to be
-re-checked against the new base — the argument is about the size of the
-change, not the digits, so it survives; only the file name and the
-roadmap row need editing. If I ships first, nothing here moves.
+The known cost, stated plainly so nobody is surprised later: **the
+translation is invisible until a host sets `JalaConfig.locale`.** Nobody
+who has not read the changelog will ever see Indonesian. That is the
+accepted trade for the patch number, and it makes the README line and
+the changelog entry load-bearing — they are the only discovery path the
+feature has. If adoption data later says nobody found it, promoting
+platform-locale following to the default is a clean, self-contained
+0.9.0 follow-up: one resolution rule in H3, nothing else moves.
+
+**Ordering note.** Track I also claims 0.8.1. Both cannot have it —
+whichever ships second takes 0.8.2. H is the one currently being built,
+so the roadmap now reads H → 0.8.1, I → 0.8.2; flip both rows if that
+order changes. Neither track's version *argument* depends on the digits,
+only on staying additive and opt-in, so the renumber is cosmetic.
 
 ## One helpful thing `COMPAT.md` already says
 
@@ -196,17 +203,20 @@ changes, **no translation can ever resolve**, no matter what H1 and H2
 do. Ship H3 in the same release or the feature is dead code.
 
 - Add `JalaLocalizationsDelegate` to that delegate list.
-- Resolve the locale, in order: an explicit `JalaConfig` override if set
-  → the platform locale (`PlatformDispatcher.instance.locale`) → `en`.
-  Reading the host's own `Locale` is not reliably possible from a
-  sibling, which is why the platform is the middle rung rather than the
-  host app.
-- Add `JalaConfig.locale` (nullable, `null` = follow platform). It lives
-  in `jala_core`, which is pure Dart — `Locale` is `dart:ui`, so store a
-  **language tag `String`** (`'id-ID'`) there and parse it in `jala_ui`,
-  rather than putting a Flutter type in core. This preserves the
-  zero-Flutter-import rule for `jala_core`; do not weaken it for
-  convenience.
+- Resolve the locale in exactly two rungs: **explicit `JalaConfig.locale`
+  if set → `en`.** Nothing else. `PlatformDispatcher.instance.locale` is
+  deliberately *not* consulted — that is the line the 0.8.1 decision
+  draws (see the version section). It is one line to add later if the
+  default is ever promoted; adding it now silently makes this a 0.9.0.
+- Add `JalaConfig.locale` (nullable, `null` = **English**, not "follow
+  platform"). It lives in `jala_core`, which is pure Dart — `Locale` is
+  `dart:ui`, so store a **language tag `String`** (`'id-ID'`) there and
+  parse it in `jala_ui`, rather than putting a Flutter type in core. This
+  preserves the zero-Flutter-import rule for `jala_core`; do not weaken
+  it for convenience.
+- Document the opt-in on `JalaConfig.locale`'s doc comment, in
+  `docs/CONFIG.md`, and in the `jala` README — per the version section,
+  these are the feature's only discovery path.
 - The platform delegates (`DefaultMaterialLocalizations` etc.) only
   supply `en`. If the resolved locale is `id`, Material's own widget
   strings ("Back", "Close") stay English unless `flutter_localizations`
@@ -220,12 +230,18 @@ do. Ship H3 in the same release or the feature is dead code.
 - Draft `id` in one pass, then read it on a device rather than in a
   diff — screen labels have width constraints and Indonesian runs longer
   than English for most UI verbs.
-- Keep developer jargon in English where the Indonesian dev community
-  actually uses English (`request`, `response`, `header`, `payload`,
-  `replay`, `mock`). Translating to `permintaan`/`tanggapan` reads as
-  machine-translated to the target audience. This is a judgment call per
-  string, and the user is the authority on it — flag the ~15 borderline
-  ones for review rather than deciding unilaterally.
+- **Keep the common language (decision: user, 2026-08-05.)** Developer
+  jargon the Indonesian dev community already speaks in English stays in
+  English: `request`, `response`, `header`, `payload`, `replay`, `mock`,
+  `body`, `status`, `endpoint`, `timeout`, `cache`. Do **not** reach for
+  `permintaan`/`tanggapan`/`muatan` — those read as machine-translated to
+  the target audience and make the tool feel less native, not more.
+
+  What *does* get translated is the connective prose around the jargon —
+  empty states ("No calls yet"), action verbs ("Copy", "Clear", "Export"),
+  confirmations, error sentences, and help text. The test for a borderline
+  word: would an Indonesian Flutter developer type it in English in a
+  standup? If yes, leave it.
 - Watch for overflow in: the throttle screen's profile rows, the call
   detail tab labels, and the filter help sheet.
 
@@ -242,18 +258,32 @@ do. Ship H3 in the same release or the feature is dead code.
 - **No new transitive deps**: assert `intl` is absent from the lockfile
   after the track lands. Cheap, and it is the whole premise of the
   dependency decision.
+- **Opt-in guarantee test — the one that guards the patch number.** With
+  the platform locale forced to `id` and `JalaConfig.locale` unset, the
+  inspector must still render **English**. If this test ever goes red,
+  the release is a 0.9.0, not a 0.8.1. Name it so that is obvious from
+  the test name alone.
 - `dart analyze --fatal-infos` from root, full suite, then the standing
-  on-device smoke — with the device set to Indonesian, which is the only
-  way the H3 locale resolution gets exercised for real.
+  on-device smoke. Two passes on the device: once with
+  `JalaConfig.locale: 'id-ID'` set in the example app (reads the
+  translation, checks overflow), and once with the **device** language
+  set to Indonesian and no config — which must stay English, confirming
+  the opt-in guarantee on real hardware rather than only in a widget
+  test.
 
 ## Open questions
 
-1. **0.9.0, or opt-in-only at 0.8.x?** Recommendation above is 0.9.0
-   with platform-locale following. Answering this first also settles
-   whether Track I's number moves.
-2. **How much stays English inside id-ID?** The `request`/`response`
-   jargon question in H4. Needs the user's ear for the local dev
-   community, not a translator's.
+1. ~~0.9.0, or opt-in-only at 0.8.x?~~ **Answered (user, 2026-08-05):
+   0.8.x.** Ships as 0.8.1, opt-in only, no platform-locale following.
+   Track I moves to 0.8.2. See the version section for the constraint
+   this imposes on H3.
+2. ~~How much stays English inside id-ID?~~ **Answered (user,
+   2026-08-05): keep the common language.** English dev jargon stays
+   English; the prose around it is translated. Rule of thumb and word
+   list in H4.
 3. **The Material-strings seam** — accept English framework strings
-   inside a translated inspector, or override the handful by hand? Defer
-   until H3 is on a device and the seam is visible.
+   ("Back", "Close") inside a translated inspector, or override the
+   handful by hand? Defer until H3 is on a device and the seam is
+   visible. Note this got smaller with Q1: since id-ID only appears when
+   a host opts in, a developer seeing the seam has already chosen the
+   locale deliberately.
