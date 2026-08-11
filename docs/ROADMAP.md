@@ -14,8 +14,8 @@ Status as of 2026-08-05. Detailed execution plans live in `docs/plans/`.
 | — | Capture-integrity hardening: body redaction across all adapters, Dio bandwidth throttling, replay/HAR/bubble fixes | 0.8.0 | ✅ DONE |
 | G | `jala_grpc` adapter (gRPC / gRPC-web) | 0.8.0 | ✅ DONE (capture-only — see below) — [plan](plans/track-g-v0.8-grpc.md) |
 | — | Android input/back fixes, honest export reporting, file-backed export | 0.8.1 | ✅ DONE |
-| H | Localization (en + id-ID) | 0.8.1 | 📋 PLANNED — [plan](plans/track-h-v0.8.1-l10n.md) |
-| I | Socket-level throttling (real byte pacing, covers all `dart:io` traffic) | 0.8.2 | 📋 PROPOSED — [plan](plans/track-i-v0.8.1-socket-throttle.md) (filename still says 0.8.1) |
+| H | Localization (en + id-ID) | 0.8.2 | 🚧 IN PROGRESS — H1/H3 done, H2 1/12 files — [plan](plans/track-h-v0.8.2-l10n.md) |
+| I | Socket-level throttling (real byte pacing, covers all `dart:io` traffic) | 0.8.3 | 📋 PROPOSED — [plan](plans/track-i-v0.8.3-socket-throttle.md) |
 
 Eight packages (`jala`, `jala_core`, `jala_dio`, `jala_http`, `jala_ui`,
 `jala_graphql`, `jala_websocket`, `jala_grpc`) are published on pub.dev in
@@ -44,7 +44,7 @@ is a deliberate exception (it replaces plainly broken behavior nobody could
 have depended on), called out prominently in the `jala` changelog rather
 than signalled by the version number.
 
-**Track H (localization) is deliberately NOT in 0.8.1.** H1/H2/H3 are built
+**Track H (localization) was deliberately NOT in 0.8.1.** H1/H2/H3 are built
 but only 1 of 12 screens is migrated, and shipping `JalaConfig.locale` while
 eleven screens stay English would make the feature debut looking broken —
 and burn the README/changelog mention that is its only discovery path. It
@@ -139,7 +139,7 @@ of those fixes constrain how any *future* adapter must be written:
   one.** Dio's bandwidth caps silently applied only to `ResponseType.stream`
   for two releases.
 
-## Track H — v0.8.1: localization
+## Track H — v0.8.2: localization
 
 Internationalize the inspector chrome (labels, tooltips, empty states,
 snackbars, action names) behind a host-overridable delegate, shipping `en`
@@ -157,7 +157,7 @@ original sketch:
   should not dictate a host app's `intl` version. The usual reason to pay
   that (ICU plurals) doesn't apply: the UI has three plural sites, and
   Indonesian has no plural inflection.
-- **0.8.1, strictly opt-in** (decision: user, 2026-08-05). The inspector
+- **0.8.x, strictly opt-in** (decision: user, 2026-08-05; now 0.8.2). The inspector
   does **not** follow the device locale — `JalaConfig.locale` unset means
   English, and an app on an Indonesian device renders exactly as it did
   before upgrading. That constraint is what keeps this inside
@@ -171,13 +171,13 @@ original sketch:
   `response`, `header`, `payload`, `replay`, `mock` — stays English; the
   connective prose around it gets translated.
 
-Track I renumbers to 0.8.2, since both cannot hold 0.8.1 and H is the one
-being built.
+Track I renumbers to 0.8.3: 0.8.1 went to an unrelated bug-fix release and
+H takes 0.8.2 as the one being built.
 
-Detailed execution plan: [plans/track-h-v0.8.1-l10n.md](plans/track-h-v0.8.1-l10n.md)
+Detailed execution plan: [plans/track-h-v0.8.2-l10n.md](plans/track-h-v0.8.2-l10n.md)
 (written 2026-08-05).
 
-## Track I — v0.8.1 proposal: socket-level throttling
+## Track I — v0.8.3 proposal: socket-level throttling
 
 Today's throttle delays an already-decoded response inside an adapter Jala
 was explicitly attached to. That has a scope problem and a fidelity problem:
@@ -204,14 +204,14 @@ Main cost is risk, not effort: `Socket` is a wide interface, and a decorator
 that gets one member wrong breaks host networking — which the project's
 capture invariants forbid.
 
-Shipped as a **patch (0.8.2 — Track H took 0.8.1)** under `COMPAT.md`'s
+Shipped as a **patch (0.8.3 — Track H took 0.8.2)** under `COMPAT.md`'s
 "sometimes patch if tiny" exception for backward-compatible features —
 which holds only while the
 track stays strictly additive and opt-in (`Jala.enableSocketThrottling()`,
 never `Jala.initialize`, defaults untouched). If socket mode ever becomes
 the default, it is a behaviour change and the release becomes 0.9.0.
 
-Detailed plan: [plans/track-i-v0.8.1-socket-throttle.md](plans/track-i-v0.8.1-socket-throttle.md)
+Detailed plan: [plans/track-i-v0.8.3-socket-throttle.md](plans/track-i-v0.8.3-socket-throttle.md)
 (written 2026-08-04). Open question worth settling first: whether the scope
 fix justifies the risk, or whether documenting "use Network Link Conditioner"
 is the better trade.

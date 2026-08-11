@@ -1,4 +1,4 @@
-# Track H — v0.8.1: localization (en + id-ID)
+# Track H — v0.8.2: localization (en + id-ID)
 
 Internationalize the inspector chrome — labels, tooltips, empty states,
 snackbars, action names — behind a host-overridable delegate, shipping
@@ -8,9 +8,9 @@ feel local to its home market.
 
 Written 2026-08-05. Roadmap row: Track H.
 
-## Why 0.8.1 — and the constraint that buys it
+## Why 0.8.2 — and the constraint that buys it
 
-**Decision (user, 2026-08-05): stay at 0.8.x.** This lands as **0.8.1**,
+**Decision (user, 2026-08-05): stay at 0.8.x.** This lands as **0.8.2**,
 under the same `COMPAT.md` "sometimes patch if tiny" exception Track I
 invoked, and with the same precondition attached — which here is not a
 formality but a design constraint that reaches into H3:
@@ -36,11 +36,15 @@ feature has. If adoption data later says nobody found it, promoting
 platform-locale following to the default is a clean, self-contained
 0.9.0 follow-up: one resolution rule in H3, nothing else moves.
 
-**Ordering note.** Track I also claims 0.8.1. Both cannot have it —
-whichever ships second takes 0.8.2. H is the one currently being built,
-so the roadmap now reads H → 0.8.1, I → 0.8.2; flip both rows if that
-order changes. Neither track's version *argument* depends on the digits,
-only on staying additive and opt-in, so the renumber is cosmetic.
+**Ordering note.** H and I have been renumbered once already, and again
+after 0.8.1 shipped as an unrelated bug-fix release without H in it. The
+roadmap now reads **H → 0.8.2, I → 0.8.3**; whichever ships second takes
+the next patch, so flip both rows if that order changes.
+
+This churn is cosmetic by design: neither track's version *argument*
+depends on the digits, only on staying additive and opt-in. That is why
+0.8.1 landing first cost nothing to absorb — the reasoning below is
+untouched.
 
 ## One helpful thing `COMPAT.md` already says
 
@@ -205,7 +209,7 @@ do. Ship H3 in the same release or the feature is dead code.
 - Add `JalaLocalizationsDelegate` to that delegate list.
 - Resolve the locale in exactly two rungs: **explicit `JalaConfig.locale`
   if set → `en`.** Nothing else. `PlatformDispatcher.instance.locale` is
-  deliberately *not* consulted — that is the line the 0.8.1 decision
+  deliberately *not* consulted — that is the line the 0.8.2 decision
   draws (see the version section). It is one line to add later if the
   default is ever promoted; adding it now silently makes this a 0.9.0.
 - Add `JalaConfig.locale` (nullable, `null` = **English**, not "follow
@@ -261,7 +265,7 @@ do. Ship H3 in the same release or the feature is dead code.
 - **Opt-in guarantee test — the one that guards the patch number.** With
   the platform locale forced to `id` and `JalaConfig.locale` unset, the
   inspector must still render **English**. If this test ever goes red,
-  the release is a 0.9.0, not a 0.8.1. Name it so that is obvious from
+  the release is a 0.9.0, not a 0.8.2. Name it so that is obvious from
   the test name alone.
 - `dart analyze --fatal-infos` from root, full suite, then the standing
   on-device smoke. Two passes on the device: once with
@@ -274,8 +278,8 @@ do. Ship H3 in the same release or the feature is dead code.
 ## Open questions
 
 1. ~~0.9.0, or opt-in-only at 0.8.x?~~ **Answered (user, 2026-08-05):
-   0.8.x.** Ships as 0.8.1, opt-in only, no platform-locale following.
-   Track I moves to 0.8.2. See the version section for the constraint
+   0.8.x.** Ships as 0.8.2, opt-in only, no platform-locale following.
+   Track I moves to 0.8.3. See the version section for the constraint
    this imposes on H3.
 2. ~~How much stays English inside id-ID?~~ **Answered (user,
    2026-08-05): keep the common language.** English dev jargon stays

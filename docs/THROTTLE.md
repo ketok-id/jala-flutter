@@ -24,7 +24,7 @@ Jala to. It is not a device-wide or process-wide network shim.
 | Native HTTP stacks (`cronet_http`, `cupertino_http`) | ❌ |
 
 If you need coverage below the adapter — including `Image.network` and
-unattached clients — that is [Track I](plans/track-i-v0.8.1-socket-throttle.md),
+unattached clients — that is [Track I](plans/track-i-v0.8.3-socket-throttle.md),
 not shipped yet. Until then, `Network Link Conditioner` (iOS/macOS) or
 Android emulator network profiles remain the honest answer for whole-device
 simulation.
