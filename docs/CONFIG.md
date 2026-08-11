@@ -52,6 +52,40 @@ Notes:
 | `maxWsFramesPerConnection` | `200` | Frames kept per WS connection |
 | `maxSubscriptionPayloads` | `50` | GraphQL subscription payload ring per call |
 | `redactor` | `JalaRedactor()` | Capture-time redaction (see below) |
+| `locale` | `null` (**English**) | Inspector UI language tag, e.g. `'id-ID'`. See below. |
+
+## Language (`locale`)
+
+The inspector chrome ships in **English** and **Indonesian (`id-ID`)**.
+
+**It is opt-in, and `null` means English — not "follow the device."**
+
+```dart
+Jala.initialize(config: JalaConfig(enabled: kDebugMode, locale: 'id-ID'));
+```
+
+An app running on an Indonesian phone renders exactly as it did before this
+setting existed unless you pass `locale`. That is deliberate: resolving the
+platform locale automatically would change behaviour for existing hosts,
+which [COMPAT.md](COMPAT.md) classes as a minor rather than a patch.
+
+- Matching is on the language subtag — `'id'` and `'id-ID'` both select
+  Indonesian.
+- An unsupported or unparseable tag falls back to English rather than
+  throwing.
+- Zero new dependencies: the tables are hand-rolled rather than generated
+  from ARB, so Jala never pins an `intl` version onto your app.
+
+**What stays English on purpose**, so a half-translated UI doesn't read as a
+bug: the filter DSL (`status:`, `is:ws`, `op:`), HTTP method names, gRPC
+status names, byte/duration formatting, every exported artifact (HAR, cURL,
+session JSON), and the handful of Flutter framework strings inside the
+inspector ("Back", "Close") — those would require `flutter_localizations`,
+which is the `intl` pin Jala refuses.
+
+Indonesian keeps the developer vocabulary its audience already speaks in
+English (`request`, `response`, `header`, `payload`, `replay`, `mock`); the
+prose around it is translated.
 
 ---
 

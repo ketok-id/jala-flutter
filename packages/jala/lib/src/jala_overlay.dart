@@ -1,5 +1,7 @@
-import 'package:flutter/cupertino.dart' show DefaultCupertinoLocalizations;
+import 'package:flutter/cupertino.dart'
+    show CupertinoLocalizations, DefaultCupertinoLocalizations;
 import 'package:flutter/material.dart';
+import 'package:jala_core/jala_core.dart';
 import 'package:jala_ui/jala_ui.dart';
 
 import 'jala.dart';
@@ -35,11 +37,24 @@ class JalaOverlay extends StatelessWidget {
         // inherit Localizations from a MaterialApp inside [child] — provide
         // defaults so AppBar & co. work regardless of host setup.
         Localizations(
-          locale: const Locale('en', 'US'),
+          // Resolved from JalaConfig.locale only — the device locale is
+          // deliberately never consulted (Track H, 0.8.1: following it
+          // would change behaviour for existing hosts and force a minor).
+          locale: _resolveLocale(),
           delegates: const <LocalizationsDelegate<Object?>>[
             DefaultWidgetsLocalizations.delegate,
-            DefaultMaterialLocalizations.delegate,
-            DefaultCupertinoLocalizations.delegate,
+            // NOT DefaultMaterialLocalizations.delegate: its isSupported is
+            // `languageCode == 'en'`, so under an `id` locale Localizations
+            // would skip it and the first MaterialLocalizations.of() — every
+            // AppBar and Scaffold in the inspector — would throw. These
+            // wrappers pin the framework strings to English instead, which
+            // is the documented seam ("Back", "Close" stay English) rather
+            // than a crash. Fixing it properly means depending on
+            // flutter_localizations, which Track H refused because it pins
+            // an exact `intl` version onto every host app.
+            _EnglishMaterialLocalizationsDelegate(),
+            _EnglishCupertinoLocalizationsDelegate(),
+            JalaLocalizations.delegate,
           ],
           // Same sibling problem, second instance: `WidgetsApp` is what
           // normally installs the keyboard shortcut/action chain, and the
@@ -113,6 +128,58 @@ class JalaOverlay extends StatelessWidget {
     }
     return layered;
   }
+}
+
+/// The inspector's locale: [JalaConfig.locale] if set, else English.
+///
+/// Two rungs, no third. `PlatformDispatcher.instance.locale` is deliberately
+/// not consulted — see [JalaConfig.locale].
+Locale _resolveLocale() {
+  final String? tag = JalaBinding.instance.isInitialized
+      ? JalaBinding.instance.config.locale
+      : null;
+  if (tag == null || tag.isEmpty) return const Locale('en', 'US');
+  final List<String> parts = tag.split(RegExp('[-_]'));
+  final String language = parts.first.toLowerCase();
+  // Unsupported tags still resolve here; JalaLocalizations.forLocale falls
+  // back to English, and the framework delegates below are locale-agnostic.
+  return parts.length > 1 && parts[1].isNotEmpty
+      ? Locale(language, parts[1].toUpperCase())
+      : Locale(language);
+}
+
+/// Supplies English [MaterialLocalizations] for *any* locale.
+///
+/// See the delegate list in [JalaOverlay] for why this exists.
+class _EnglishMaterialLocalizationsDelegate
+    extends LocalizationsDelegate<MaterialLocalizations> {
+  const _EnglishMaterialLocalizationsDelegate();
+
+  @override
+  bool isSupported(Locale locale) => true;
+
+  @override
+  Future<MaterialLocalizations> load(Locale locale) =>
+      DefaultMaterialLocalizations.load(const Locale('en', 'US'));
+
+  @override
+  bool shouldReload(_EnglishMaterialLocalizationsDelegate old) => false;
+}
+
+/// Supplies English [CupertinoLocalizations] for *any* locale.
+class _EnglishCupertinoLocalizationsDelegate
+    extends LocalizationsDelegate<CupertinoLocalizations> {
+  const _EnglishCupertinoLocalizationsDelegate();
+
+  @override
+  bool isSupported(Locale locale) => true;
+
+  @override
+  Future<CupertinoLocalizations> load(Locale locale) =>
+      DefaultCupertinoLocalizations.load(const Locale('en', 'US'));
+
+  @override
+  bool shouldReload(_EnglishCupertinoLocalizationsDelegate old) => false;
 }
 
 /// Full-screen host with its own navigator for the inspector.
