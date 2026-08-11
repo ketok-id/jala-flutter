@@ -219,6 +219,19 @@ abstract class JalaLocalizations {
 
   String get sectionGrpcStatus;
 
+  // Call diff (Track F).
+  String get diffRequestHeaders;
+  String get diffResponseHeaders;
+  String get diffRequestBody;
+  String get diffResponseBody;
+  String get diffNotStructural;
+
+  // Call list tile.
+  String get tooltipMocked;
+
+  /// Tooltip on the per-entry throttle badge; [profile] is the profile id.
+  String tooltipThrottledBy(String profile);
+
   /// Section header for gRPC trailers, with the count.
   String sectionTrailers(int count);
 

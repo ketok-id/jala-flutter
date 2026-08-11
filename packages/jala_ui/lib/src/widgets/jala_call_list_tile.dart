@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:jala_core/jala_core.dart';
 
+import '../l10n/jala_localizations.dart';
 import '../theme/jala_theme.dart';
 import '../util/clipboard.dart';
 import '../util/format.dart';
@@ -76,6 +77,7 @@ class JalaCallListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     final Uri uri = entry.uri;
     final TextTheme textTheme = Theme.of(context).textTheme;
     final ColorScheme scheme = Theme.of(context).colorScheme;
@@ -147,7 +149,7 @@ class JalaCallListTile extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.only(right: 4),
                   child: Tooltip(
-                    message: 'Mocked',
+                    message: l10n.tooltipMocked,
                     child: Icon(
                       Icons.bolt,
                       size: 14,
@@ -172,7 +174,7 @@ class JalaCallListTile extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.only(right: 4),
                   child: Tooltip(
-                    message: 'Throttled by ${entry.throttledBy}',
+                    message: l10n.tooltipThrottledBy(entry.throttledBy!),
                     child: Icon(
                       Icons.speed,
                       size: 14,

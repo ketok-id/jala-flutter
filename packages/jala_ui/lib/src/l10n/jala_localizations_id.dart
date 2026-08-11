@@ -236,6 +236,21 @@ class JalaLocalizationsId extends JalaLocalizations {
   @override
   String get sectionGrpcStatus => 'Status gRPC';
   @override
+  String get diffRequestHeaders => 'Header request';
+  @override
+  String get diffResponseHeaders => 'Header response';
+  @override
+  String get diffRequestBody => 'Body request';
+  @override
+  String get diffResponseBody => 'Body response';
+  @override
+  String get diffNotStructural =>
+      'Bukan diff struktural — salah satu atau kedua body bukan JSON.';
+  @override
+  String get tooltipMocked => 'Di-mock';
+  @override
+  String tooltipThrottledBy(String profile) => 'Di-throttle oleh $profile';
+  @override
   String sectionTrailers(int count) => 'Trailer ($count)';
   @override
   String get callDetailStreamingNoMessages =>
