@@ -24,8 +24,8 @@ inspector UI in two lines.
 
 ```yaml
 dependencies:
-  jala: ^0.8.0
-  jala_dio: ^0.8.0   # or jala_http / jala_graphql / jala_websocket
+  jala: ^0.8.1
+  jala_dio: ^0.8.1   # or jala_http / jala_graphql / jala_websocket
   dio: ^5.0.0
 ```
 

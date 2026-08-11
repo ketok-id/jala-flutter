@@ -13,6 +13,7 @@ Status as of 2026-08-05. Detailed execution plans live in `docs/plans/`.
 | — | Read the URL: decoded query-param table, capture-time URL redaction | 0.7.0 | ✅ DONE |
 | — | Capture-integrity hardening: body redaction across all adapters, Dio bandwidth throttling, replay/HAR/bubble fixes | 0.8.0 | ✅ DONE |
 | G | `jala_grpc` adapter (gRPC / gRPC-web) | 0.8.0 | ✅ DONE (capture-only — see below) — [plan](plans/track-g-v0.8-grpc.md) |
+| — | Android input/back fixes, honest export reporting, file-backed export | 0.8.1 | ✅ DONE |
 | H | Localization (en + id-ID) | 0.8.x | 📋 PROPOSED |
 | I | Socket-level throttling (real byte pacing, covers all `dart:io` traffic) | 0.8.1 | 📋 PROPOSED — [plan](plans/track-i-v0.8.1-socket-throttle.md) |
 
@@ -27,6 +28,27 @@ met: device smokes passed on real hardware (track_g, track_e, track_d, and
 track_b after an assertion fix), and the gRPC-web claim in `jala_grpc`'s
 README is verified structurally — interceptors are applied by `Client`,
 above the channel, so the transport underneath is irrelevant.
+
+**0.8.1 (2026-08-11)** is an unlettered bug-fix release from user reports,
+all four verified on a Xiaomi (Android 13 / API 33): Backspace was dead in
+every inspector text field on Android, Escape/Tab/Enter did nothing, system
+back went to the host app instead of the inspector, and exports reported
+success when the clipboard had silently dropped them. Root cause of the
+first three is one thing — the inspector is a *sibling* of the host app, so
+it inherits nothing `WidgetsApp` provides and must install the
+shortcut/action chain and its own back handling itself. Adds
+`Jala.enableFileExport`.
+
+The back-handling change is a **behavior** change shipped in a patch. That
+is a deliberate exception (it replaces plainly broken behavior nobody could
+have depended on), called out prominently in the `jala` changelog rather
+than signalled by the version number.
+
+**Track H (localization) is deliberately NOT in 0.8.1.** H1/H2/H3 are built
+but only 1 of 12 screens is migrated, and shipping `JalaConfig.locale` while
+eleven screens stay English would make the feature debut looking broken —
+and burn the README/changelog mention that is its only discovery path. It
+waits on the branch until H2 is complete.
 
 ## Track D — v0.4.0 proposal: GraphQL + WebSocket
 

@@ -38,8 +38,8 @@ teams often reach for it in the same “see what the app is doing” spot.
 
 ```yaml
 dependencies:
-  jala: ^0.8.0
-  jala_dio: ^0.8.0
+  jala: ^0.8.1
+  jala_dio: ^0.8.1
   dio: ^5.9.0
 ```
 

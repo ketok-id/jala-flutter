@@ -3,7 +3,7 @@ description: >
   In-app Flutter network inspector with replay, filter grammar, redaction,
   throttling, session share, call diff, and cURL/HAR import. Facade over
   jala_core + jala_ui.
-version: 0.8.0
+version: 0.8.1
 homepage: https://github.com/ketok-id/jala-flutter
 repository: https://github.com/ketok-id/jala-flutter
 issue_tracker: https://github.com/ketok-id/jala-flutter/issues
@@ -18,8 +18,8 @@ resolution: workspace
 dependencies:
   flutter:
     sdk: flutter
-  jala_core: ^0.8.0
-  jala_ui: ^0.8.0
+  jala_core: ^0.8.1
+  jala_ui: ^0.8.1
 
 dev_dependencies:
   flutter_lints: ^6.0.0

@@ -25,8 +25,8 @@ Wire the facade with [`jala`](../jala). Brownfield:
 
 ```yaml
 dependencies:
-  jala: ^0.8.0
-  jala_graphql: ^0.8.0
+  jala: ^0.8.1
+  jala_graphql: ^0.8.1
 ```
 
 ## Setup

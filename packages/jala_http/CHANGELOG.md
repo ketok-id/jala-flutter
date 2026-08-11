@@ -1,3 +1,9 @@
+## 0.8.1 — 2026-08-11
+
+- Lockstep release. No changes in this package; see the `jala` and
+  `jala_ui` changelogs for the Android input/back fixes and the new
+  file-backed export destination.
+
 ## 0.8.0 — 2026-08-03
 
 ### Fixed

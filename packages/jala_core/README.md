@@ -28,7 +28,7 @@ throttle, session codec, and call/JSON diff.
 
 ```yaml
 dependencies:
-  jala_core: ^0.8.0
+  jala_core: ^0.8.1
 ```
 
 ## Setup (without Flutter)

@@ -1,3 +1,56 @@
+## 0.8.1 — 2026-08-11
+
+Android bug-fix release. All four fixes were user-reported and are verified
+on a physical device (Xiaomi, Android 13 / API 33).
+
+### Fixed
+
+- **Text fields in the inspector ignored Backspace on Android.** Delete
+  arrives from Gboard as a `KEYCODE_DEL` *key event*, which needs
+  `DefaultTextEditingShortcuts` to become a delete intent; the inspector is
+  a sibling of the host app and so never inherited the shortcut/action chain
+  `WidgetsApp` installs. iOS was unaffected because its soft keyboard sends
+  delete over the IME channel. Affected every field — filter bar, throttle
+  host pattern, mock editor, request composer.
+- **Escape, Tab and Enter did nothing inside the inspector**, for the same
+  reason (`WidgetsApp.defaultShortcuts`). Escape now dismisses dialogs and
+  sheets, Tab traverses, Enter/Space activates. Reachable anywhere there is
+  a keyboard: web, Chromebook, Android tablet, desktop.
+
+### Changed (behavior)
+
+- **The system back button/gesture now belongs to the inspector while it is
+  open.** It pops the inspector's own stack, then closes the inspector, and
+  never reaches the host app. Previously it fell through to the host —
+  popping the host's route, or exiting the app entirely when the host sat on
+  its root route.
+
+  Two mechanisms were at fault: `WidgetsBinding` dispatches to observers in
+  registration order and the host's `WidgetsApp` always registered first, so
+  the inspector's handler never ran; and the host's `WidgetsApp` reports
+  *its own* pop capability to Android, so with nothing to pop the platform
+  finished the activity without ever dispatching to Dart.
+
+  Jala now registers its back observer in `Jala.initialize()` (before
+  `runApp`, so it precedes the host), claims `setFrameworkHandlesBack` while
+  open, and handles the predictive-back gesture (API 33+).
+
+  **Note for hosts:** `setFrameworkHandlesBack(true)` is not handed back on
+  close, because the host's own value is unknowable from a sibling widget
+  and guessing wrong would strand a host that still has routes to pop. The
+  practical effect is that back is routed through Dart, where Jala declines
+  it and the host's `WidgetsApp` handles it exactly as before.
+
+### Added
+
+- `Jala.enableFileExport(directory)` / `Jala.disableFileExport()` — routes
+  session and HAR exports to timestamped files instead of relying on the
+  clipboard alone. Under 512 KB the clipboard is still written too, so
+  pasting into a ticket keeps working. Web has no file system and falls
+  back to the clipboard. See `docs/ADOPTION.md`.
+- `JalaExportSink` / `JalaExportOutcome` (from `jala_ui`) for hosts that
+  want a custom export destination.
+
 ## 0.8.0 — 2026-08-03
 
 ### Fixed
