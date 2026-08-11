@@ -16,6 +16,7 @@ a Chrome DevTools–style Network tab you drop into your own app.
 | Add to an **existing** app | [ADOPTION.md](ADOPTION.md) |
 | Understand **packages** and layering | [packages.md](packages.md) · [overview.md](overview.md) |
 | Configure **enable / redaction / caps** | [CONFIG.md](CONFIG.md) · [SECURITY.md](SECURITY.md) |
+| Simulate a **slow / flaky / offline** network | [THROTTLE.md](THROTTLE.md) |
 | Fix **no traffic / missing token / replay** | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) |
 | Version / breaking-change policy | [COMPAT.md](COMPAT.md) |
 | What shipped / what’s next | [ROADMAP.md](ROADMAP.md) |
