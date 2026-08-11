@@ -124,6 +124,57 @@ abstract class JalaLocalizations {
   /// Banner shown while an imported session is on screen.
   String inspectorImportedSessionBanner(int count);
 
+  /// Body of the "clear all captured calls?" confirmation.
+  String get inspectorClearConfirmBody;
+
+  /// Tooltip on the filter-grammar help button.
+  String get inspectorFilterGrammar;
+
+  /// Throttle button tooltip when no profile is active.
+  String get inspectorThrottle;
+
+  /// Throttle button tooltip while [name] is active.
+  String inspectorThrottlingActive(String name);
+
+  /// Throttle banner text while [name] is active.
+  String inspectorThrottlingBanner(String name);
+
+  // Import dialogs. The dialog *title* strings live above with the menu
+  // items they are opened from.
+
+  String get importSessionHint;
+  String get importSessionNote;
+  String get importHarHint;
+  String get importHarNote;
+  String get importCurlHint;
+  String get importCurlNote;
+  String get importNothingPasted;
+
+  /// Max paste size, in MiB, quoted in [importSessionNote].
+  String importSessionMaxSize(int mib);
+
+  // Export outcome reporting. `destination` and `size` are formatted by the
+  // sink and are not themselves translated (they are paths and byte counts).
+
+  /// Snackbar when an export could not be delivered.
+  String exportFailed(String size, String destination);
+
+  /// Appended when a successful export is large enough that the clipboard
+  /// may have silently dropped it.
+  String get exportClipboardRisk;
+
+  /// Trailing warning on a session export.
+  String get exportPersonalDataWarning;
+
+  /// Successful session export of [count] entries in [mode].
+  String exportedSession(String mode, int count);
+
+  /// Successful HAR export of [count] calls.
+  String exportedHar(int count);
+
+  /// The `— <size> → <destination>.` tail shared by every export snackbar.
+  String exportDelivered(String size, String destination);
+
   // ----------------------------------------------------------- call detail
 
   String get callDetailTitle;

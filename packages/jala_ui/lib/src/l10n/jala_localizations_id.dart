@@ -113,6 +113,62 @@ class JalaLocalizationsId extends JalaLocalizations {
       'live capture';
 
   @override
+  String get inspectorClearConfirmBody =>
+      'Ini menghapus semua entry dari inspector. Tidak bisa dibatalkan.';
+  @override
+  String get inspectorFilterGrammar => 'Tata bahasa filter';
+  @override
+  String get inspectorThrottle => 'Throttle';
+  @override
+  String inspectorThrottlingActive(String name) => 'Throttling: $name';
+  @override
+  String inspectorThrottlingBanner(String name) =>
+      'Throttling: $name — ketuk untuk mengubah';
+
+  @override
+  String get importSessionHint => 'Tempel JSON session hasil export di sini…';
+  @override
+  String get importSessionNote =>
+      'Perlakukan JSON yang ditempel seperti log dump — bisa berisi data '
+      'pribadi atau data bisnis.';
+  @override
+  String get importHarHint => 'Tempel JSON HAR 1.2 di sini…';
+  @override
+  String get importHarNote =>
+      'Mengimpor hasil export HAR (browser devtools, Charles, Proxyman, …) '
+      'sebagai session. Call hasil impor tidak bisa di-replay.';
+  @override
+  String get importCurlHint => "curl 'https://…' -H '…' -d '…'";
+  @override
+  String get importCurlNote =>
+      'Tempel perintah curl (misalnya hasil copy dari browser devtools). '
+      'Akan dibuka di request composer.';
+  @override
+  String get importNothingPasted => 'Tempel sesuatu untuk diimpor';
+  @override
+  String importSessionMaxSize(int mib) => 'Ukuran maksimal $mib MiB.';
+
+  @override
+  String exportFailed(String size, String destination) =>
+      'Export gagal ($size → $destination). Terlalu besar untuk clipboard? '
+      'Pakai Jala.enableFileExport() untuk menulis export ke file.';
+  @override
+  String get exportClipboardRisk =>
+      'Ini besar untuk clipboard; kalau hasil paste kosong atau terpotong, '
+      'pakai Jala.enableFileExport().';
+  @override
+  String get exportPersonalDataWarning =>
+      'Bisa berisi data pribadi; hati-hati saat membagikan.';
+  @override
+  String exportedSession(String mode, int count) =>
+      'Session ($mode) di-export — $count entry';
+  @override
+  String exportedHar(int count) => 'HAR di-export untuk $count call';
+  @override
+  String exportDelivered(String size, String destination) =>
+      ' — $size → $destination.';
+
+  @override
   String get callDetailTitle => 'Detail call';
   @override
   String get callDetailUnavailable => 'Call ini sudah tidak tersedia.';

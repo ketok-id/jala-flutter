@@ -100,6 +100,63 @@ class JalaLocalizationsEn extends JalaLocalizations {
       'Clear to return to live capture';
 
   @override
+  String get inspectorClearConfirmBody =>
+      'This removes every entry from the inspector. This cannot be undone.';
+  @override
+  String get inspectorFilterGrammar => 'Filter grammar';
+  @override
+  String get inspectorThrottle => 'Throttle';
+  @override
+  String inspectorThrottlingActive(String name) => 'Throttling: $name';
+  @override
+  String inspectorThrottlingBanner(String name) =>
+      'Throttling: $name — tap to change';
+
+  @override
+  String get importSessionHint => 'Paste exported session JSON here…';
+  @override
+  String get importSessionNote =>
+      'Treat pasted JSON like a log dump — it may contain personal or '
+      'business data.';
+  @override
+  String get importHarHint => 'Paste HAR 1.2 JSON here…';
+  @override
+  String get importHarNote =>
+      'Imports a HAR export (browser devtools, Charles, Proxyman, …) as a '
+      'session. Imported calls have replay disabled.';
+  @override
+  String get importCurlHint => "curl 'https://…' -H '…' -d '…'";
+  @override
+  String get importCurlNote =>
+      'Paste a curl command (e.g. copied from browser devtools). It opens '
+      'in the request composer.';
+  @override
+  String get importNothingPasted => 'Paste something to import';
+  @override
+  String importSessionMaxSize(int mib) => 'Max size $mib MiB.';
+
+  @override
+  String exportFailed(String size, String destination) =>
+      'Export failed ($size → $destination). Too large for the clipboard? '
+      'Use Jala.enableFileExport() to write exports to a file instead.';
+  @override
+  String get exportClipboardRisk =>
+      'That is large for a clipboard; if the paste comes out empty or '
+      'truncated, use Jala.enableFileExport().';
+  @override
+  String get exportPersonalDataWarning =>
+      'May contain personal data; share carefully.';
+  @override
+  String exportedSession(String mode, int count) =>
+      'Exported session ($mode) — $count ${count == 1 ? 'entry' : 'entries'}';
+  @override
+  String exportedHar(int count) =>
+      'Exported HAR for $count ${count == 1 ? 'call' : 'calls'}';
+  @override
+  String exportDelivered(String size, String destination) =>
+      ' — $size → $destination.';
+
+  @override
   String get callDetailTitle => 'Call detail';
   @override
   String get callDetailUnavailable => 'This call is no longer available.';
