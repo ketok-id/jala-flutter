@@ -65,6 +65,7 @@ Widgets read `JalaBinding.instance.store.watch` / `watchWs` live.
 | `JalaOverlayButton` | Draggable bubble (pending/error badge) |
 | `JalaInspector.route()` | Themed route for custom navigators |
 | `JalaTheme` / `JalaThemeController` | Own light/dark Material 3 (not host Theme) |
+| `JalaLocalizations` + `.delegate` | UI strings, `en` + `id`; host-overridable |
 
 **AppBar / overflow:** clear, HAR copy, theme, throttle, session
 export/import (full / no bodies / headers only), import cURL / HAR.
@@ -82,6 +83,11 @@ export/import (full / no bodies / headers only), import cURL / HAR.
 - Private navigator + localizations under the overlay
 - Filter grammar is core’s `JalaFilter` — see
   [jala_core README](../jala_core/README.md#filter-grammar)
+- `JalaLocalizations.of(context)` **never returns null and never throws**.
+  These widgets are individually exported and a host may mount one anywhere,
+  so a missing delegate degrades to English rather than crashing someone
+  else's app. Set the language via `JalaConfig.locale` on the facade — see
+  [CONFIG.md](../../docs/CONFIG.md)
 
 Status colors: pending spinner; 2xx green; 3xx blue; 4xx orange; 5xx/error
 red; cancelled grey. WS chips: connecting / open / closed / error.

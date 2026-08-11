@@ -84,6 +84,39 @@ Feature history and roadmap: [docs/ROADMAP.md](../../docs/ROADMAP.md).
 
 ---
 
+## Language (English / Indonesian)
+
+The inspector chrome ships in **English** and **Indonesian**. It is
+**opt-in**, and unset means English — Jala does **not** follow the device
+locale:
+
+```dart
+Jala.initialize(
+  config: JalaConfig(enabled: kDebugMode, locale: 'id-ID'),
+);
+```
+
+An app on an Indonesian phone renders exactly as it did before this setting
+existed unless you pass `locale`. That is deliberate: following the platform
+locale automatically would change behaviour for existing hosts. `'id'` and
+`'id-ID'` both select Indonesian; anything unsupported falls back to English
+rather than throwing.
+
+**No new dependencies.** The tables are hand-rolled rather than generated
+from ARB, so Jala never pins an `intl` version onto your app.
+
+Deliberately left in English, so a half-translated UI doesn't read as a bug:
+the filter DSL (`status:`, `is:ws`, `op:`), HTTP method names, gRPC status
+names, byte/duration formatting, every exported artifact (HAR, cURL, session
+JSON), and the handful of Flutter framework strings inside the inspector
+("Back", "Close"). Indonesian also keeps the developer vocabulary its
+audience already speaks in English — `request`, `response`, `header`,
+`payload`, `replay`, `mock`.
+
+Details: [CONFIG.md](../../docs/CONFIG.md).
+
+---
+
 ## Production safety
 
 - Off by default in release (`enabled: kDebugMode`)

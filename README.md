@@ -28,6 +28,7 @@ a Chrome DevTools Network tab you drop into your own app. A product of
 | WebSocket frames | Yes | No | No | No |
 | In-app throttling | Yes | No | No | No |
 | Session export / import | Yes | No | No | No |
+| Localized inspector UI (en + id-ID) | Yes | No | No | No |
 
 talker is a general logger, not a network inspector UI — included because
 teams often reach for it in the same “see what the app is doing” spot.
@@ -84,6 +85,9 @@ Tap the floating bubble (or `Jala.open()`) to inspect traffic.
 - **Replay** / mock / edit-and-resend on live clients  
 - **Throttle** Slow 3G / Fast 3G / Flaky / Offline (+ custom)  
 - **Diff** two calls (status, headers, JSON bodies)  
+- **Language** — inspector UI in English or Indonesian, **opt-in** via
+  `JalaConfig(locale: 'id-ID')`; unset means English and the device locale is
+  never followed  
 - **Safety** — redaction at capture, no-op when disabled, body caps  
 
 Version history and upcoming work: [docs/ROADMAP.md](docs/ROADMAP.md).

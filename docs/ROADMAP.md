@@ -14,7 +14,7 @@ Status as of 2026-08-05. Detailed execution plans live in `docs/plans/`.
 | — | Capture-integrity hardening: body redaction across all adapters, Dio bandwidth throttling, replay/HAR/bubble fixes | 0.8.0 | ✅ DONE |
 | G | `jala_grpc` adapter (gRPC / gRPC-web) | 0.8.0 | ✅ DONE (capture-only — see below) — [plan](plans/track-g-v0.8-grpc.md) |
 | — | Android input/back fixes, honest export reporting, file-backed export | 0.8.1 | ✅ DONE |
-| H | Localization (en + id-ID) | 0.8.2 | 🚧 IN PROGRESS — H1/H3 done, H2 1/12 files — [plan](plans/track-h-v0.8.2-l10n.md) |
+| H | Localization (en + id-ID) | 0.8.2 | ✅ CODE COMPLETE — H1–H5 done, awaiting release — [plan](plans/track-h-v0.8.2-l10n.md) |
 | I | Socket-level throttling (real byte pacing, covers all `dart:io` traffic) | 0.8.3 | 📋 PROPOSED — [plan](plans/track-i-v0.8.3-socket-throttle.md) |
 
 Eight packages (`jala`, `jala_core`, `jala_dio`, `jala_http`, `jala_ui`,
@@ -44,11 +44,20 @@ is a deliberate exception (it replaces plainly broken behavior nobody could
 have depended on), called out prominently in the `jala` changelog rather
 than signalled by the version number.
 
-**Track H (localization) was deliberately NOT in 0.8.1.** H1/H2/H3 are built
-but only 1 of 12 screens is migrated, and shipping `JalaConfig.locale` while
-eleven screens stay English would make the feature debut looking broken —
-and burn the README/changelog mention that is its only discovery path. It
-waits on the branch until H2 is complete.
+**Track H (localization) was deliberately NOT in 0.8.1** — at the time only
+1 of 12 screens was migrated, and shipping `JalaConfig.locale` half-done
+would have burned the README/changelog mention that is the opt-in feature's
+only discovery path. It is now **code complete** (H1–H5) and awaiting a
+0.8.2 release.
+
+The H5 device pass (Xiaomi, Android 13) found three things a diff review
+would not have: the filter help sheet had never been migrated at all — H1
+wrote its keys but the plan's own 12-file table omits the file — that sheet
+then overflowed once translated because its column was never scrollable,
+and the throttle bandwidth labels ellipsized away the very clause that says
+what an empty field means. The opt-in guarantee was verified on hardware
+whose system locale really is `id-ID`: with `JalaConfig.locale` unset the
+inspector renders English.
 
 ## Track D — v0.4.0 proposal: GraphQL + WebSocket
 
