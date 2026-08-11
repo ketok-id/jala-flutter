@@ -220,9 +220,14 @@ never `Jala.initialize`, defaults untouched). If socket mode ever becomes
 the default, it is a behaviour change and the release becomes 0.9.0.
 
 Detailed plan: [plans/track-i-v0.8.3-socket-throttle.md](plans/track-i-v0.8.3-socket-throttle.md)
-(written 2026-08-04). Open question worth settling first: whether the scope
-fix justifies the risk, or whether documenting "use Network Link Conditioner"
-is the better trade.
+(written 2026-08-04). **The open question that was blocking this — whether
+the scope fix justifies the `Socket`-decoration risk — is now unblocked.**
+Measured against the SDK on 2026-08-11, that risk is ~6x smaller than the
+plan assumed: extending `StreamView<Uint8List>` leaves ~21 members to hand-
+write, not ~140, and the repo already uses this decorator shape twice. What
+remains risky is the adapter/socket double-charge trap, not interface width.
+Starting is now a scheduling call rather than a feasibility one — see the
+plan's Open question 1.
 
 ## Horizon (beyond v0.8)
 

@@ -99,13 +99,18 @@ a system consent prompt make it a different product.
 - Host scoping comes free: `connectionFactory` receives the `Uri`, so
   `hostMatches` applies exactly as it does today.
 
-**The interface-width risk is the main cost.** `Socket` is a large interface
-(`Stream<Uint8List>` + `IOSink` + address/port/option members). Decorating it
-by hand is tedious and easy to get subtly wrong — a missed `setOption`, a
-mishandled `destroy`, and the host app's networking breaks, which violates
-the project's "capture never breaks host networking" invariant. Budget real
-time for this and test the delegation surface exhaustively, not just the
-pacing.
+**Interface width is *not* the main cost — measured, see Open question 1.**
+An earlier draft called it that, on the reasoning that `Socket` is a large
+interface (`Stream<Uint8List>` + `IOSink` + address/port/option members).
+Extending `StreamView<Uint8List>` collapses the `Stream` half to a single
+`listen`, leaving ~21 members to write by hand rather than ~140.
+
+The hazard is narrower than "wide interface" and should be tested as such: a
+missed `setOption` or a mishandled `destroy` still breaks the host app's
+networking, which violates the project's "capture never breaks host
+networking" invariant. Test the delegation surface exhaustively — every
+member forwarding correctly with throttling *off*, proving the decorator is
+transparent — not just the pacing.
 
 `dart:io` in `jala_core` needs a conditional import — core is currently
 Flutter-free *and* `dart:io`-free, and the web build must keep compiling.
@@ -154,6 +159,56 @@ The 0.8.0 audit is the template — measure, don't inspect:
    decoration risk on its own? If the honest answer is "developers reach for
    Network Link Conditioner anyway", the cheaper move is documentation plus
    a UI note that throttling covers attached clients only.
+
+   **Measured 2026-08-11 against the Dart SDK in this repo (3.41.9) — the
+   decoration risk is roughly 6x smaller than this plan assumed, so the
+   argument that was supposed to kill the track is much weaker than
+   written.**
+
+   I1 above says `Socket` "is a large interface … tedious and easy to get
+   subtly wrong", and calls that the main cost. That is true of the
+   *interface* and false of the *work*. `Socket implements
+   Stream<Uint8List>, IOSink`, and `Stream` alone declares ~119 members —
+   but `dart:async` ships `class StreamView<T> extends Stream<T>`
+   (`async/stream.dart:2309`), which implements every one of them by
+   forwarding to an inner stream and needs only `listen`. So
+
+   ```dart
+   class _ThrottledSocket extends StreamView<Uint8List> implements Socket
+   ```
+
+   leaves a hand-written surface of about **21 members**, not ~140:
+
+   - `Socket`'s own (10): `destroy`, `setOption`, `setRawOption`,
+     `addError`, `port`, `remotePort`, `address`, `remoteAddress`, `close`,
+     `done`
+   - `IOSink` (11): `add`, `write`, `writeAll`, `writeln`, `writeCharCode`,
+     `addError`, `addStream`, `flush`, `close`, `done`, `encoding`
+
+   Both hooks are confirmed present as described: `connectionFactory`
+   (`_http/http.dart:1547`) and `HttpOverrides.global`
+   (`_http/overrides.dart:44`).
+
+   The repo also already has this decorator shape twice, so it is not new
+   ground: `_CapturingWebSocketSink implements WebSocketSink` and
+   `JalaWebSocketChannel extends StreamChannelMixin`
+   (`packages/jala_websocket/lib/src/jala_web_socket_channel.dart`).
+
+   **What stays genuinely risky is not interface width:**
+
+   - The **double-charge trap** already named in I2 — adapter pacing and
+     socket pacing both applying to one call. One flag, checked in two
+     places, with a test asserting total elapsed time matches a single
+     application of the cap. This is the real correctness hazard.
+   - **`jala_core` is currently `dart:io`-free**, so this needs a
+     conditional import there following the
+     `file_jala_mock_store_io.dart` / `_stub.dart` pattern in `jala`.
+   - `setOption` / `setRawOption` semantics on a wrapped socket, which have
+     no analogue in the existing WebSocket decorators.
+
+   None of that is a reason not to start; all three are testable. **The
+   decision this question was waiting on is therefore unblocked** — what
+   remains is a scheduling call, not a feasibility one.
 2. `HttpOverrides.global` opt-in, or attempt automatic wiring from
    `Jala.initialize`? Automatic is friendlier and considerably more
    dangerous — it changes networking for code that never opted in.
