@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:jala_core/jala_core.dart';
 
+import '../l10n/jala_localizations.dart';
 import '../widgets/jala_themed_page.dart';
 
 /// Edit-and-resend composer prefilled from a captured call.
@@ -69,10 +70,11 @@ class _JalaRequestComposerScreenState extends State<JalaRequestComposerScreen> {
   }
 
   Future<void> _send() async {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     final Uri? uri = Uri.tryParse(_url.text.trim());
     if (uri == null || !uri.hasScheme) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a valid absolute URL')),
+        SnackBar(content: Text(l10n.composerInvalidUrl)),
       );
       return;
     }
@@ -90,7 +92,7 @@ class _JalaRequestComposerScreenState extends State<JalaRequestComposerScreen> {
     setState(() => _sending = false);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(ok ? 'Request sent' : 'No replayer attached'),
+        content: Text(ok ? l10n.composerSent : l10n.callDetailNoReplayer),
       ),
     );
     if (ok) Navigator.of(context).pop();
@@ -98,10 +100,11 @@ class _JalaRequestComposerScreenState extends State<JalaRequestComposerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     return JalaThemedPage(
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Edit & resend'),
+          title:  Text(l10n.composerTitle),
           actions: <Widget>[
             TextButton(
               onPressed: _sending ? null : _send,
@@ -111,7 +114,7 @@ class _JalaRequestComposerScreenState extends State<JalaRequestComposerScreen> {
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Send'),
+                  :  Text(l10n.composerSend),
             ),
           ],
         ),
@@ -120,17 +123,17 @@ class _JalaRequestComposerScreenState extends State<JalaRequestComposerScreen> {
           children: <Widget>[
             TextField(
               controller: _method,
-              decoration: const InputDecoration(
-                labelText: 'Method',
-                border: OutlineInputBorder(),
+              decoration:  InputDecoration(
+                labelText: l10n.composerMethod,
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _url,
-              decoration: const InputDecoration(
-                labelText: 'URL',
-                border: OutlineInputBorder(),
+              decoration:  InputDecoration(
+                labelText: l10n.composerUrl,
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 12),
@@ -138,9 +141,9 @@ class _JalaRequestComposerScreenState extends State<JalaRequestComposerScreen> {
               controller: _headers,
               minLines: 3,
               maxLines: 8,
-              decoration: const InputDecoration(
-                labelText: 'Headers (Name: value per line)',
-                border: OutlineInputBorder(),
+              decoration:  InputDecoration(
+                labelText: l10n.composerHeaders,
+                border: const OutlineInputBorder(),
                 alignLabelWithHint: true,
               ),
             ),
@@ -149,9 +152,9 @@ class _JalaRequestComposerScreenState extends State<JalaRequestComposerScreen> {
               controller: _body,
               minLines: 6,
               maxLines: 16,
-              decoration: const InputDecoration(
-                labelText: 'Body',
-                border: OutlineInputBorder(),
+              decoration:  InputDecoration(
+                labelText: l10n.composerBody,
+                border: const OutlineInputBorder(),
                 alignLabelWithHint: true,
               ),
             ),

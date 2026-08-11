@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/jala_localizations.dart';
 
 /// A self-built expandable tree for JSON values.
 ///
@@ -158,6 +159,7 @@ class _JalaJsonTreeState extends State<JalaJsonTree> {
 
   @override
   Widget build(BuildContext context) {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     final String query = _query.trim().toLowerCase();
     final int matches = query.isEmpty ? 0 : _matchCount(query);
     final List<_FlatRow> rows = _flatten(query);
@@ -172,13 +174,13 @@ class _JalaJsonTreeState extends State<JalaJsonTree> {
               decoration: InputDecoration(
                 isDense: true,
                 prefixIcon: const Icon(Icons.search, size: 18),
-                hintText: 'Search in JSON…',
+                hintText: l10n.jsonSearchHint,
                 border: const OutlineInputBorder(),
                 suffixIcon: _query.isEmpty
                     ? null
                     : IconButton(
                         icon: const Icon(Icons.close, size: 18),
-                        tooltip: 'Clear search',
+                        tooltip: l10n.tooltipClearSearch,
                         visualDensity: VisualDensity.compact,
                         onPressed: _clearSearch,
                       ),
@@ -190,13 +192,13 @@ class _JalaJsonTreeState extends State<JalaJsonTree> {
             const SizedBox(width: 4),
             IconButton(
               icon: const Icon(Icons.unfold_more, size: 20),
-              tooltip: 'Expand all',
+              tooltip: l10n.tooltipExpandAll,
               visualDensity: VisualDensity.compact,
               onPressed: _expandAll,
             ),
             IconButton(
               icon: const Icon(Icons.unfold_less, size: 20),
-              tooltip: 'Collapse all',
+              tooltip: l10n.tooltipCollapseAll,
               visualDensity: VisualDensity.compact,
               onPressed: _collapseAll,
             ),
@@ -213,7 +215,7 @@ class _JalaJsonTreeState extends State<JalaJsonTree> {
               alignment: Alignment.centerLeft,
               child: Text(
                 matches == 0
-                    ? 'No matches'
+                    ? l10n.labelNoMatches
                     : matches == 1
                     ? '1 match'
                     : '$matches matches',

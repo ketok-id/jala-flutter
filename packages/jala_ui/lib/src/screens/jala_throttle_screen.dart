@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jala_core/jala_core.dart';
 
+import '../l10n/jala_localizations.dart';
 import '../util/format.dart';
 import '../widgets/jala_themed_page.dart';
 
@@ -114,13 +115,14 @@ class _JalaThrottleScreenState extends State<JalaThrottleScreen> {
   }
 
   void _applyCustom() {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     final int latencyMs = int.tryParse(_latencyController.text.trim()) ?? 0;
     final int? jitterMs = int.tryParse(_jitterController.text.trim());
     final int? downloadKBps = int.tryParse(_downloadController.text.trim());
     final int? uploadKBps = int.tryParse(_uploadController.text.trim());
     final JalaThrottleProfile custom = JalaThrottleProfile(
       id: _customId,
-      name: 'Custom',
+      name: l10n.throttleCustom,
       latencyMs: latencyMs < 0 ? 0 : latencyMs,
       jitterMs: (jitterMs == null || jitterMs <= 0) ? null : jitterMs,
       downloadBytesPerSec: (downloadKBps == null || downloadKBps <= 0)
@@ -164,19 +166,20 @@ class _JalaThrottleScreenState extends State<JalaThrottleScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     return JalaThemedPage(
       child: Scaffold(
-        appBar: AppBar(title: const Text('Throttle')),
+        appBar: AppBar(title:  Text(l10n.throttleTitle)),
         body: RadioGroup<String?>(
           groupValue: _selection,
           onChanged: _onRadioChanged,
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: <Widget>[
-              const RadioListTile<String?>(
+              RadioListTile<String?>(
                 value: null,
-                title: Text('Off'),
-                subtitle: Text('No simulated network conditions'),
+                title: Text(l10n.throttleOff),
+                subtitle: Text(l10n.throttleOffSubtitle),
               ),
               for (final JalaThrottleProfile preset
                   in JalaThrottleProfile.presets)
@@ -185,10 +188,10 @@ class _JalaThrottleScreenState extends State<JalaThrottleScreen> {
                   title: Text(preset.name),
                   subtitle: Text(_summarize(preset)),
                 ),
-              const RadioListTile<String?>(
+              RadioListTile<String?>(
                 value: _customId,
-                title: Text('Custom'),
-                subtitle: Text('Configure your own profile below'),
+                title: Text(l10n.throttleCustom),
+                subtitle: Text(l10n.throttleCustomSubtitle),
               ),
               if (_selection == _customId) ...<Widget>[
                 const SizedBox(height: 8),
@@ -207,10 +210,10 @@ class _JalaThrottleScreenState extends State<JalaThrottleScreen> {
               TextField(
                 controller: _hostPatternController,
                 onChanged: _onHostPatternChanged,
-                decoration: const InputDecoration(
-                  labelText: 'Host pattern (glob, optional)',
-                  hintText: '*.example.com — empty applies to all hosts',
-                  border: OutlineInputBorder(),
+                decoration:  InputDecoration(
+                  labelText: l10n.throttleHostPattern,
+                  hintText: l10n.throttleHostPatternHint,
+                  border: const OutlineInputBorder(),
                 ),
               ),
             ],
@@ -242,6 +245,7 @@ class _CustomEditor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -255,9 +259,9 @@ class _CustomEditor extends StatelessWidget {
               inputFormatters: <TextInputFormatter>[
                 FilteringTextInputFormatter.digitsOnly,
               ],
-              decoration: const InputDecoration(
-                labelText: 'Latency (ms)',
-                border: OutlineInputBorder(),
+              decoration:  InputDecoration(
+                labelText: l10n.throttleLatency,
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 12),
@@ -267,9 +271,9 @@ class _CustomEditor extends StatelessWidget {
               inputFormatters: <TextInputFormatter>[
                 FilteringTextInputFormatter.digitsOnly,
               ],
-              decoration: const InputDecoration(
-                labelText: 'Jitter ± (ms, optional)',
-                border: OutlineInputBorder(),
+              decoration:  InputDecoration(
+                labelText: l10n.throttleJitter,
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 12),
@@ -279,9 +283,9 @@ class _CustomEditor extends StatelessWidget {
               inputFormatters: <TextInputFormatter>[
                 FilteringTextInputFormatter.digitsOnly,
               ],
-              decoration: const InputDecoration(
-                labelText: 'Download KB/s (optional, unlimited if blank)',
-                border: OutlineInputBorder(),
+              decoration:  InputDecoration(
+                labelText: l10n.throttleDownload,
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 12),
@@ -291,14 +295,14 @@ class _CustomEditor extends StatelessWidget {
               inputFormatters: <TextInputFormatter>[
                 FilteringTextInputFormatter.digitsOnly,
               ],
-              decoration: const InputDecoration(
-                labelText: 'Upload KB/s (optional, unlimited if blank)',
-                border: OutlineInputBorder(),
+              decoration:  InputDecoration(
+                labelText: l10n.throttleUpload,
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Drop rate: ${dropPercent.round()}%',
+              l10n.throttleDropRate(dropPercent.round()),
               style: Theme.of(context).textTheme.labelLarge,
             ),
             Slider(
@@ -311,7 +315,7 @@ class _CustomEditor extends StatelessWidget {
             const SizedBox(height: 8),
             FilledButton(
               onPressed: onApply,
-              child: const Text('Apply custom profile'),
+              child:  Text(l10n.throttleApply),
             ),
           ],
         ),

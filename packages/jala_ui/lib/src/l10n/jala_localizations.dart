@@ -229,6 +229,36 @@ abstract class JalaLocalizations {
   // Call list tile.
   String get tooltipMocked;
 
+  // Mock editor.
+  String get mockEditorUntitled;
+
+  // Throttle.
+  /// Drop-rate slider label; [percent] is 0-100.
+  String throttleDropRate(int percent);
+
+  // Body view.
+  String get bodyStreamOnly;
+
+  /// Body captured only as metadata; [size] is a raw byte count or 'unknown'.
+  String bodyBinaryOnly(String size);
+
+  /// Body hit the capture cap. [shown] chars of [size] bytes survived.
+  String bodyTruncated(int shown, String size);
+
+  // WebSocket detail.
+  String get wsFieldStatus;
+  String get wsStatusConnecting;
+  String get wsStatusOpen;
+  String get wsStatusClosed;
+  String get wsStatusError;
+  String get wsFramePreviewTitle;
+
+  // Headers table collapse toggles.
+  String headersHideCommon(int count);
+  String headersShowCommon(int count);
+  String get headersHideSensitive;
+  String headersShowSensitive(int count);
+
   /// Tooltip on the per-entry throttle badge; [profile] is the profile id.
   String tooltipThrottledBy(String profile);
 

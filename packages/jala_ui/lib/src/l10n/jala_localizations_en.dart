@@ -233,6 +233,41 @@ class JalaLocalizationsEn extends JalaLocalizations {
       'Not a structural diff — one or both bodies are not JSON.';
   @override
   String get tooltipMocked => 'Mocked';
+
+  @override
+  String get mockEditorUntitled => 'Untitled rule';
+  @override
+  String throttleDropRate(int percent) => 'Drop rate: $percent%';
+  @override
+  String get bodyStreamOnly => 'Stream — metadata only, body not captured';
+  @override
+  String bodyBinaryOnly(String size) =>
+      'Binary — $size bytes captured (metadata only)';
+  @override
+  String bodyTruncated(int shown, String size) =>
+      'Truncated — $shown chars shown of $size bytes captured';
+  @override
+  String get wsFieldStatus => 'Status';
+  @override
+  String get wsStatusConnecting => 'Connecting…';
+  @override
+  String get wsStatusOpen => 'Open';
+  @override
+  String get wsStatusClosed => 'Closed';
+  @override
+  String get wsStatusError => 'Error';
+  @override
+  String get wsFramePreviewTitle => 'Frame preview';
+  @override
+  String headersHideCommon(int count) => 'Hide $count common headers';
+  @override
+  String headersShowCommon(int count) =>
+      'Show $count common headers (date, server, …)';
+  @override
+  String get headersHideSensitive => 'Hide sensitive headers';
+  @override
+  String headersShowSensitive(int count) =>
+      'Show $count sensitive (cookie, authorization, …)';
   @override
   String tooltipThrottledBy(String profile) => 'Throttled by $profile';
   @override

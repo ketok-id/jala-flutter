@@ -248,6 +248,41 @@ class JalaLocalizationsId extends JalaLocalizations {
       'Bukan diff struktural — salah satu atau kedua body bukan JSON.';
   @override
   String get tooltipMocked => 'Di-mock';
+
+  @override
+  String get mockEditorUntitled => 'Rule tanpa nama';
+  @override
+  String throttleDropRate(int percent) => 'Drop rate: $percent%';
+  @override
+  String get bodyStreamOnly => 'Stream — metadata saja, body tidak ditangkap';
+  @override
+  String bodyBinaryOnly(String size) =>
+      'Biner — $size byte tertangkap (metadata saja)';
+  @override
+  String bodyTruncated(int shown, String size) =>
+      'Terpotong — $shown karakter ditampilkan dari $size byte tertangkap';
+  @override
+  String get wsFieldStatus => 'Status';
+  @override
+  String get wsStatusConnecting => 'Menyambung…';
+  @override
+  String get wsStatusOpen => 'Terbuka';
+  @override
+  String get wsStatusClosed => 'Tertutup';
+  @override
+  String get wsStatusError => 'Error';
+  @override
+  String get wsFramePreviewTitle => 'Pratinjau frame';
+  @override
+  String headersHideCommon(int count) => 'Sembunyikan $count header umum';
+  @override
+  String headersShowCommon(int count) =>
+      'Tampilkan $count header umum (date, server, …)';
+  @override
+  String get headersHideSensitive => 'Sembunyikan header sensitif';
+  @override
+  String headersShowSensitive(int count) =>
+      'Tampilkan $count sensitif (cookie, authorization, …)';
   @override
   String tooltipThrottledBy(String profile) => 'Di-throttle oleh $profile';
   @override

@@ -652,9 +652,9 @@ class _HeadersBodyTab extends StatelessWidget {
           const Divider(),
           Text(l10n.sectionVariables, style: Theme.of(context).textTheme.titleSmall),
           if (graphQl.variables == null || graphQl.variables!.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: Text('No variables'),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(l10n.callDetailNoVariables),
             )
           else
             JalaJsonTree(data: graphQl.variables),

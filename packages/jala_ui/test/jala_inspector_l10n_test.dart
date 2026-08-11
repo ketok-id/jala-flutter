@@ -116,6 +116,30 @@ void main() {
     expect(find.text('5xx'), findsOneWidget);
   });
 
+  testWidgets('the throttle screen renders Indonesian', (
+    WidgetTester tester,
+  ) async {
+    initJalaBinding();
+    await tester.pumpWidget(
+      const MaterialApp(
+        locale: Locale('id'),
+        localizationsDelegates: <LocalizationsDelegate<Object?>>[
+          JalaLocalizations.delegate,
+          _EnglishMaterialDelegate(),
+          _EnglishCupertinoDelegate(),
+          DefaultWidgetsLocalizations.delegate,
+        ],
+        supportedLocales: <Locale>[Locale('en'), Locale('id')],
+        home: JalaThrottleScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tanpa simulasi kondisi jaringan'), findsOneWidget);
+    // "Throttle" itself is kept English — dev vocabulary, per the H4 rule.
+    expect(find.text('Throttle'), findsWidgets);
+  });
+
   testWidgets('exports stay byte-identical across locales', (
     WidgetTester tester,
   ) async {

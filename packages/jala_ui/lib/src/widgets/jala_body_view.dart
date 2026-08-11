@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:jala_core/jala_core.dart';
 
+import '../l10n/jala_localizations.dart';
 import '../util/format.dart';
 import 'jala_json_tree.dart';
 
@@ -17,6 +18,7 @@ class JalaBodyView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     switch (body.kind) {
       case BodyKind.none:
         return const Padding(
@@ -59,9 +61,9 @@ class JalaBodyView extends StatelessWidget {
           message: _binaryMessage(body),
         );
       case BodyKind.stream:
-        return const _InfoCard(
+        return  _InfoCard(
           icon: Icons.stream,
-          message: 'Stream — metadata only, body not captured',
+          message: l10n.bodyStreamOnly,
         );
       case BodyKind.image:
         return _ImageBodyView(body: body);
@@ -140,6 +142,7 @@ class _JsonBodyViewState extends State<_JsonBodyView> {
 
   @override
   Widget build(BuildContext context) {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     final Widget content;
     switch (_mode) {
       case _JsonViewMode.tree:
@@ -164,21 +167,21 @@ class _JsonBodyViewState extends State<_JsonBodyView> {
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               showSelectedIcon: false,
-              segments: const <ButtonSegment<_JsonViewMode>>[
+              segments:  <ButtonSegment<_JsonViewMode>>[
                 ButtonSegment<_JsonViewMode>(
                   value: _JsonViewMode.tree,
-                  label: Text('Tree'),
-                  icon: Icon(Icons.account_tree_outlined, size: 16),
+                  label: Text(l10n.bodyViewTree),
+                  icon: const Icon(Icons.account_tree_outlined, size: 16),
                 ),
                 ButtonSegment<_JsonViewMode>(
                   value: _JsonViewMode.pretty,
-                  label: Text('Pretty'),
-                  icon: Icon(Icons.data_object, size: 16),
+                  label: Text(l10n.bodyViewPretty),
+                  icon: const Icon(Icons.data_object, size: 16),
                 ),
                 ButtonSegment<_JsonViewMode>(
                   value: _JsonViewMode.raw,
-                  label: Text('Raw'),
-                  icon: Icon(Icons.notes, size: 16),
+                  label: Text(l10n.bodyViewRaw),
+                  icon: const Icon(Icons.notes, size: 16),
                 ),
               ],
               selected: <_JsonViewMode>{_mode},
@@ -297,10 +300,11 @@ class _MultipartPartsTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     if (parts.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 8),
-        child: Text('Multipart body with no parts'),
+      return  Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Text(l10n.bodyMultipartNoParts),
       );
     }
     final TextStyle? headerStyle = Theme.of(context).textTheme.labelLarge;
@@ -315,10 +319,10 @@ class _MultipartPartsTable extends StatelessWidget {
       children: <TableRow>[
         TableRow(
           children: <Widget>[
-            _cell(Text('Name', style: headerStyle)),
-            _cell(Text('Filename', style: headerStyle)),
-            _cell(Text('Content-Type', style: headerStyle)),
-            _cell(Text('Size', style: headerStyle)),
+            _cell(Text(l10n.bodyPartName, style: headerStyle)),
+            _cell(Text(l10n.bodyPartFilename, style: headerStyle)),
+            _cell(Text(l10n.bodyPartContentType, style: headerStyle)),
+            _cell(Text(l10n.bodyPartSize, style: headerStyle)),
           ],
         ),
         for (final JalaMultipartPart part in parts)
