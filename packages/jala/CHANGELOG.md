@@ -1,3 +1,37 @@
+## 0.8.2 — 2026-08-11
+
+### Added
+
+- **The inspector speaks Indonesian.** `JalaConfig.locale` selects the UI
+  language — `'id-ID'` (or `'id'`) for Indonesian, unset for English:
+
+  ```dart
+  Jala.initialize(
+    config: JalaConfig(enabled: kDebugMode, locale: 'id-ID'),
+  );
+  ```
+
+  **Opt-in, and unset means English — not "follow the device."** An app on
+  an Indonesian phone renders exactly as it did before this setting existed
+  unless you pass `locale`. Following the platform locale automatically
+  would change behaviour for every existing host, so it is deliberately not
+  done. Unsupported tags fall back to English rather than throwing.
+
+  **No new dependencies.** The string tables are hand-rolled rather than
+  generated from ARB, so Jala still pins nothing — in particular no `intl`
+  version — onto your app.
+
+  Deliberately left in English, so a half-translated UI doesn't read as a
+  bug: the filter DSL (`status:`, `is:ws`, `op:`), HTTP method names, gRPC
+  status names, byte/duration formatting, every exported artifact (HAR,
+  cURL, session JSON), and the handful of Flutter framework strings inside
+  the inspector ("Back", "Close") — those would need
+  `flutter_localizations`, which is the `intl` pin above. Indonesian also
+  keeps the developer vocabulary its audience already speaks in English:
+  `request`, `response`, `header`, `payload`, `replay`, `mock`.
+
+  See [CONFIG.md](../../docs/CONFIG.md).
+
 ## 0.8.1 — 2026-08-11
 
 Android bug-fix release. All four fixes were user-reported and are verified

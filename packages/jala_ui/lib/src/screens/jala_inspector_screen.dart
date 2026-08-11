@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:jala_core/jala_core.dart';
 
 import '../export/jala_export_sink.dart';
+import '../l10n/jala_localizations.dart';
 import '../theme/jala_theme_controller.dart';
 import '../widgets/jala_call_list_tile.dart';
 import '../widgets/jala_filter_help_sheet.dart';
@@ -127,22 +128,20 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
   }
 
   Future<void> _confirmClear(BuildContext context) async {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     final bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (BuildContext ctx) => AlertDialog(
-        title: const Text('Clear all captured calls?'),
-        content: const Text(
-          'This removes every entry from the inspector. This cannot be '
-          'undone.',
-        ),
+        title: Text(l10n.inspectorClearConfirmTitle),
+        content: Text(l10n.inspectorClearConfirmBody),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: Text(l10n.actionCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Clear'),
+            child: Text(l10n.actionClear),
           ),
         ],
       ),
@@ -173,14 +172,13 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
       fileName: fileName,
     );
     if (!context.mounted) return;
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
     if (!outcome.ok) {
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-            'Export failed (${outcome.sizeLabel} → ${outcome.destination}). '
-            'Too large for the clipboard? Use Jala.enableFileExport() to '
-            'write exports to a file instead.',
+            l10n.exportFailed(outcome.sizeLabel, outcome.destination),
           ),
           duration: const Duration(seconds: 8),
         ),
@@ -188,12 +186,9 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
       return;
     }
     final StringBuffer message = StringBuffer(successPrefix)
-      ..write(' — ${outcome.sizeLabel} → ${outcome.destination}.');
+      ..write(l10n.exportDelivered(outcome.sizeLabel, outcome.destination));
     if (outcome.isRisky && outcome.destination == 'clipboard') {
-      message.write(
-        ' That is large for a clipboard; if the paste comes out empty or '
-        'truncated, use Jala.enableFileExport().',
-      );
+      message.write(' ${l10n.exportClipboardRisk}');
     }
     if (successSuffix != null) message.write(' $successSuffix');
     messenger.showSnackBar(
@@ -208,13 +203,12 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
     BuildContext context,
     List<NetworkCallEntry> entries,
   ) async {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     await _deliverExport(
       context,
       payload: HarExporter.exportSession(entries),
       fileName: 'jala_session.har',
-      successPrefix:
-          'Exported HAR for ${entries.length} '
-          '${entries.length == 1 ? 'call' : 'calls'}',
+      successPrefix: l10n.exportedHar(entries.length),
     );
   }
 
@@ -223,43 +217,41 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
     required JalaSessionExportOptions options,
     required String modeLabel,
   }) async {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     final JalaStore store = JalaBinding.instance.store;
     final int count = store.entries.length;
     await _deliverExport(
       context,
       payload: JalaSessionCodec.encode(store, options: options),
       fileName: 'jala_session.json',
-      successPrefix:
-          'Exported session ($modeLabel) — $count '
-          '${count == 1 ? 'entry' : 'entries'}',
-      successSuffix: 'May contain personal data; share carefully.',
+      successPrefix: l10n.exportedSession(modeLabel, count),
+      successSuffix: l10n.exportPersonalDataWarning,
     );
   }
 
   Future<void> _importSession(BuildContext context) async {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     await showDialog<void>(
       context: context,
-      builder: (BuildContext ctx) => const _ImportSessionDialog(
-        title: 'Import session',
-        hint: 'Paste exported session JSON here…',
+      builder: (BuildContext ctx) => _ImportSessionDialog(
+        title: l10n.inspectorImportSession,
+        hint: l10n.importSessionHint,
         note:
-            'Treat pasted JSON like a log dump — it may contain personal or '
-            'business data. Max size '
-            '${JalaSessionCodec.defaultMaxDecodeChars ~/ (1024 * 1024)} MiB.',
+            '${l10n.importSessionNote} '
+            '${l10n.importSessionMaxSize(JalaSessionCodec.defaultMaxDecodeChars ~/ (1024 * 1024))}',
         decode: JalaSessionCodec.decode,
       ),
     );
   }
 
   Future<void> _importHar(BuildContext context) async {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     await showDialog<void>(
       context: context,
-      builder: (BuildContext ctx) => const _ImportSessionDialog(
-        title: 'Import HAR',
-        hint: 'Paste HAR 1.2 JSON here…',
-        note:
-            'Imports a HAR export (browser devtools, Charles, Proxyman, …) as '
-            'a session. Imported calls have replay disabled.',
+      builder: (BuildContext ctx) => _ImportSessionDialog(
+        title: l10n.inspectorImportHarTitle,
+        hint: l10n.importHarHint,
+        note: l10n.importHarNote,
         decode: JalaHarCodec.decode,
       ),
     );
@@ -347,6 +339,7 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
     List<NetworkCallEntry> calls,
     List<WsConnectionEntry> wsConnections,
   ) {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     final List<_MergedEntry> all = _mergeEntries(calls, wsConnections);
     final List<_MergedEntry> filtered = _filter.isEmpty
         ? all
@@ -368,10 +361,10 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
             ? null
             : IconButton(
                 icon: const Icon(Icons.close),
-                tooltip: 'Close inspector',
+                tooltip: l10n.inspectorClose,
                 onPressed: widget.onClose,
               ),
-        title: const Text('Jala'),
+        title: Text(l10n.inspectorTitle),
         actions: <Widget>[
           StreamBuilder<List<JalaMockRule>>(
             stream: JalaBinding.instance.mockRegistry.watch,
@@ -382,7 +375,9 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
                       .where((JalaMockRule r) => r.enabled)
                       .length;
                   return IconButton(
-                    tooltip: enabled > 0 ? 'Mocks ($enabled enabled)' : 'Mocks',
+                    tooltip: enabled > 0
+                        ? l10n.inspectorMocksEnabled(enabled)
+                        : l10n.inspectorMocks,
                     onPressed: () {
                       Navigator.of(context).push(JalaMocksScreen.route());
                     },
@@ -432,8 +427,8 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
                   final JalaThrottleProfile? active = snap.data;
                   return IconButton(
                     tooltip: active != null
-                        ? 'Throttling: ${active.name}'
-                        : 'Throttle',
+                        ? l10n.inspectorThrottlingActive(active.name)
+                        : l10n.inspectorThrottle,
                     onPressed: () {
                       Navigator.of(context).push(JalaThrottleScreen.route());
                     },
@@ -465,50 +460,52 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
             icon: Icon(
               _denseList ? Icons.density_medium : Icons.density_small,
             ),
-            tooltip: _denseList ? 'Comfortable list' : 'Compact list',
+            tooltip: _denseList
+                ? l10n.inspectorComfortableList
+                : l10n.inspectorCompactList,
             onPressed: () => setState(() => _denseList = !_denseList),
           ),
           IconButton(
             icon: const Icon(Icons.delete_outline),
-            tooltip: 'Clear',
+            tooltip: l10n.actionClear,
             onPressed: all.isEmpty ? null : () => _confirmClear(context),
           ),
           IconButton(
             icon: const Icon(Icons.ios_share),
-            tooltip: 'Copy session as HAR',
+            tooltip: l10n.inspectorCopySessionAsHar,
             onPressed: calls.isEmpty
                 ? null
                 : () => _copySessionHar(context, calls),
           ),
           PopupMenuButton<_SessionAction>(
-            tooltip: 'Session',
+            tooltip: l10n.inspectorSession,
             onSelected: (_SessionAction action) =>
                 _handleSessionAction(context, action),
             itemBuilder: (BuildContext context) =>
-                const <PopupMenuEntry<_SessionAction>>[
+                <PopupMenuEntry<_SessionAction>>[
                   PopupMenuItem<_SessionAction>(
                     value: _SessionAction.exportFull,
-                    child: Text('Export session (full)'),
+                    child: Text(l10n.inspectorExportSessionFull),
                   ),
                   PopupMenuItem<_SessionAction>(
                     value: _SessionAction.exportNoBodies,
-                    child: Text('Export session (no bodies)'),
+                    child: Text(l10n.inspectorExportSessionNoBodies),
                   ),
                   PopupMenuItem<_SessionAction>(
                     value: _SessionAction.exportHeadersOnly,
-                    child: Text('Export session (headers only)'),
+                    child: Text(l10n.inspectorExportSessionHeadersOnly),
                   ),
                   PopupMenuItem<_SessionAction>(
                     value: _SessionAction.import,
-                    child: Text('Import session'),
+                    child: Text(l10n.inspectorImportSession),
                   ),
                   PopupMenuItem<_SessionAction>(
                     value: _SessionAction.importHar,
-                    child: Text('Import HAR…'),
+                    child: Text(l10n.inspectorImportHarMenu),
                   ),
                   PopupMenuItem<_SessionAction>(
                     value: _SessionAction.importCurl,
-                    child: Text('Import cURL…'),
+                    child: Text(l10n.inspectorImportCurlMenu),
                   ),
                 ],
           ),
@@ -535,7 +532,7 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
                   onChanged: _onFilterChanged,
                   style: Theme.of(context).textTheme.bodyMedium,
                   decoration: InputDecoration(
-                    hintText: 'Filter: method:get  s:4xx  host:api.*',
+                    hintText: l10n.inspectorFilterHint,
                     hintStyle: hintStyle,
                     prefixIcon: Icon(
                       Icons.filter_alt_outlined,
@@ -546,7 +543,7 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
                         Icons.help_outline,
                         color: scheme.onSurfaceVariant,
                       ),
-                      tooltip: 'Filter grammar',
+                      tooltip: l10n.inspectorFilterGrammar,
                       onPressed: () => _openHelp(context),
                     ),
                     filled: true,
@@ -601,10 +598,12 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
             _ImportBanner(entryCount: calls.length),
           Expanded(
             child: all.isEmpty
-                ? const _EmptyState(message: 'No network calls captured yet.')
+                ? _EmptyState(message: l10n.inspectorEmpty)
                 : filtered.isEmpty
                 ? _EmptyState(
-                    message: 'No calls match "${_filterController.text}".',
+                    message: l10n.inspectorNoCallsMatch(
+                      _filterController.text,
+                    ),
                   )
                 : ListView.separated(
                     // Extra bottom pad so the last row isn't tight against
@@ -656,7 +655,11 @@ class _ThemeToggleButton extends StatelessWidget {
         };
         return IconButton(
           icon: Icon(icon),
-          tooltip: 'Theme: ${controller.mode.name}',
+          // The mode name itself stays untranslated: it is the enum's own
+          // identifier, the same vocabulary the API uses.
+          tooltip: JalaLocalizations.of(
+            context,
+          ).inspectorThemeMode(controller.mode.name),
           onPressed: controller.cycle,
         );
       },
@@ -734,7 +737,9 @@ class _ThrottleBanner extends StatelessWidget {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Throttling: ${active.name} — tap to change',
+                          JalaLocalizations.of(
+                            context,
+                          ).inspectorThrottlingBanner(active.name),
                           style: TextStyle(color: scheme.onTertiaryContainer),
                         ),
                       ),
@@ -778,15 +783,15 @@ class _ImportBanner extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                'Imported session ($entryCount '
-                '${entryCount == 1 ? 'entry' : 'entries'}) — Clear to '
-                'return to live capture',
+                JalaLocalizations.of(
+                  context,
+                ).inspectorImportedSessionBanner(entryCount),
                 style: TextStyle(color: scheme.onSecondaryContainer),
               ),
             ),
             TextButton(
               onPressed: JalaBinding.instance.store.clear,
-              child: const Text('Clear'),
+              child: Text(JalaLocalizations.of(context).actionClear),
             ),
           ],
         ),
@@ -831,7 +836,9 @@ class _ImportSessionDialogState extends State<_ImportSessionDialog> {
   void _import() {
     final String text = _controller.text.trim();
     if (text.isEmpty) {
-      setState(() => _error = 'Paste something to import');
+      setState(
+        () => _error = JalaLocalizations.of(context).importNothingPasted,
+      );
       return;
     }
     try {
@@ -845,6 +852,7 @@ class _ImportSessionDialogState extends State<_ImportSessionDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     return AlertDialog(
       title: Text(widget.title),
       content: SizedBox(
@@ -877,9 +885,15 @@ class _ImportSessionDialogState extends State<_ImportSessionDialog> {
               ],
               const SizedBox(height: 12),
               SegmentedButton<bool>(
-                segments: const <ButtonSegment<bool>>[
-                  ButtonSegment<bool>(value: false, label: Text('Replace')),
-                  ButtonSegment<bool>(value: true, label: Text('Append')),
+                segments: <ButtonSegment<bool>>[
+                  ButtonSegment<bool>(
+                    value: false,
+                    label: Text(l10n.actionReplace),
+                  ),
+                  ButtonSegment<bool>(
+                    value: true,
+                    label: Text(l10n.actionAppend),
+                  ),
                 ],
                 selected: <bool>{_append},
                 onSelectionChanged: (Set<bool> s) =>
@@ -892,9 +906,9 @@ class _ImportSessionDialogState extends State<_ImportSessionDialog> {
       actions: <Widget>[
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(l10n.actionCancel),
         ),
-        FilledButton(onPressed: _import, child: const Text('Import')),
+        FilledButton(onPressed: _import, child: Text(l10n.actionImport)),
       ],
     );
   }
@@ -924,7 +938,9 @@ class _ImportCurlDialogState extends State<_ImportCurlDialog> {
   void _import() {
     final String text = _controller.text.trim();
     if (text.isEmpty) {
-      setState(() => _error = 'Paste a curl command');
+      setState(
+        () => _error = JalaLocalizations.of(context).importNothingPasted,
+      );
       return;
     }
     final ImportedRequest req;
@@ -961,8 +977,9 @@ class _ImportCurlDialogState extends State<_ImportCurlDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     return AlertDialog(
-      title: const Text('Import cURL'),
+      title: Text(l10n.inspectorImportCurlTitle),
       content: SizedBox(
         width: 480,
         child: SingleChildScrollView(
@@ -971,8 +988,7 @@ class _ImportCurlDialogState extends State<_ImportCurlDialog> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               Text(
-                'Paste a curl command (e.g. copied from browser devtools). It '
-                'opens in the composer to edit and send.',
+                l10n.importCurlNote,
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: 8),
@@ -980,9 +996,9 @@ class _ImportCurlDialogState extends State<_ImportCurlDialog> {
                 controller: _controller,
                 minLines: 4,
                 maxLines: 10,
-                decoration: const InputDecoration(
-                  hintText: "curl 'https://…' -H '…' -d '…'",
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  hintText: l10n.importCurlHint,
+                  border: const OutlineInputBorder(),
                 ),
                 onChanged: (_) {
                   if (_error != null) setState(() => _error = null);
@@ -1002,9 +1018,12 @@ class _ImportCurlDialogState extends State<_ImportCurlDialog> {
       actions: <Widget>[
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(l10n.actionCancel),
         ),
-        FilledButton(onPressed: _import, child: const Text('Open in composer')),
+        FilledButton(
+          onPressed: _import,
+          child: Text(l10n.inspectorOpenInComposer),
+        ),
       ],
     );
   }

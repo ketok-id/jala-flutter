@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:jala_core/jala_core.dart';
 
+import '../l10n/jala_localizations.dart';
 import '../theme/jala_theme.dart';
 import '../util/clipboard.dart';
 import '../util/format.dart';
@@ -96,6 +97,7 @@ class _JalaWsDetailScreenState extends State<JalaWsDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     return JalaThemedPage(
       child: StreamBuilder<List<WsConnectionEntry>>(
         stream: JalaBinding.instance.store.watchWs,
@@ -109,9 +111,9 @@ class _JalaWsDetailScreenState extends State<JalaWsDetailScreen> {
                   .wsById(widget.connectionId);
               if (entry == null) {
                 return Scaffold(
-                  appBar: AppBar(title: const Text('WebSocket detail')),
-                  body: const Center(
-                    child: Text('This connection is no longer available.'),
+                  appBar: AppBar(title:  Text(l10n.wsDetailTitle)),
+                  body:  Center(
+                    child: Text(l10n.wsDetailUnavailable),
                   ),
                 );
               }
@@ -137,7 +139,7 @@ class _JalaWsDetailScreenState extends State<JalaWsDetailScreen> {
                   actions: <Widget>[
                     IconButton(
                       icon: const Icon(Icons.ios_share),
-                      tooltip: 'Copy connection summary',
+                      tooltip: l10n.wsCopySummary,
                       onPressed: () => _copy(
                         context,
                         'connection summary',
@@ -162,18 +164,18 @@ class _JalaWsDetailScreenState extends State<JalaWsDetailScreen> {
                         controller: _frameFilterController,
                         onChanged: (String value) =>
                             setState(() => _frameFilter = value),
-                        decoration: const InputDecoration(
-                          hintText: 'Filter frames…',
-                          prefixIcon: Icon(Icons.filter_alt_outlined),
-                          border: OutlineInputBorder(),
+                        decoration:  InputDecoration(
+                          hintText: l10n.wsFilterFramesHint,
+                          prefixIcon: const Icon(Icons.filter_alt_outlined),
+                          border: const OutlineInputBorder(),
                           isDense: true,
                         ),
                       ),
                     ),
                     Expanded(
                       child: entry.frames.isEmpty
-                          ? const _EmptyFrames(
-                              message: 'No frames captured yet.',
+                          ?  _EmptyFrames(
+                              message: l10n.wsNoFramesCaptured,
                             )
                           : frames.isEmpty
                           ? _EmptyFrames(
@@ -221,16 +223,17 @@ class _WsHeader extends StatelessWidget {
 
   final WsConnectionEntry entry;
 
-  String _statusLabel() {
+  String _statusLabel(BuildContext context) {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     switch (entry.status) {
       case WsConnectionStatus.connecting:
-        return 'Connecting…';
+        return l10n.wsStatusConnecting;
       case WsConnectionStatus.open:
-        return 'Open';
+        return l10n.wsStatusOpen;
       case WsConnectionStatus.closed:
-        return 'Closed';
+        return l10n.wsStatusClosed;
       case WsConnectionStatus.error:
-        return 'Error';
+        return l10n.wsStatusError;
     }
   }
 
@@ -243,9 +246,10 @@ class _WsHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     final List<(String, Widget)> rows = <(String, Widget)>[
       ('URI', SelectableText(entry.uri.toString())),
-      ('Status', Text(_statusLabel())),
+      (l10n.wsFieldStatus, Text(_statusLabel(context))),
       ('Opened', Text(entry.openedAt.toLocal().toString())),
       // "Closed at" (not "Closed") so the row label never collides with
       // the status value rendered just above.
@@ -339,6 +343,7 @@ class _FramePreviewSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     final String text = frame.preview ?? '';
     Widget body;
     try {
@@ -361,13 +366,13 @@ class _FramePreviewSheet extends StatelessWidget {
               children: <Widget>[
                 Expanded(
                   child: Text(
-                    'Frame preview',
+                    l10n.wsFramePreviewTitle,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.copy),
-                  tooltip: 'Copy frame preview',
+                  tooltip: l10n.wsCopyFramePreview,
                   onPressed: onCopy,
                 ),
               ],

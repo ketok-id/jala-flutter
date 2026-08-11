@@ -26,8 +26,8 @@ delayed, or dropped by Jala. See [Limitations](#limitations).
 
 ```yaml
 dependencies:
-  jala: ^0.8.1
-  jala_grpc: ^0.8.1
+  jala: ^0.8.2
+  jala_grpc: ^0.8.2
 ```
 
 ## Setup

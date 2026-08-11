@@ -31,7 +31,18 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // The hosted demo (GitHub Pages) is a release build, where the
   // `enabled: kDebugMode` default would turn Jala off — opt in explicitly.
-  Jala.initialize(config: JalaConfig(enabled: true));
+  //
+  // Locale is a dart-define so the QA rig can exercise both without an edit:
+  //   flutter run --dart-define=JALA_LOCALE=id-ID
+  // Empty (the default) means English, which is also what an unset
+  // JalaConfig.locale means — the inspector never follows the device locale.
+  const String locale = String.fromEnvironment('JALA_LOCALE');
+  Jala.initialize(
+    config: JalaConfig(
+      enabled: true,
+      locale: locale.isEmpty ? null : locale,
+    ),
+  );
   try {
     final dir = await getApplicationSupportDirectory();
     await Jala.enableMockPersistence(dir.path);

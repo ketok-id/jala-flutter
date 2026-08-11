@@ -24,8 +24,8 @@ inspector UI in two lines.
 
 ```yaml
 dependencies:
-  jala: ^0.8.1
-  jala_dio: ^0.8.1   # or jala_http / jala_graphql / jala_websocket
+  jala: ^0.8.2
+  jala_dio: ^0.8.2   # or jala_http / jala_graphql / jala_websocket
   dio: ^5.0.0
 ```
 
@@ -55,6 +55,7 @@ When disabled, `JalaOverlay` returns `child` unchanged.
 | `package:http` | [`jala_http`](../jala_http) | `JalaHttp.wrap(http.Client())` |
 | GraphQL (`gql_link`) | [`jala_graphql`](../jala_graphql) | `JalaGraphQLLink(endpoint: uri)` before terminating link |
 | WebSocket | [`jala_websocket`](../jala_websocket) | `JalaWebSocketChannel.wrap(channel, uri: uri)` |
+| gRPC | [`jala_grpc`](../jala_grpc) | `JalaGrpcInterceptor(endpoint: uri)` in the client's `interceptors` (capture-only) |
 
 Full map: [docs/packages.md](../../docs/packages.md).
 
@@ -68,6 +69,8 @@ Full map: [docs/packages.md](../../docs/packages.md).
 | `Jala.open()` / `Jala.close()` | Show / hide inspector |
 | `JalaOverlay` | Root wrapper + floating bubble |
 | `Jala.enableMockPersistence(directory)` | Optional file-backed mock rules (`jala_mock_rules.json`) |
+| `Jala.enableFileExport(directory)` / `disableFileExport()` | Write session/HAR exports to a file (clipboard still used under 512 KB) |
+| `JalaConfig(locale: 'id-ID')` | Inspector UI language; unset = English (see below) |
 | `Jala.controller` / `Jala.themeController` | Overlay open state and inspector theme |
 
 ---
@@ -81,6 +84,39 @@ Full map: [docs/packages.md](../../docs/packages.md).
 - **Call diff**, virtualized JSON tree, image/multipart/progress where captured
 
 Feature history and roadmap: [docs/ROADMAP.md](../../docs/ROADMAP.md).
+
+---
+
+## Language (English / Indonesian)
+
+The inspector chrome ships in **English** and **Indonesian**. It is
+**opt-in**, and unset means English — Jala does **not** follow the device
+locale:
+
+```dart
+Jala.initialize(
+  config: JalaConfig(enabled: kDebugMode, locale: 'id-ID'),
+);
+```
+
+An app on an Indonesian phone renders exactly as it did before this setting
+existed unless you pass `locale`. That is deliberate: following the platform
+locale automatically would change behaviour for existing hosts. `'id'` and
+`'id-ID'` both select Indonesian; anything unsupported falls back to English
+rather than throwing.
+
+**No new dependencies.** The tables are hand-rolled rather than generated
+from ARB, so Jala never pins an `intl` version onto your app.
+
+Deliberately left in English, so a half-translated UI doesn't read as a bug:
+the filter DSL (`status:`, `is:ws`, `op:`), HTTP method names, gRPC status
+names, byte/duration formatting, every exported artifact (HAR, cURL, session
+JSON), and the handful of Flutter framework strings inside the inspector
+("Back", "Close"). Indonesian also keeps the developer vocabulary its
+audience already speaks in English — `request`, `response`, `header`,
+`payload`, `replay`, `mock`.
+
+Details: [CONFIG.md](../../docs/CONFIG.md).
 
 ---
 

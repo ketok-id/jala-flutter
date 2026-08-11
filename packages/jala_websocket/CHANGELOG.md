@@ -1,62 +1,6 @@
-## 0.8.1 — 2026-08-11
+## 0.8.2 — 2026-08-11
 
-- Lockstep release. No changes in this package; see the `jala` and
-  `jala_ui` changelogs for the Android input/back fixes and the new
-  file-backed export destination.
+- Lockstep release. No changes in this package; `jala_core` gains
+  `JalaConfig.locale` and the inspector UI ships in Indonesian — see the
+  `jala` and `jala_ui` changelogs.
 
-## 0.8.0 — 2026-08-03
-
-### Fixed
-
-- Frames sent via `sink.addStream(...)` are captured. Only `sink.add(...)`
-  was hooked, so a connection driven by `addStream` produced a silently
-  partial record in the inspector.
-
-## 0.7.0
-
-- The captured handshake URL goes through `JalaRedactor.redactUri`. A
-  `?token=` on the handshake URL is the usual way WebSocket auth is
-  carried, so it now gets the same capture-time masking as an HTTP query
-  string.
-
-## 0.6.0
-
-- Lockstep release with jala_core 0.6.0 (call diff + import codecs).
-
-## 0.5.3
-
-- Lockstep release with jala_core 0.5.3 security defaults.
-
-## 0.5.2
-
-- Lockstep release; no functional changes.
-
-## 0.5.1
-
-- Pub metadata: `homepage`, `issue_tracker`, description notes frames are
-  not throttled (docs-only).
-
-## 0.5.0
-
-- Lockstep release; no functional changes. Bumped for the `jala_core`
-  0.5.0 dependency (throttling / session codec / subscription payloads
-  are orthogonal to this package — WS frames still pass through
-  unthrottled).
-
-## 0.4.0
-
-- First release of the `package:web_socket_channel` adapter for Jala.
-- `JalaWebSocketChannel.wrap(channel, {uri})` — wraps any `WebSocketChannel`,
-  returning one with identical `stream`/`sink` behavior that also captures:
-  - Connection lifecycle: `WsConnectEvent` immediately on wrap, `WsOpenEvent`
-    once `channel.ready` completes, `WsCloseEvent` (code/reason) on either
-    side closing or the stream completing on its own, `WsErrorEvent` on a
-    stream error.
-  - Every frame sent (`sink.add`) or received (`stream`), as a `WsFrame`:
-    direction, size, and — for text frames — a redacted preview capped at
-    4 KB. Binary frames are captured as metadata-only (size, no payload).
-- Disabled Jala (or an uninitialized binding) makes `wrap()` a true no-op:
-  it returns the exact same `channel` instance, untouched.
-- Capture is wrapped in `try`/`catch` throughout, so a bug in Jala's own
-  logic can never break the app's WebSocket traffic — the original data,
-  error, or done event is always forwarded exactly once.

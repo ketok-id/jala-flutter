@@ -63,4 +63,26 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('does not overflow under a longer locale on a short screen', (
+    WidgetTester tester,
+  ) async {
+    // Found on device: Indonesian runs longer than English and overflowed
+    // this sheet by 4px. English fit only by luck — the Column was not
+    // scrollable at all. A deliberately short viewport reproduces it
+    // without depending on which locale is longest today.
+    tester.view.physicalSize = const Size(1080, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(body: JalaFilterHelpSheet()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(SingleChildScrollView), findsOneWidget);
+  });
 }

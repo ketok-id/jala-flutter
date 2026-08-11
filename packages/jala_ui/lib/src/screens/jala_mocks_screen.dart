@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:jala_core/jala_core.dart';
 
+import '../l10n/jala_localizations.dart';
 import '../widgets/jala_themed_page.dart';
 import 'jala_mock_editor_screen.dart';
 
@@ -28,6 +29,7 @@ class JalaMocksScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     return JalaThemedPage(
       child: StreamBuilder<List<JalaMockRule>>(
         stream: JalaBinding.instance.mockRegistry.watch,
@@ -39,9 +41,9 @@ class JalaMocksScreen extends StatelessWidget {
           final List<JalaMockRule> rules =
               snapshot.data ?? const <JalaMockRule>[];
           return Scaffold(
-            appBar: AppBar(title: const Text('Mocks')),
+            appBar: AppBar(title: Text(l10n.mocksTitle)),
             floatingActionButton: FloatingActionButton(
-              tooltip: 'Add mock rule',
+              tooltip: l10n.mocksAddRule,
               onPressed: () {
                 Navigator.of(context).push(
                   JalaMockEditorScreen.route(),
@@ -50,12 +52,11 @@ class JalaMocksScreen extends StatelessWidget {
               child: const Icon(Icons.add),
             ),
             body: rules.isEmpty
-                ? const Center(
+                ? Center(
                     child: Padding(
-                      padding: EdgeInsets.all(24),
+                      padding: const EdgeInsets.all(24),
                       child: Text(
-                        'No mock rules yet.\n'
-                        'Add one, or use “Mock this” on a captured call.',
+                        l10n.mocksEmpty,
                         textAlign: TextAlign.center,
                       ),
                     ),

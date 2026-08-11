@@ -1,3 +1,21 @@
+## 0.8.2 — 2026-08-11
+
+### Added
+
+- `JalaLocalizations`, `JalaLocalizationsEn`, `JalaLocalizationsId` and
+  `JalaLocalizations.delegate` — the inspector's UI strings, in English and
+  Indonesian. Hosts select the language through `JalaConfig.locale` on the
+  `jala` facade rather than installing the delegate by hand.
+- `JalaLocalizations.of(context)` never returns null and never throws: these
+  widgets are individually exported and a host may mount one anywhere, so a
+  missing delegate degrades to English rather than crashing.
+
+### Fixed
+
+- The filter grammar help sheet could overflow its bottom sheet. Its content
+  column was never scrollable; English happened to fit, but a longer locale
+  or a shorter screen did not.
+
 ## 0.8.1 — 2026-08-11
 
 ### Fixed

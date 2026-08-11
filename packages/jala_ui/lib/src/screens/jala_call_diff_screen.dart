@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:jala_core/jala_core.dart';
 
+import '../l10n/jala_localizations.dart';
 import '../widgets/jala_json_diff_view.dart';
 import '../widgets/jala_themed_page.dart';
 
@@ -25,10 +26,11 @@ class JalaCallDiffScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     final JalaEntryDiff diff = JalaEntryDiff.of(a, b);
     return JalaThemedPage(
       child: Scaffold(
-        appBar: AppBar(title: const Text('Compare calls')),
+        appBar: AppBar(title: Text(l10n.callDetailCompareTitle)),
         body: ListView(
           padding: const EdgeInsets.all(12),
           children: <Widget>[
@@ -38,23 +40,23 @@ class JalaCallDiffScreen extends StatelessWidget {
             _section(context, 'Status', _statusRow(context, diff)),
             _section(
               context,
-              'Request headers',
+              l10n.diffRequestHeaders,
               _headerDiffs(context, diff.requestHeaders),
             ),
             _section(
               context,
-              'Response headers',
+              l10n.diffResponseHeaders,
               _headerDiffs(context, diff.responseHeaders),
             ),
             _bodySection(
               context,
-              'Request body',
+              l10n.diffRequestBody,
               comparable: diff.requestBodyComparable,
               bodyDiff: diff.requestBodyDiff,
             ),
             _bodySection(
               context,
-              'Response body',
+              l10n.diffResponseBody,
               comparable: diff.responseBodyComparable,
               bodyDiff: diff.responseBodyDiff,
             ),
@@ -140,12 +142,13 @@ class JalaCallDiffScreen extends StatelessWidget {
     required bool comparable,
     required JsonDiffNode? bodyDiff,
   }) {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     final Widget child;
     if (comparable && bodyDiff != null) {
       child = JalaJsonDiffView(root: bodyDiff);
     } else {
       child = Text(
-        'Not a structural diff — one or both bodies are not JSON.',
+        l10n.diffNotStructural,
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
           color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),

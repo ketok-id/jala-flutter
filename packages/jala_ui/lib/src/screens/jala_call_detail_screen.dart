@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:jala_core/jala_core.dart';
 
+import '../l10n/jala_localizations.dart';
 import '../util/clipboard.dart';
 import '../util/format.dart';
 import '../widgets/jala_body_view.dart';
@@ -69,10 +70,11 @@ class _JalaCallDetailScreenState extends State<JalaCallDetailScreen>
   }
 
   Future<void> _replay(BuildContext context, NetworkCallEntry entry) async {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     String message;
     try {
       final bool ok = await JalaBinding.instance.replayRegistry.replay(entry);
-      message = ok ? 'Replay sent' : 'No replayer attached';
+      message = ok ? l10n.callDetailReplaySent : l10n.callDetailNoReplayer;
     } on JalaReplayException catch (e) {
       // The Replay button is already disabled for these, so this is a
       // backstop — but it must surface as a message, never as an unhandled
@@ -91,12 +93,13 @@ class _JalaCallDetailScreenState extends State<JalaCallDetailScreen>
     BuildContext context,
     NetworkCallEntry current,
   ) async {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     final List<NetworkCallEntry> others = JalaBinding.instance.store.entries
         .where((NetworkCallEntry e) => e.id != current.id)
         .toList(growable: false);
     if (others.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No other calls to compare with')),
+        SnackBar(content: Text(l10n.callDetailNoOtherCalls)),
       );
       return;
     }
@@ -111,7 +114,7 @@ class _JalaCallDetailScreenState extends State<JalaCallDetailScreen>
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Text(
-                'Compare with…',
+                l10n.callDetailCompareWith,
                 style: Theme.of(ctx).textTheme.titleMedium,
               ),
             ),
@@ -137,6 +140,7 @@ class _JalaCallDetailScreenState extends State<JalaCallDetailScreen>
 
   @override
   Widget build(BuildContext context) {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     return JalaThemedPage(
       child: StreamBuilder<List<NetworkCallEntry>>(
         stream: JalaBinding.instance.store.watch,
@@ -151,9 +155,9 @@ class _JalaCallDetailScreenState extends State<JalaCallDetailScreen>
               );
               if (entry == null) {
                 return Scaffold(
-                  appBar: AppBar(title: const Text('Call detail')),
-                  body: const Center(
-                    child: Text('This call is no longer available.'),
+                  appBar: AppBar(title: Text(l10n.callDetailTitle)),
+                  body: Center(
+                    child: Text(l10n.callDetailUnavailable),
                   ),
                 );
               }
@@ -195,16 +199,16 @@ class _JalaCallDetailScreenState extends State<JalaCallDetailScreen>
                   actions: <Widget>[
                     IconButton(
                       icon: const Icon(Icons.compare_arrows),
-                      tooltip: 'Compare with…',
+                      tooltip: l10n.callDetailCompareWith,
                       onPressed: () => _pickAndCompare(context, entry),
                     ),
                   ],
                   bottom: TabBar(
                     controller: _tabController,
-                    tabs: const <Tab>[
-                      Tab(text: 'Overview'),
-                      Tab(text: 'Request'),
-                      Tab(text: 'Response'),
+                    tabs: <Tab>[
+                      Tab(text: l10n.callDetailTabOverview),
+                      Tab(text: l10n.callDetailTabRequest),
+                      Tab(text: l10n.callDetailTabResponse),
                     ],
                   ),
                 ),
@@ -250,7 +254,7 @@ class _JalaCallDetailScreenState extends State<JalaCallDetailScreen>
                                 '',
                           ),
                           icon: const Icon(Icons.copy, size: 18),
-                          label: const Text('Body'),
+                          label: Text(l10n.callDetailExportBody),
                         ),
                         TextButton.icon(
                           onPressed: () => _copy(
@@ -259,7 +263,7 @@ class _JalaCallDetailScreenState extends State<JalaCallDetailScreen>
                             CurlExporter.export(entry),
                           ),
                           icon: const Icon(Icons.terminal, size: 18),
-                          label: const Text('cURL'),
+                          label: Text(l10n.callDetailExportCurl),
                         ),
                         TextButton.icon(
                           onPressed: () => _copy(
@@ -268,7 +272,7 @@ class _JalaCallDetailScreenState extends State<JalaCallDetailScreen>
                             DartSnippetExporter.export(entry),
                           ),
                           icon: const Icon(Icons.code, size: 18),
-                          label: const Text('Dart'),
+                          label: Text(l10n.callDetailExportDart),
                         ),
                         TextButton.icon(
                           onPressed: () => _copy(
@@ -277,12 +281,12 @@ class _JalaCallDetailScreenState extends State<JalaCallDetailScreen>
                             HarExporter.exportCall(entry),
                           ),
                           icon: const Icon(Icons.description, size: 18),
-                          label: const Text('HAR'),
+                          label: Text(l10n.callDetailExportHar),
                         ),
                         Tooltip(
                           message: imported
-                              ? "Imported entries can't be mocked from"
-                              : 'Prefill a mock rule from this call',
+                              ? l10n.callDetailImportedNoMock
+                              : l10n.callDetailPrefillMock,
                           child: TextButton.icon(
                             onPressed: imported
                                 ? null
@@ -294,15 +298,15 @@ class _JalaCallDetailScreenState extends State<JalaCallDetailScreen>
                                     );
                                   },
                             icon: const Icon(Icons.bolt, size: 18),
-                            label: const Text('Mock this'),
+                            label: Text(l10n.callDetailMockThis),
                           ),
                         ),
                         Tooltip(
                           message: imported
-                              ? "Imported entries can't be edited & resent"
+                              ? l10n.callDetailImportedNoResend
                               : (hasReplayer
                                     ? 'Edit and resend this call'
-                                    : 'No replayer attached'),
+                                    : l10n.callDetailNoReplayer),
                           child: TextButton.icon(
                             onPressed: (!imported && hasReplayer)
                                 ? () {
@@ -312,12 +316,12 @@ class _JalaCallDetailScreenState extends State<JalaCallDetailScreen>
                                   }
                                 : null,
                             icon: const Icon(Icons.edit_note, size: 18),
-                            label: const Text('Edit & resend'),
+                            label: Text(l10n.callDetailEditAndResend),
                           ),
                         ),
                         Tooltip(
                           message: imported
-                              ? "Imported entries can't be replayed"
+                              ? l10n.callDetailImportedNoReplay
                               : (!hasReplayer
                                     ? 'No replayer attached — use '
                                           'JalaDio.attach(dio)'
@@ -327,7 +331,7 @@ class _JalaCallDetailScreenState extends State<JalaCallDetailScreen>
                                 ? () => _replay(context, entry)
                                 : null,
                             icon: const Icon(Icons.replay, size: 18),
-                            label: const Text('Replay'),
+                            label: Text(l10n.callDetailReplay),
                           ),
                         ),
                       ],
@@ -349,7 +353,10 @@ class _OverviewTab extends StatelessWidget {
   /// Renders a live "Sent X / Y · Received A / B" line for a still-pending
   /// call's latest [NetworkProgressEvent] — see B4 in
   /// docs/plans/track-b-v0.2.md.
-  static String _transferredLabel(NetworkProgressEvent progress) {
+  static String _transferredLabel(
+    BuildContext context,
+    NetworkProgressEvent progress,
+  ) {
     final String sent = progress.sentTotal != null
         ? '${humanizeBytes(progress.sentBytes)} / '
               '${humanizeBytes(progress.sentTotal)}'
@@ -358,32 +365,34 @@ class _OverviewTab extends StatelessWidget {
         ? '${humanizeBytes(progress.receivedBytes)} / '
               '${humanizeBytes(progress.receivedTotal)}'
         : humanizeBytes(progress.receivedBytes);
-    return 'Sent $sent · Received $received';
+    return JalaLocalizations.of(context).callDetailTransferred(sent, received);
   }
 
-  static String _statusLabel(NetworkCallEntry entry) {
+  static String _statusLabel(BuildContext context, NetworkCallEntry entry) {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     switch (entry.status) {
       case JalaCallStatus.pending:
-        return 'Pending…';
+        return l10n.callDetailPending;
       case JalaCallStatus.cancelled:
-        return 'Cancelled';
+        return l10n.callDetailCancelled;
       case JalaCallStatus.error:
-        return entry.statusCode != null
-            ? 'Error (${entry.statusCode})'
-            : 'Error';
+        return l10n.callDetailErrorStatus(entry.statusCode);
       case JalaCallStatus.success:
+        // Wire vocabulary: the numeric code and the server's reason phrase
+        // are what the developer greps for, so neither is translated.
         return '${entry.statusCode} ${entry.statusMessage ?? ''}'.trim();
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     final String pathOnly =
         entry.uri.path.isEmpty ? '/' : entry.uri.path;
     final List<(String, Widget)> rows = <(String, Widget)>[
-      ('Method', Text(entry.method)),
+      (l10n.fieldMethod, Text(entry.method)),
       (
-        'Path',
+        l10n.fieldPath,
         SelectableText(
           pathOnly,
           style: const TextStyle(
@@ -392,13 +401,13 @@ class _OverviewTab extends StatelessWidget {
           ),
         ),
       ),
-      ('URL', SelectableText(entry.uri.toString())),
-      ('Status', Text(_statusLabel(entry))),
-      ('Duration', Text(humanizeDuration(entry.duration))),
-      ('Request size', Text(humanizeBytes(entry.requestSize))),
-      ('Response size', Text(humanizeBytes(entry.responseSize))),
-      ('Start time', Text(entry.startTime.toLocal().toString())),
-      ('Client', Text(entry.client)),
+      (l10n.fieldUrl, SelectableText(entry.uri.toString())),
+      (l10n.fieldStatus, Text(_statusLabel(context, entry))),
+      (l10n.fieldDuration, Text(humanizeDuration(entry.duration))),
+      (l10n.fieldRequestSize, Text(humanizeBytes(entry.requestSize))),
+      (l10n.fieldResponseSize, Text(humanizeBytes(entry.responseSize))),
+      (l10n.fieldStartTime, Text(entry.startTime.toLocal().toString())),
+      (l10n.fieldClient, Text(entry.client)),
       // GraphQL metadata (D4): operation name + type in one row.
       if (entry.operationName != null)
         (
@@ -412,7 +421,7 @@ class _OverviewTab extends StatelessWidget {
       // gRPC status, by name — the HTTP status alone is always 200.
       if (entry.grpcStatusCode != null)
         (
-          'gRPC status',
+          l10n.sectionGrpcStatus,
           Text(
             '${JalaGrpcStatus.nameOf(entry.grpcStatusCode!)} '
             '(${entry.grpcStatusCode})',
@@ -422,12 +431,12 @@ class _OverviewTab extends StatelessWidget {
       // signal that throttling applied is the global banner, which says
       // nothing about any individual entry.
       if (entry.throttledBy != null)
-        ('Throttled by', Text(entry.throttledBy!)),
+        (l10n.fieldThrottledBy, Text(entry.throttledBy!)),
       // Show whenever progress was observed — live while pending, and as a
       // final snapshot after the call completes (B4).
       if (entry.progress != null)
-        ('Transferred', Text(_transferredLabel(entry.progress!))),
-      if (entry.errorMessage != null) ('Error', Text(entry.errorMessage!)),
+        (l10n.fieldTransferred, Text(_transferredLabel(context, entry.progress!))),
+      if (entry.errorMessage != null) (l10n.sectionError, Text(entry.errorMessage!)),
     ];
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -457,7 +466,7 @@ class _OverviewTab extends StatelessWidget {
                 SizedBox(
                   width: 120,
                   child: Text(
-                    'Replay of',
+                    l10n.callDetailReplayOf,
                     style: Theme.of(context).textTheme.labelLarge,
                   ),
                 ),
@@ -578,6 +587,7 @@ class _HeadersBodyTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     final _GraphQlRequest? graphQl = graphQlRequest;
     final bool showSubscriptionPayloads =
         operationType == 'subscription' && payloads.isNotEmpty;
@@ -589,7 +599,7 @@ class _HeadersBodyTab extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       children: <Widget>[
         if (errorMessage != null) ...<Widget>[
-          Text('Error', style: Theme.of(context).textTheme.titleSmall),
+          Text(l10n.sectionError, style: Theme.of(context).textTheme.titleSmall),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: SelectableText(errorMessage!),
@@ -602,18 +612,18 @@ class _HeadersBodyTab extends StatelessWidget {
         // GraphQL query section rendered further down.
         if (queryParams.isNotEmpty) ...<Widget>[
           Text(
-            'Query parameters (${queryParams.length})',
+            l10n.sectionQueryParams(queryParams.length),
             style: Theme.of(context).textTheme.titleSmall,
           ),
           _QueryParamsTable(params: queryParams),
           const Divider(),
         ],
-        Text('Headers', style: Theme.of(context).textTheme.titleSmall),
+        Text(l10n.sectionHeaders, style: Theme.of(context).textTheme.titleSmall),
         JalaHeadersTable(headers: headers),
         const Divider(),
         if (trailers.isNotEmpty) ...<Widget>[
           Text(
-            'Trailers (${trailers.length})',
+            l10n.sectionTrailers(trailers.length),
             style: Theme.of(context).textTheme.titleSmall,
           ),
           JalaHeadersTable(headers: trailers),
@@ -621,7 +631,7 @@ class _HeadersBodyTab extends StatelessWidget {
         ],
         if (showSubscriptionPayloads) ...<Widget>[
           Text(
-            'Subscription payloads',
+            l10n.sectionSubscriptionPayloads,
             style: Theme.of(context).textTheme.titleSmall,
           ),
           _SubscriptionPayloadList(
@@ -631,7 +641,7 @@ class _HeadersBodyTab extends StatelessWidget {
           const Divider(),
         ],
         if (graphQl != null) ...<Widget>[
-          Text('Query', style: Theme.of(context).textTheme.titleSmall),
+          Text(l10n.sectionQuery, style: Theme.of(context).textTheme.titleSmall),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: SelectableText(
@@ -640,23 +650,18 @@ class _HeadersBodyTab extends StatelessWidget {
             ),
           ),
           const Divider(),
-          Text('Variables', style: Theme.of(context).textTheme.titleSmall),
+          Text(l10n.sectionVariables, style: Theme.of(context).textTheme.titleSmall),
           if (graphQl.variables == null || graphQl.variables!.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: Text('No variables'),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(l10n.callDetailNoVariables),
             )
           else
             JalaJsonTree(data: graphQl.variables),
         ] else ...<Widget>[
-          Text('Body', style: Theme.of(context).textTheme.titleSmall),
+          Text(l10n.sectionBody, style: Theme.of(context).textTheme.titleSmall),
           if (streamingRpc)
-            const _NotCapturedNote(
-              'Response messages are not captured for streaming RPCs. '
-              'The gRPC interceptor cannot read them without taking the '
-              'subscription your app needs — the call itself, its status '
-              'and its trailers are recorded above.',
-            )
+            _NotCapturedNote(l10n.callDetailStreamingNoMessages)
           else
             JalaBodyView(body: body),
         ],
@@ -728,6 +733,7 @@ class _QueryParamsTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
     final TextStyle keyStyle = (textTheme.labelMedium ?? const TextStyle())
@@ -766,7 +772,7 @@ class _QueryParamsTable extends StatelessWidget {
                         minWidth: 32,
                         minHeight: 32,
                       ),
-                      tooltip: 'Copy value',
+                      tooltip: l10n.tooltipCopyValue,
                       icon: Icon(
                         Icons.copy_outlined,
                         size: 16,
@@ -777,9 +783,9 @@ class _QueryParamsTable extends StatelessWidget {
                   ],
                 ),
                 if (params[i].value == null)
-                  Text('(no value)', style: absentStyle)
+                  Text(l10n.labelNoValue, style: absentStyle)
                 else if (params[i].value!.isEmpty)
-                  Text('(empty)', style: absentStyle)
+                  Text(l10n.labelEmptyValue, style: absentStyle)
                 else
                   SelectableText(params[i].value!, style: valueStyle),
               ],
@@ -822,6 +828,7 @@ class _SubscriptionPayloadList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
@@ -829,7 +836,7 @@ class _SubscriptionPayloadList extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: Text(
-              'Showing last ${payloads.length} of $payloadCount payloads',
+              l10n.callDetailPayloadsTruncated(payloads.length, payloadCount),
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
@@ -839,7 +846,7 @@ class _SubscriptionPayloadList extends StatelessWidget {
             contentPadding: EdgeInsets.zero,
             leading: SizedBox(width: 32, child: Text('#$i')),
             title: Text(
-              payloads[i].text ?? '(binary)',
+              payloads[i].text ?? l10n.callDetailBinaryBody,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontFamily: 'monospace', fontSize: 13),

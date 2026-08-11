@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/jala_localizations.dart';
 import '../util/clipboard.dart';
 
 /// Renders a header map as stacked name/value pairs with search, collapse of
@@ -71,10 +72,11 @@ class _JalaHeadersTableState extends State<JalaHeadersTable> {
 
   @override
   Widget build(BuildContext context) {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     if (widget.headers.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 8),
-        child: Text('No headers'),
+      return  Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Text(l10n.headersEmpty),
       );
     }
 
@@ -136,7 +138,7 @@ class _JalaHeadersTableState extends State<JalaHeadersTable> {
           style: textTheme.bodySmall,
           decoration: InputDecoration(
             isDense: true,
-            hintText: 'Search headers…',
+            hintText: l10n.headersSearchHint,
             hintStyle: textTheme.bodySmall?.copyWith(
               color: scheme.onSurfaceVariant.withValues(alpha: 0.85),
             ),
@@ -149,7 +151,7 @@ class _JalaHeadersTableState extends State<JalaHeadersTable> {
                 ? null
                 : IconButton(
                     icon: const Icon(Icons.clear, size: 18),
-                    tooltip: 'Clear search',
+                    tooltip: l10n.tooltipClearSearch,
                     onPressed: () {
                       _search.clear();
                       setState(() {});
@@ -169,7 +171,7 @@ class _JalaHeadersTableState extends State<JalaHeadersTable> {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Text(
-              'No headers match "$q"',
+              l10n.headersNoMatch(q),
               style: textTheme.bodySmall?.copyWith(
                 color: scheme.onSurfaceVariant,
               ),
@@ -201,7 +203,7 @@ class _JalaHeadersTableState extends State<JalaHeadersTable> {
             ),
             label: Text(
               _showSecondary
-                  ? 'Hide ${secondary.length} common headers'
+                  ? l10n.headersHideCommon(secondary.length)
                   : 'Show ${secondary.length} common headers '
                         '(date, server, …)',
             ),
@@ -216,7 +218,7 @@ class _JalaHeadersTableState extends State<JalaHeadersTable> {
             ),
             label: Text(
               _showSensitive
-                  ? 'Hide sensitive headers'
+                  ? l10n.headersHideSensitive
                   : 'Show ${sensitive.length} sensitive '
                         '(cookie, authorization, …)',
             ),
@@ -254,6 +256,7 @@ class _HeaderPair extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
@@ -267,7 +270,7 @@ class _HeaderPair extends StatelessWidget {
                 visualDensity: VisualDensity.compact,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                tooltip: 'Copy value',
+                tooltip: l10n.tooltipCopyValue,
                 icon: Icon(
                   Icons.copy_outlined,
                   size: 16,

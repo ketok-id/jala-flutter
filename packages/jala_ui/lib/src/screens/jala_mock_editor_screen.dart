@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:jala_core/jala_core.dart';
 
+import '../l10n/jala_localizations.dart';
 import '../widgets/jala_themed_page.dart';
 
 /// Create or edit a single [JalaMockRule].
@@ -156,9 +157,10 @@ class _JalaMockEditorScreenState extends State<JalaMockEditorScreen> {
         delay: delay,
       ),
     };
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     return JalaMockRule(
       id: _id,
-      name: _name.text.trim().isEmpty ? 'Untitled rule' : _name.text.trim(),
+      name: _name.text.trim().isEmpty ? l10n.mockEditorUntitled : _name.text.trim(),
       enabled: true,
       method: _method,
       urlPattern: _urlPattern.text.trim().isEmpty
@@ -183,15 +185,16 @@ class _JalaMockEditorScreenState extends State<JalaMockEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
     final JalaMockRule draft = _buildRule();
     final int matches = _matchCount(draft);
 
     return JalaThemedPage(
       child: Scaffold(
         appBar: AppBar(
-          title: Text(_isNew ? 'New mock' : 'Edit mock'),
+          title: Text(_isNew ? l10n.mockEditorNewTitle : l10n.mockEditorEditTitle),
           actions: <Widget>[
-            TextButton(onPressed: _save, child: const Text('Save')),
+            TextButton(onPressed: _save, child:  Text(l10n.actionSave)),
           ],
         ),
         body: ListView(
@@ -199,9 +202,9 @@ class _JalaMockEditorScreenState extends State<JalaMockEditorScreen> {
           children: <Widget>[
             TextField(
               controller: _name,
-              decoration: const InputDecoration(
-                labelText: 'Name',
-                border: OutlineInputBorder(),
+              decoration:  InputDecoration(
+                labelText: l10n.mockEditorName,
+                border: const OutlineInputBorder(),
               ),
               onChanged: (_) => setState(() {}),
             ),
@@ -209,14 +212,14 @@ class _JalaMockEditorScreenState extends State<JalaMockEditorScreen> {
             DropdownButtonFormField<String?>(
               // ignore: deprecated_member_use
               value: _method,
-              decoration: const InputDecoration(
-                labelText: 'Method',
-                border: OutlineInputBorder(),
+              decoration:  InputDecoration(
+                labelText: l10n.mockEditorMethod,
+                border: const OutlineInputBorder(),
               ),
               items: <DropdownMenuItem<String?>>[
-                const DropdownMenuItem<String?>(
+                DropdownMenuItem<String?>(
                   value: null,
-                  child: Text('ANY'),
+                  child: Text(l10n.mockEditorMethodAny),
                 ),
                 for (final String m in <String>[
                   'GET',
@@ -234,9 +237,9 @@ class _JalaMockEditorScreenState extends State<JalaMockEditorScreen> {
             const SizedBox(height: 12),
             TextField(
               controller: _urlPattern,
-              decoration: const InputDecoration(
-                labelText: 'URL pattern (glob, * wildcards)',
-                border: OutlineInputBorder(),
+              decoration:  InputDecoration(
+                labelText: l10n.mockEditorUrlPattern,
+                border: const OutlineInputBorder(),
               ),
               onChanged: (_) => setState(() {}),
             ),
@@ -248,26 +251,26 @@ class _JalaMockEditorScreenState extends State<JalaMockEditorScreen> {
             const SizedBox(height: 12),
             TextField(
               controller: _bodyContains,
-              decoration: const InputDecoration(
-                labelText: 'Body contains (optional)',
-                border: OutlineInputBorder(),
+              decoration:  InputDecoration(
+                labelText: l10n.mockEditorBodyContains,
+                border: const OutlineInputBorder(),
               ),
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 16),
-            Text('Action', style: Theme.of(context).textTheme.titleSmall),
+            Text(l10n.mockEditorAction, style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 8),
             SegmentedButton<String>(
-              segments: const <ButtonSegment<String>>[
+              segments:  <ButtonSegment<String>>[
                 ButtonSegment<String>(
                   value: 'response',
-                  label: Text('Response'),
+                  label: Text(l10n.mockEditorActionResponse),
                 ),
                 ButtonSegment<String>(
                   value: 'failure',
-                  label: Text('Failure'),
+                  label: Text(l10n.mockEditorActionFailure),
                 ),
-                ButtonSegment<String>(value: 'delay', label: Text('Delay')),
+                ButtonSegment<String>(value: 'delay', label: Text(l10n.mockEditorActionDelay)),
               ],
               selected: <String>{_actionType},
               onSelectionChanged: (Set<String> s) {
@@ -282,9 +285,9 @@ class _JalaMockEditorScreenState extends State<JalaMockEditorScreen> {
                 inputFormatters: <TextInputFormatter>[
                   FilteringTextInputFormatter.digitsOnly,
                 ],
-                decoration: const InputDecoration(
-                  labelText: 'Status code',
-                  border: OutlineInputBorder(),
+                decoration:  InputDecoration(
+                  labelText: l10n.mockEditorStatusCode,
+                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 12),
@@ -292,9 +295,9 @@ class _JalaMockEditorScreenState extends State<JalaMockEditorScreen> {
                 controller: _headersText,
                 minLines: 2,
                 maxLines: 4,
-                decoration: const InputDecoration(
-                  labelText: 'Headers (Name: value per line)',
-                  border: OutlineInputBorder(),
+                decoration:  InputDecoration(
+                  labelText: l10n.mockEditorHeaders,
+                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 12),
@@ -302,9 +305,9 @@ class _JalaMockEditorScreenState extends State<JalaMockEditorScreen> {
                 controller: _body,
                 minLines: 4,
                 maxLines: 12,
-                decoration: const InputDecoration(
-                  labelText: 'Body',
-                  border: OutlineInputBorder(),
+                decoration:  InputDecoration(
+                  labelText: l10n.mockEditorBody,
+                  border: const OutlineInputBorder(),
                   alignLabelWithHint: true,
                 ),
               ),
@@ -313,9 +316,9 @@ class _JalaMockEditorScreenState extends State<JalaMockEditorScreen> {
               DropdownButtonFormField<MockFailureKind>(
                 // ignore: deprecated_member_use
                 value: _failureKind,
-                decoration: const InputDecoration(
-                  labelText: 'Failure kind',
-                  border: OutlineInputBorder(),
+                decoration:  InputDecoration(
+                  labelText: l10n.mockEditorFailureKind,
+                  border: const OutlineInputBorder(),
                 ),
                 items: <DropdownMenuItem<MockFailureKind>>[
                   for (final MockFailureKind k in MockFailureKind.values)
@@ -338,8 +341,8 @@ class _JalaMockEditorScreenState extends State<JalaMockEditorScreen> {
               ],
               decoration: InputDecoration(
                 labelText: _actionType == 'delay'
-                    ? 'Delay (ms, required)'
-                    : 'Delay (ms, optional)',
+                    ? l10n.mockEditorDelayRequired
+                    : l10n.mockEditorDelayOptional,
                 border: const OutlineInputBorder(),
               ),
             ),

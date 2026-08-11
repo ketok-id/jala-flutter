@@ -17,6 +17,7 @@ class JalaConfig {
     this.maxWsConnections = 20,
     this.maxWsFramesPerConnection = 200,
     this.maxSubscriptionPayloads = 50,
+    this.locale,
     JalaRedactor? redactor,
   }) : redactor = redactor ?? JalaRedactor();
 
@@ -56,4 +57,27 @@ class JalaConfig {
 
   /// The redactor applied to headers and bodies at capture time.
   final JalaRedactor redactor;
+
+  /// Language tag for the inspector UI, e.g. `'id-ID'` or `'en'`.
+  ///
+  /// **Opt-in, and null means English — not "follow the device".** An app
+  /// running on an Indonesian phone renders exactly as it did before this
+  /// setting existed unless the host asks for a translation. That is a
+  /// deliberate constraint, not an oversight: resolving the platform locale
+  /// automatically would change behaviour for existing hosts, which
+  /// `docs/COMPAT.md` classes as a minor release rather than a patch. See
+  /// docs/plans/track-h-v0.8.1-l10n.md.
+  ///
+  /// Unrecognized or unsupported tags fall back to English rather than
+  /// throwing. Matching is on the language subtag, so `'id'` and `'id-ID'`
+  /// both select Indonesian.
+  ///
+  /// Stored as a `String` rather than a `Locale` because `Locale` lives in
+  /// `dart:ui`, and `jala_core` is pure Dart with no Flutter dependency —
+  /// `jala_ui` parses it. Do not weaken that for convenience.
+  ///
+  /// Only the inspector's own chrome is translated. The filter DSL, HTTP
+  /// method names, gRPC status names, byte/duration formatting and every
+  /// exported artifact (HAR, cURL, session JSON) stay in English by design.
+  final String? locale;
 }
