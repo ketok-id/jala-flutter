@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:jala_core/jala_core.dart';
 
 import '../theme/jala_theme.dart';
+import '../util/clipboard.dart';
 import '../util/format.dart';
 import 'jala_method_chip.dart';
 import 'jala_status_indicator.dart';
@@ -64,10 +64,13 @@ class JalaCallListTile extends StatelessWidget {
   }
 
   Future<void> _copyUrl(BuildContext context) async {
-    await Clipboard.setData(ClipboardData(text: entry.uri.toString()));
+    final String url = entry.uri.toString();
+    final bool ok = await jalaCopyToClipboard(url);
     if (!context.mounted) return;
     ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-      const SnackBar(content: Text('Copied URL')),
+      SnackBar(
+        content: Text(jalaCopyMessage(ok: ok, label: 'URL', text: url)),
+      ),
     );
   }
 

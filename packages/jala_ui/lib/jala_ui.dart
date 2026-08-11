@@ -6,6 +6,7 @@
 /// bubble for embedding.
 library;
 
+export 'src/export/jala_export_sink.dart';
 export 'src/jala_inspector.dart';
 export 'src/screens/jala_call_detail_screen.dart';
 export 'src/screens/jala_call_diff_screen.dart';
@@ -17,6 +18,7 @@ export 'src/screens/jala_throttle_screen.dart';
 export 'src/screens/jala_ws_detail_screen.dart';
 export 'src/theme/jala_theme.dart';
 export 'src/theme/jala_theme_controller.dart';
+export 'src/util/clipboard.dart';
 export 'src/widgets/jala_body_view.dart';
 export 'src/widgets/jala_call_list_tile.dart';
 export 'src/widgets/jala_filter_help_sheet.dart';
