@@ -39,8 +39,8 @@ teams often reach for it in the same “see what the app is doing” spot.
 
 ```yaml
 dependencies:
-  jala: ^0.8.1
-  jala_dio: ^0.8.1
+  jala: ^0.8.2
+  jala_dio: ^0.8.2
   dio: ^5.9.0
 ```
 
@@ -67,6 +67,7 @@ Tap the floating bubble (or `Jala.open()`) to inspect traffic.
 | `package:http` | [`jala_http`](packages/jala_http) → `JalaHttp.wrap(client)` |
 | GraphQL (`gql_link`) | [`jala_graphql`](packages/jala_graphql) → link before terminator |
 | WebSocket | [`jala_websocket`](packages/jala_websocket) → `JalaWebSocketChannel.wrap` |
+| gRPC / gRPC-web | [`jala_grpc`](packages/jala_grpc) → `JalaGrpcInterceptor(endpoint: uri)` (capture-only) |
 
 **Existing app?** [docs/ADOPTION.md](docs/ADOPTION.md)  
 **Which package?** [docs/packages.md](docs/packages.md)  
@@ -129,6 +130,7 @@ Install **`jala` + one adapter** for most apps. Full map and layering:
 | [`jala_http`](packages/jala_http) | `package:http` wrap + replay |
 | [`jala_graphql`](packages/jala_graphql) | `gql_link` GraphQL capture |
 | [`jala_websocket`](packages/jala_websocket) | WebSocket channel wrap |
+| [`jala_grpc`](packages/jala_grpc) | gRPC `ClientInterceptor` (capture-only) |
 
 QA rig / live demo source: [`examples/jala_example`](examples/jala_example).
 
@@ -180,6 +182,7 @@ dart analyze --fatal-infos
 (cd packages/jala_http && dart test)
 (cd packages/jala_graphql && dart test)
 (cd packages/jala_websocket && dart test)
+(cd packages/jala_grpc && dart test)
 (cd packages/jala_ui && flutter test)
 (cd packages/jala && flutter test)
 (cd examples/jala_example && flutter test)

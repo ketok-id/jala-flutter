@@ -14,7 +14,7 @@ Status as of 2026-08-05. Detailed execution plans live in `docs/plans/`.
 | — | Capture-integrity hardening: body redaction across all adapters, Dio bandwidth throttling, replay/HAR/bubble fixes | 0.8.0 | ✅ DONE |
 | G | `jala_grpc` adapter (gRPC / gRPC-web) | 0.8.0 | ✅ DONE (capture-only — see below) — [plan](plans/track-g-v0.8-grpc.md) |
 | — | Android input/back fixes, honest export reporting, file-backed export | 0.8.1 | ✅ DONE |
-| H | Localization (en + id-ID) | 0.8.2 | ✅ CODE COMPLETE — H1–H5 done, awaiting release — [plan](plans/track-h-v0.8.2-l10n.md) |
+| H | Localization (en + id-ID) | 0.8.2 | ✅ DONE — [plan](plans/track-h-v0.8.2-l10n.md) |
 | I | Socket-level throttling (real byte pacing, covers all `dart:io` traffic) | 0.8.3 | 📋 PROPOSED — [plan](plans/track-i-v0.8.3-socket-throttle.md) |
 
 Eight packages (`jala`, `jala_core`, `jala_dio`, `jala_http`, `jala_ui`,
@@ -47,8 +47,7 @@ than signalled by the version number.
 **Track H (localization) was deliberately NOT in 0.8.1** — at the time only
 1 of 12 screens was migrated, and shipping `JalaConfig.locale` half-done
 would have burned the README/changelog mention that is the opt-in feature's
-only discovery path. It is now **code complete** (H1–H5) and awaiting a
-0.8.2 release.
+only discovery path. It ships as **0.8.2** instead.
 
 The H5 device pass (Xiaomi, Android 13) found three things a diff review
 would not have: the filter help sheet had never been migrated at all — H1

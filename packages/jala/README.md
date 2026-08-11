@@ -24,8 +24,8 @@ inspector UI in two lines.
 
 ```yaml
 dependencies:
-  jala: ^0.8.1
-  jala_dio: ^0.8.1   # or jala_http / jala_graphql / jala_websocket
+  jala: ^0.8.2
+  jala_dio: ^0.8.2   # or jala_http / jala_graphql / jala_websocket
   dio: ^5.0.0
 ```
 
@@ -55,6 +55,7 @@ When disabled, `JalaOverlay` returns `child` unchanged.
 | `package:http` | [`jala_http`](../jala_http) | `JalaHttp.wrap(http.Client())` |
 | GraphQL (`gql_link`) | [`jala_graphql`](../jala_graphql) | `JalaGraphQLLink(endpoint: uri)` before terminating link |
 | WebSocket | [`jala_websocket`](../jala_websocket) | `JalaWebSocketChannel.wrap(channel, uri: uri)` |
+| gRPC | [`jala_grpc`](../jala_grpc) | `JalaGrpcInterceptor(endpoint: uri)` in the client's `interceptors` (capture-only) |
 
 Full map: [docs/packages.md](../../docs/packages.md).
 
@@ -68,6 +69,8 @@ Full map: [docs/packages.md](../../docs/packages.md).
 | `Jala.open()` / `Jala.close()` | Show / hide inspector |
 | `JalaOverlay` | Root wrapper + floating bubble |
 | `Jala.enableMockPersistence(directory)` | Optional file-backed mock rules (`jala_mock_rules.json`) |
+| `Jala.enableFileExport(directory)` / `disableFileExport()` | Write session/HAR exports to a file (clipboard still used under 512 KB) |
+| `JalaConfig(locale: 'id-ID')` | Inspector UI language; unset = English (see below) |
 | `Jala.controller` / `Jala.themeController` | Overlay open state and inspector theme |
 
 ---

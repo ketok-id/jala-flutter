@@ -22,15 +22,15 @@ Prefer the facade:
 
 ```yaml
 dependencies:
-  jala: ^0.8.1   # depends on jala_ui
+  jala: ^0.8.2   # depends on jala_ui
 ```
 
 Direct dependency only if you host the inspector yourself:
 
 ```yaml
 dependencies:
-  jala_ui: ^0.8.1
-  jala_core: ^0.8.1
+  jala_ui: ^0.8.2
+  jala_core: ^0.8.2
 ```
 
 ## Setup (via facade)
