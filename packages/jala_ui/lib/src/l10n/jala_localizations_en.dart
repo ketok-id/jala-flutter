@@ -203,7 +203,42 @@ class JalaLocalizationsEn extends JalaLocalizations {
   @override
   String get callDetailImportedNoReplay => "Imported entries can't be replayed";
   @override
+  String get callDetailPending => 'Pending…';
+  @override
+  String get callDetailCancelled => 'Cancelled';
+  @override
+  String get callDetailBinaryBody => '(binary)';
+  @override
+  String get callDetailPrefillMock => 'Prefill a mock rule from this call';
+  @override
+  String get callDetailReplayOf => 'Replay of';
+  @override
+  String callDetailErrorStatus(int? statusCode) =>
+      statusCode == null ? 'Error' : 'Error ($statusCode)';
+  @override
+  String callDetailTransferred(String sent, String received) =>
+      'Sent $sent · Received $received';
+  @override
+  String get sectionGrpcStatus => 'gRPC status';
+  @override
+  String sectionTrailers(int count) => 'Trailers ($count)';
+  @override
+  String get callDetailStreamingNoMessages =>
+      'Response messages are not captured for streaming RPCs. The gRPC '
+      'interceptor cannot read them without taking the subscription your '
+      'app needs — the call itself, its status and its trailers are '
+      'recorded above.';
+  @override
+  String sectionQueryParams(int count) => 'Query parameters ($count)';
+  @override
+  String get sectionSubscriptionPayloads => 'Subscription payloads';
+  @override
+  String callDetailPayloadsTruncated(int shown, int total) =>
+      'Showing last $shown of $total payloads';
+  @override
   String get fieldMethod => 'Method';
+  @override
+  String get fieldPath => 'Path';
   @override
   String get fieldUrl => 'URL';
   @override

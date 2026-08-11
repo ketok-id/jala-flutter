@@ -199,7 +199,44 @@ abstract class JalaLocalizations {
   String get callDetailNoReplayerHint;
   String get callDetailImportedNoResend;
   String get callDetailImportedNoReplay;
+  String get callDetailPending;
+  String get callDetailCancelled;
+  String get callDetailBinaryBody;
+  String get callDetailPrefillMock;
+  String get callDetailReplayOf;
+
+  /// Status line for a failed call; [statusCode] is null when the call never
+  /// got one (connection error, timeout).
+  String callDetailErrorStatus(int? statusCode);
+
+  /// Byte counters for an in-flight or finished transfer. [sent] and
+  /// [received] are already formatted (`1.2 MB`) — byte formatting stays
+  /// unlocalized, see the plan.
+  String callDetailTransferred(String sent, String received);
+
+  // gRPC (Track G). The status *name* (`NOT_FOUND`) and the numeric code are
+  // wire vocabulary and stay English — only the surrounding labels move.
+
+  String get sectionGrpcStatus;
+
+  /// Section header for gRPC trailers, with the count.
+  String sectionTrailers(int count);
+
+  /// Why a streaming RPC has no response body. This is the longest string in
+  /// the UI and the one most likely to overflow — check it on a device.
+  String get callDetailStreamingNoMessages;
+
+  // Query params + subscription payloads.
+
+  /// Section header for the decoded query-parameter table, with the count.
+  String sectionQueryParams(int count);
+
+  String get sectionSubscriptionPayloads;
+
+  /// Shown when the payload ring buffer has evicted older entries.
+  String callDetailPayloadsTruncated(int shown, int total);
   String get fieldMethod;
+  String get fieldPath;
   String get fieldUrl;
   String get fieldStatus;
   String get fieldDuration;

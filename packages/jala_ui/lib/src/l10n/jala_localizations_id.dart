@@ -218,7 +218,42 @@ class JalaLocalizationsId extends JalaLocalizations {
   String get callDetailImportedNoReplay =>
       'Entry hasil impor tidak bisa di-replay';
   @override
+  String get callDetailPending => 'Menunggu…';
+  @override
+  String get callDetailCancelled => 'Dibatalkan';
+  @override
+  String get callDetailBinaryBody => '(biner)';
+  @override
+  String get callDetailPrefillMock => 'Isi rule mock dari call ini';
+  @override
+  String get callDetailReplayOf => 'Replay dari';
+  @override
+  String callDetailErrorStatus(int? statusCode) =>
+      statusCode == null ? 'Error' : 'Error ($statusCode)';
+  @override
+  String callDetailTransferred(String sent, String received) =>
+      'Terkirim $sent · Diterima $received';
+  @override
+  String get sectionGrpcStatus => 'Status gRPC';
+  @override
+  String sectionTrailers(int count) => 'Trailer ($count)';
+  @override
+  String get callDetailStreamingNoMessages =>
+      'Response message tidak ditangkap untuk streaming RPC. Interceptor '
+      'gRPC tidak bisa membacanya tanpa mengambil subscription yang '
+      'dibutuhkan aplikasi — call-nya sendiri, status, dan trailer-nya '
+      'tetap tercatat di atas.';
+  @override
+  String sectionQueryParams(int count) => 'Query parameter ($count)';
+  @override
+  String get sectionSubscriptionPayloads => 'Payload subscription';
+  @override
+  String callDetailPayloadsTruncated(int shown, int total) =>
+      'Menampilkan $shown payload terakhir dari $total';
+  @override
   String get fieldMethod => 'Method';
+  @override
+  String get fieldPath => 'Path';
   @override
   String get fieldUrl => 'URL';
   @override
