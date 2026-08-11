@@ -177,8 +177,7 @@ class JalaLocalizationsId extends JalaLocalizations {
   @override
   String get callDetailCompareTitle => 'Bandingkan call';
   @override
-  String get callDetailNoOtherCalls =>
-      'Tidak ada call lain untuk dibandingkan';
+  String get callDetailNoOtherCalls => 'Tidak ada call lain untuk dibandingkan';
   @override
   String get callDetailTabOverview => 'Ringkasan';
   @override
@@ -204,13 +203,15 @@ class JalaLocalizationsId extends JalaLocalizations {
   @override
   String get callDetailReplayThisCall => 'Replay call ini';
   @override
-  String get callDetailEditAndResendThisCall =>
-      'Edit dan kirim ulang call ini';
+  String get callDetailEditAndResendThisCall => 'Edit dan kirim ulang call ini';
   @override
   String get callDetailNoReplayer => 'Tidak ada replayer terpasang';
   @override
   String get callDetailNoReplayerHint =>
       'Tidak ada replayer terpasang — gunakan JalaDio.attach(dio)';
+  @override
+  String get callDetailImportedNoMock =>
+      'Entry hasil impor tidak bisa dijadikan mock';
   @override
   String get callDetailImportedNoResend =>
       'Entry hasil impor tidak bisa di-edit & dikirim ulang';
@@ -418,11 +419,9 @@ class JalaLocalizationsId extends JalaLocalizations {
   @override
   String get throttleJitter => 'Jitter ± (ms, opsional)';
   @override
-  String get throttleDownload =>
-      'Download KB/s (opsional, tanpa batas jika kosong)';
+  String get throttleDownload => 'Download KB/s (kosong = tanpa batas)';
   @override
-  String get throttleUpload =>
-      'Upload KB/s (opsional, tanpa batas jika kosong)';
+  String get throttleUpload => 'Upload KB/s (kosong = tanpa batas)';
   @override
   String get throttleApply => 'Terapkan profil kustom';
 

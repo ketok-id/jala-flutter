@@ -198,6 +198,9 @@ class JalaLocalizationsEn extends JalaLocalizations {
   String get callDetailNoReplayerHint =>
       'No replayer attached — use JalaDio.attach(dio)';
   @override
+  String get callDetailImportedNoMock =>
+      "Imported entries can't be mocked from";
+  @override
   String get callDetailImportedNoResend =>
       "Imported entries can't be edited & resent";
   @override

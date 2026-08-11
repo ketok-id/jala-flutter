@@ -197,6 +197,7 @@ abstract class JalaLocalizations {
   String get callDetailEditAndResendThisCall;
   String get callDetailNoReplayer;
   String get callDetailNoReplayerHint;
+  String get callDetailImportedNoMock;
   String get callDetailImportedNoResend;
   String get callDetailImportedNoReplay;
   String get callDetailPending;

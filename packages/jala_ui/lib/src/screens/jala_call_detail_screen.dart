@@ -285,7 +285,7 @@ class _JalaCallDetailScreenState extends State<JalaCallDetailScreen>
                         ),
                         Tooltip(
                           message: imported
-                              ? "Imported entries can't be mocked from"
+                              ? l10n.callDetailImportedNoMock
                               : l10n.callDetailPrefillMock,
                           child: TextButton.icon(
                             onPressed: imported
@@ -303,7 +303,7 @@ class _JalaCallDetailScreenState extends State<JalaCallDetailScreen>
                         ),
                         Tooltip(
                           message: imported
-                              ? "Imported entries can't be edited & resent"
+                              ? l10n.callDetailImportedNoResend
                               : (hasReplayer
                                     ? 'Edit and resend this call'
                                     : l10n.callDetailNoReplayer),
@@ -321,7 +321,7 @@ class _JalaCallDetailScreenState extends State<JalaCallDetailScreen>
                         ),
                         Tooltip(
                           message: imported
-                              ? "Imported entries can't be replayed"
+                              ? l10n.callDetailImportedNoReplay
                               : (!hasReplayer
                                     ? 'No replayer attached — use '
                                           'JalaDio.attach(dio)'
