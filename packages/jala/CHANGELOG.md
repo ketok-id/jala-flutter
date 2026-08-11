@@ -32,7 +32,11 @@
 
   See [CONFIG.md](../../docs/CONFIG.md).
 
-## 0.8.1 — 2026-08-11
+## 0.8.1 — not published separately
+
+Prepared and tagged in the repo, then folded into 0.8.2 before it
+reached pub.dev. Everything below shipped **in 0.8.2**; there is no
+0.8.1 on pub.dev.
 
 Android bug-fix release. All four fixes were user-reported and are verified
 on a physical device (Xiaomi, Android 13 / API 33).

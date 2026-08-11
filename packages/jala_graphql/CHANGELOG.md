@@ -4,3 +4,75 @@
   `JalaConfig.locale` and the inspector UI ships in Indonesian — see the
   `jala` and `jala_ui` changelogs.
 
+## 0.8.1 — not published separately
+
+Prepared in the repo, then folded into 0.8.2 before it reached
+pub.dev. Everything below shipped **in 0.8.2**; there is no 0.8.1
+on pub.dev.
+
+- Lockstep release. No changes in this package; see the `jala` and
+  `jala_ui` changelogs for the Android input/back fixes and the new
+  file-backed export destination.
+
+## 0.8.0 — 2026-08-03
+
+### Fixed
+
+- **Response payloads are now redacted.** `Response.data` is a decoded
+  `Map` and was captured as-is, so body redaction applied to GraphQL
+  requests but never to responses — a mutation returning a token stored it
+  in the clear.
+
+## 0.7.0
+
+- The captured endpoint URL goes through `JalaRedactor.redactUri`, masking
+  sensitive query-parameter values on endpoints that carry auth in the URL.
+
+## 0.6.0
+
+- Lockstep release with jala_core 0.6.0 (call diff + import codecs).
+
+## 0.5.3
+
+- Lockstep release with jala_core 0.5.3 security defaults.
+
+## 0.5.2
+
+- Lockstep release; no functional changes.
+
+## 0.5.1
+
+- Pub metadata: `homepage`, `issue_tracker`, clearer description.
+- Docs: stronger double-capture callout (GraphQL link + Dio/http on the
+  same transport).
+
+## 0.5.0
+
+- Subscription payload timeline: every payload delivered on an open
+  subscription is now captured as a `NetworkSubscriptionPayloadEvent`
+  (`seq` incrementing from 0), appended to the entry's `payloads` ring
+  buffer (`JalaConfig.maxSubscriptionPayloads`, default 50) — superseding
+  the v0.4 `{"@subscription": {"payloads": N}}` body convention, which is
+  now removed. The completion response event (first payload as body,
+  `statusMessage: 'subscription completed'`) is unchanged.
+
+## 0.4.0
+
+- Initial release: `JalaGraphQLLink extends Link` — a `gql_link` link that
+  captures every GraphQL operation (query/mutation/subscription) sent
+  through any `gql_link`-based client (`graphql_flutter`, `ferry`).
+- Captures `operationName`/`operationType`, pretty-printed query text,
+  variables (redacted via the shared body-pattern redactor), and the
+  response's `data`/`errors` as standard `NetworkRequestEvent`/
+  `NetworkResponseEvent`/`NetworkErrorEvent`s, with `client: 'graphql'`.
+- GraphQL errors are captured with HTTP status `200` and
+  `statusMessage: 'GraphQL errors'` (transport succeeded; the failure is
+  application-level, per the GraphQL spec).
+- Subscriptions: request event fires on subscribe; a single completion
+  response event fires when the stream closes, using the first payload's
+  body and tagging total payload count as `{"@subscription": {"payloads":
+  N}}` — full payload-by-payload capture is out of scope for v0.4 (see
+  README).
+- Zero-cost passthrough when Jala is disabled; every capture path is
+  wrapped in `try`/`catch` so a capture bug can never break the app's
+  GraphQL flow, mirroring `jala_dio`/`jala_http`'s conventions.
