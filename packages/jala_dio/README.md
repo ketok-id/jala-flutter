@@ -22,8 +22,8 @@ Brownfield: [ADOPTION.md](../../docs/ADOPTION.md).
 
 ```yaml
 dependencies:
-  jala: ^0.8.0
-  jala_dio: ^0.8.0
+  jala: ^0.8.1
+  jala_dio: ^0.8.1
   dio: ^5.0.0
 ```
 

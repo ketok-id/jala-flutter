@@ -1,9 +1,9 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:jala_core/jala_core.dart';
 
+import '../util/clipboard.dart';
 import '../util/format.dart';
 import '../widgets/jala_body_view.dart';
 import '../widgets/jala_headers_table.dart';
@@ -56,11 +56,16 @@ class _JalaCallDetailScreenState extends State<JalaCallDetailScreen>
   }
 
   Future<void> _copy(BuildContext context, String label, String text) async {
-    await Clipboard.setData(ClipboardData(text: text));
+    // Bodies here run to maxBodyBytes (512 KB) and cURL commands embed
+    // them, so this is the copy most likely to exceed the Android
+    // clipboard. Report what actually happened.
+    final bool ok = await jalaCopyToClipboard(text);
     if (!context.mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('Copied $label')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(jalaCopyMessage(ok: ok, label: label, text: text)),
+      ),
+    );
   }
 
   Future<void> _replay(BuildContext context, NetworkCallEntry entry) async {
@@ -709,11 +714,16 @@ class _QueryParamsTable extends StatelessWidget {
   final List<JalaQueryParam> params;
 
   Future<void> _copyValue(BuildContext context, JalaQueryParam param) async {
-    await Clipboard.setData(ClipboardData(text: param.value ?? ''));
+    final String value = param.value ?? '';
+    final bool ok = await jalaCopyToClipboard(value);
     if (!context.mounted) return;
-    ScaffoldMessenger.maybeOf(
-      context,
-    )?.showSnackBar(SnackBar(content: Text('Copied ${param.name}')));
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      SnackBar(
+        content: Text(
+          jalaCopyMessage(ok: ok, label: param.name, text: value),
+        ),
+      ),
+    );
   }
 
   @override

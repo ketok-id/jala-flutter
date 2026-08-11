@@ -41,26 +41,65 @@ class JalaOverlay extends StatelessWidget {
             DefaultMaterialLocalizations.delegate,
             DefaultCupertinoLocalizations.delegate,
           ],
-          child: ListenableBuilder(
-            listenable: Jala.controller,
-            builder: (BuildContext context, Widget? _) {
-              return Stack(
-                fit: StackFit.expand,
-                textDirection: TextDirection.ltr,
-                children: <Widget>[
-                  if (Jala.controller.isOpen)
-                    const Positioned.fill(
-                      child: _JalaInspectorHost(
-                        onClose: Jala.close,
-                      ),
-                    ),
-                  // Hide the bubble while the inspector is open so it does
-                  // not cover list rows / detail actions (user feedback).
-                  if (!Jala.controller.isOpen)
-                    const JalaOverlayButton(onTap: Jala.open),
-                ],
-              );
-            },
+          // Same sibling problem, second instance: `WidgetsApp` is what
+          // normally installs the keyboard shortcut/action chain, and the
+          // whole inspector sits outside it. Mirror WidgetsApp's own
+          // nesting and order — Shortcuts wraps DefaultTextEditingShortcuts
+          // so text editing can fall through to the general bindings.
+          //
+          // Two user-visible bugs came from not having this:
+          //  * Backspace did nothing on Android. The soft delete key arrives
+          //    as a KEYCODE_DEL *key event* there, which needs
+          //    DefaultTextEditingShortcuts to become a DeleteCharacterIntent;
+          //    iOS sends it over the IME channel as an editing-value update,
+          //    which is why iOS looked fine. Affects every field — filter
+          //    bar, throttle host pattern, mock editor, composer.
+          //  * Escape did not dismiss dialogs/sheets, Tab did not traverse,
+          //    and Enter/Space did not activate — those live in
+          //    WidgetsApp.defaultShortcuts. Reachable on any keyboard: web
+          //    demo, Chromebook, Android tablet, desktop.
+          child: Shortcuts(
+            debugLabel: '<Jala inspector shortcuts>',
+            shortcuts: WidgetsApp.defaultShortcuts,
+            child: DefaultTextEditingShortcuts(
+              child: Actions(
+                actions: <Type, Action<Intent>>{
+                  ...WidgetsApp.defaultActions,
+                  // Keyboard scrolling of the call list; overridable exactly
+                  // as WidgetsApp declares it.
+                  ScrollIntent: Action<ScrollIntent>.overridable(
+                    context: context,
+                    defaultAction: ScrollAction(),
+                  ),
+                },
+                // TapRegion is inert without a surface to arbitrate it —
+                // menu/selection-toolbar dismissal depends on it.
+                child: TapRegionSurface(
+                  child: ListenableBuilder(
+                    listenable: Jala.controller,
+                    builder: (BuildContext context, Widget? _) {
+                      return Stack(
+                        fit: StackFit.expand,
+                        textDirection: TextDirection.ltr,
+                        children: <Widget>[
+                          if (Jala.controller.isOpen)
+                            const Positioned.fill(
+                              child: _JalaInspectorHost(
+                                onClose: Jala.close,
+                              ),
+                            ),
+                          // Hide the bubble while the inspector is open so
+                          // it does not cover list rows / detail actions
+                          // (user feedback).
+                          if (!Jala.controller.isOpen)
+                            const JalaOverlayButton(onTap: Jala.open),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       ],
@@ -86,38 +125,12 @@ class _JalaInspectorHost extends StatefulWidget {
   State<_JalaInspectorHost> createState() => _JalaInspectorHostState();
 }
 
-class _JalaInspectorHostState extends State<_JalaInspectorHost>
-    with WidgetsBindingObserver {
-  final GlobalKey<NavigatorState> _navKey = GlobalKey<NavigatorState>();
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  // The inspector lives outside every route, so the system back button
-  // (Android) would otherwise fall through to the host app — popping its
-  // routes or exiting the app while the inspector covers the screen.
-  // While the host is mounted, back pops the inspector's own navigator,
-  // then closes the inspector.
-  @override
-  Future<bool> didPopRoute() async {
-    final NavigatorState? nav = _navKey.currentState;
-    if (nav != null && nav.canPop()) {
-      nav.pop();
-    } else {
-      widget.onClose();
-    }
-    return true;
-  }
-
+class _JalaInspectorHostState extends State<_JalaInspectorHost> {
+  // System back is handled by the observer Jala.initialize() registers, not
+  // here. Registering from this State put Jala *after* the host's
+  // `WidgetsApp` in WidgetsBinding's insertion-ordered observer list, so the
+  // host consumed every back event first and this never ran. The navigator
+  // key therefore lives on `Jala` — the observer outlives this widget.
   @override
   Widget build(BuildContext context) {
     // ScaffoldMessenger is normally provided by MaterialApp, which the
@@ -137,7 +150,7 @@ class _JalaInspectorHostState extends State<_JalaInspectorHost>
           child: JalaThemeScope(
             controller: Jala.themeController,
             child: Navigator(
-              key: _navKey,
+              key: Jala.inspectorNavigatorKey,
               onGenerateRoute: (RouteSettings settings) {
                 return PageRouteBuilder<void>(
                   settings: settings,

@@ -1,9 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:jala_core/jala_core.dart';
 
+import '../export/jala_export_sink.dart';
 import '../theme/jala_theme_controller.dart';
 import '../widgets/jala_call_list_tile.dart';
 import '../widgets/jala_filter_help_sheet.dart';
@@ -152,20 +152,69 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
     }
   }
 
+  /// Delivers [payload] through the active [JalaExportSink] and reports what
+  /// actually happened.
+  ///
+  /// The old code awaited `Clipboard.setData` with no `try`/`catch` and then
+  /// showed a "copied" snackbar unconditionally, so an oversized payload —
+  /// the normal case for a full session export on Android, where the
+  /// clipboard rides a ~1 MB Binder buffer — claimed success while
+  /// delivering nothing. Report the destination and size every time, and
+  /// surface failures instead of swallowing them.
+  Future<void> _deliverExport(
+    BuildContext context, {
+    required String payload,
+    required String fileName,
+    required String successPrefix,
+    String? successSuffix,
+  }) async {
+    final JalaExportOutcome outcome = await JalaExportSink.instance.deliver(
+      payload: payload,
+      fileName: fileName,
+    );
+    if (!context.mounted) return;
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+    if (!outcome.ok) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Export failed (${outcome.sizeLabel} → ${outcome.destination}). '
+            'Too large for the clipboard? Use Jala.enableFileExport() to '
+            'write exports to a file instead.',
+          ),
+          duration: const Duration(seconds: 8),
+        ),
+      );
+      return;
+    }
+    final StringBuffer message = StringBuffer(successPrefix)
+      ..write(' — ${outcome.sizeLabel} → ${outcome.destination}.');
+    if (outcome.isRisky && outcome.destination == 'clipboard') {
+      message.write(
+        ' That is large for a clipboard; if the paste comes out empty or '
+        'truncated, use Jala.enableFileExport().',
+      );
+    }
+    if (successSuffix != null) message.write(' $successSuffix');
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(message.toString()),
+        duration: const Duration(seconds: 6),
+      ),
+    );
+  }
+
   Future<void> _copySessionHar(
     BuildContext context,
     List<NetworkCallEntry> entries,
   ) async {
-    final String har = HarExporter.exportSession(entries);
-    await Clipboard.setData(ClipboardData(text: har));
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Copied HAR for ${entries.length} '
+    await _deliverExport(
+      context,
+      payload: HarExporter.exportSession(entries),
+      fileName: 'jala_session.har',
+      successPrefix:
+          'Exported HAR for ${entries.length} '
           '${entries.length == 1 ? 'call' : 'calls'}',
-        ),
-      ),
     );
   }
 
@@ -176,17 +225,14 @@ class _JalaInspectorScreenState extends State<JalaInspectorScreen> {
   }) async {
     final JalaStore store = JalaBinding.instance.store;
     final int count = store.entries.length;
-    final String json = JalaSessionCodec.encode(store, options: options);
-    await Clipboard.setData(ClipboardData(text: json));
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
+    await _deliverExport(
+      context,
+      payload: JalaSessionCodec.encode(store, options: options),
+      fileName: 'jala_session.json',
+      successPrefix:
           'Exported session ($modeLabel) — $count '
-          '${count == 1 ? 'entry' : 'entries'} copied. '
-          'May contain personal data; share carefully.',
-        ),
-      ),
+          '${count == 1 ? 'entry' : 'entries'}',
+      successSuffix: 'May contain personal data; share carefully.',
     );
   }
 
@@ -637,7 +683,17 @@ class _EmptyState extends StatelessWidget {
               color: Theme.of(context).colorScheme.outline,
             ),
             const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center),
+            // Clamped because the message embeds the user's filter text
+            // verbatim, and that is not length-bounded — pasting a session
+            // JSON into the filter field (a thing testers actually do, since
+            // the export puts one on the clipboard) overflowed this Column
+            // by hundreds of pixels.
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
+            ),
           ],
         ),
       ),

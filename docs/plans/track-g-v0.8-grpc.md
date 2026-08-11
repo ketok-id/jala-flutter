@@ -172,7 +172,7 @@ Covered by 8 widget tests across `jala_call_list_tile_test` and
 RPC is not coloured the same as a successful one, and that a non-gRPC entry
 grows no trailers section.
 
-## G4. Example, smoke, release — 🚧 example done, smoke + release pending
+## G4. Example, smoke, release — ✅ DONE (shipped 0.8.0, 2026-08-04)
 
 - ✅ `examples/jala_example`: a gRPC panel with four buttons (unary OK,
   unary NOT_FOUND, redaction check, streaming). It drives the **real**
@@ -180,20 +180,21 @@ grows no trailers section.
   fabricating events, so the rig exercises the adapter itself — and needs
   no server, so it works offline and in CI. Four widget tests assert the
   captured entries.
-- ⬜ **On-device smoke** per the standing rule. Cannot be automated: needs a
-  real device or simulator and a human looking at the inspector. Check the
-  gRPC tile presentation (kind chip, status name, error colour), the
-  trailers section, and the streaming note.
+- ✅ **On-device smoke** per the standing rule, on the Xiaomi (2026-08-04):
+  gRPC tile presentation (kind chip, status name, error colour), trailers
+  section and streaming note all check out. track_e, track_d and track_b
+  passed in the same pass — track_b needed an assertion fix first, its
+  `find.text('/__down')` having rotted in 0.5.2 when the tile title gained
+  the query string. Integration smokes never run in CI, so they rot silently.
 - ✅ **gRPC-web** verified structurally: interceptors are applied by
   `Client`, above the channel, so the transport underneath is irrelevant.
   Covered by the "wiring through Client" tests, which drive a real `Client`
   over a substitute channel. The grpc-web transport itself cannot run on the
   VM (`xhr_transport.dart` imports `dart:js_interop` / `package:web`).
-- ⬜ **Release**: lockstep 0.8.0 across all eight packages (`jala_grpc`'s
-  pubspec still carries the 0.7.0 lockstep placeholder), every
-  `## Unreleased` heading retitled, `docs/COMPAT.md` and `docs/ROADMAP.md`
-  updated, `dart pub publish --dry-run` clean, then assign `jala_grpc` to
-  the `ketok.id` publisher after first publish.
+- ✅ **Release**: lockstep 0.8.0 across all eight packages, CHANGELOGs
+  retitled, `docs/COMPAT.md` and `docs/ROADMAP.md` updated, dry-run clean on
+  all eight, published 2026-08-04, and `jala_grpc` assigned to the
+  `ketok.id` publisher.
 
 ## Open questions to settle before G2
 
@@ -209,8 +210,14 @@ grows no trailers section.
    fragile**: only `ClientConnection.dispatchCall` needs a `dynamic` call
    against unexported internals. The v1 decision is unchanged; the reason is
    "fragile and a bigger integration ask", not "cannot".
-2. gRPC-web: `GrpcWebClientChannel` uses the same `Client` interceptor
-   path, so it should work unchanged — **still unverified**, and the one
-   claim in the README that rests on reasoning rather than a test.
+2. ~~gRPC-web: `GrpcWebClientChannel` uses the same `Client` interceptor
+   path, so it should work unchanged — still unverified, the one claim in
+   the README that rests on reasoning rather than a test.~~ **Answered:
+   verified structurally.** Interceptors are applied by `Client`, above the
+   channel, so the transport underneath is irrelevant; the "wiring through
+   `Client`" tests drive a real `Client` over a substitute channel. The
+   grpc-web transport itself still cannot run on the VM
+   (`xhr_transport.dart` imports `dart:js_interop` / `package:web`), so an
+   end-to-end grpc-web test would have to be a web integration test.
 3. ~~Trailers in `responseHeaders`: merged, or separate?~~ **Answered in
    G1: separate field.**

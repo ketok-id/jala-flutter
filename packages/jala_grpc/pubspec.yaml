@@ -3,7 +3,7 @@ description: >
   gRPC ClientInterceptor for Jala: unary and streaming RPC capture with
   service/method, messages, status codes and trailers. Capture only —
   mocking and throttling do not apply to gRPC.
-version: 0.8.0
+version: 0.8.1
 homepage: https://github.com/ketok-id/jala-flutter
 repository: https://github.com/ketok-id/jala-flutter
 issue_tracker: https://github.com/ketok-id/jala-flutter/issues
@@ -20,7 +20,7 @@ resolution: workspace
 
 dependencies:
   grpc: ^5.1.0
-  jala_core: ^0.8.0
+  jala_core: ^0.8.1
 
 dev_dependencies:
   lints: ^6.0.0

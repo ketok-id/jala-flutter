@@ -1,10 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:jala_core/jala_core.dart';
 
 import '../theme/jala_theme.dart';
+import '../util/clipboard.dart';
 import '../util/format.dart';
 import '../widgets/jala_json_tree.dart';
 import '../widgets/jala_themed_page.dart';
@@ -51,11 +51,13 @@ class _JalaWsDetailScreenState extends State<JalaWsDetailScreen> {
   }
 
   Future<void> _copy(BuildContext context, String label, String text) async {
-    await Clipboard.setData(ClipboardData(text: text));
+    final bool ok = await jalaCopyToClipboard(text);
     if (!context.mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('Copied $label')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(jalaCopyMessage(ok: ok, label: label, text: text)),
+      ),
+    );
   }
 
   String _summaryJson(WsConnectionEntry entry) {
@@ -389,7 +391,14 @@ class _EmptyFrames extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
-        child: Text(message, textAlign: TextAlign.center),
+        // Same clamp as the inspector's empty state: this message embeds the
+        // frame filter verbatim, which is not length-bounded.
+        child: Text(
+          message,
+          textAlign: TextAlign.center,
+          maxLines: 4,
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
     );
   }

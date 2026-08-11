@@ -35,8 +35,11 @@ Future<void> main() async {
   try {
     final dir = await getApplicationSupportDirectory();
     await Jala.enableMockPersistence(dir.path);
+    // Session/HAR exports go to a file rather than the clipboard, which on
+    // Android tops out around 1 MB and cannot hold a full session anyway.
+    Jala.enableFileExport(dir.path);
   } on Object {
-    // Web / unsupported platforms keep in-memory mocks only.
+    // Web / unsupported platforms keep in-memory mocks and clipboard export.
   }
   final Dio dio = Dio(
     BaseOptions(

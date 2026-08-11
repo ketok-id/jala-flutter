@@ -35,6 +35,8 @@ Common “it doesn’t show up” cases. Architecture background:
 | Duplicate GraphQL + HTTP rows | Dio/http + GraphQL link both capturing | Prefer `JalaGraphQLLink` only for that transport ([ADOPTION.md](ADOPTION.md)) |
 | Works in debug, empty in release QA | Default `enabled: kDebugMode` | Internal flavor: `JalaConfig(enabled: true)` + privacy review |
 | Download arrives all at once under Dio throttle | Buffered response types can't be delivered progressively | Expected: total time still honors the cap; use `ResponseType.stream` for per-chunk pacing |
+| Throttling has no effect at all | The traffic isn't going through an attached client, or a host pattern excludes it | [THROTTLE.md](THROTTLE.md) — scope table and troubleshooting |
+| Export says it copied but the paste is empty | Payload exceeded the Android clipboard limit (~1 MB Binder buffer) | Jala now reports the failure; use `Jala.enableFileExport(dir)` to write exports to a file instead |
 | Replay greyed out with a "truncated" tooltip | Request body hit `maxBodyBytes`; only a prefix was kept | Use **Edit & resend** to supply the full body, or raise `maxBodyBytes` |
 | WebSocket not affected by Slow 3G | By design | Throttle is HTTP-only |
 | gRPC not throttled or mocked | By design | `ClientInterceptor` can't fabricate or delay a response — [jala_grpc](../packages/jala_grpc) |

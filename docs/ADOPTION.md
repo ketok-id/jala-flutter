@@ -34,8 +34,8 @@ never need on-device inspection, you may not need Jala. That’s fine.
 
 ```yaml
 dependencies:
-  jala: ^0.8.0
-  jala_dio: ^0.8.0
+  jala: ^0.8.1
+  jala_dio: ^0.8.1
   # dio: you already have this
 ```
 
@@ -89,7 +89,7 @@ migration.
 
 ## Which packages do I need?
 
-Install **only** what you use. All versions lockstep at `^0.8.0`.
+Install **only** what you use. All versions lockstep at `^0.8.1`.
 
 | You use… | Add | Setup |
 |---|---|---|
@@ -361,6 +361,40 @@ optional host glob (`*.example.com`).
 5. Imported rows: Replay / Mock / Edit disabled (expected).  
 6. **Clear** on the import banner returns to live capture.
 
+#### Where the export goes
+
+By default an export is **copied to the clipboard** — there is no file
+unless you ask for one. The snackbar names the destination and the payload
+size every time.
+
+That default has a hard ceiling on Android: the system clipboard rides the
+Binder transaction buffer (~1 MB, shared process-wide), and a full session
+export with bodies clears it routinely. Past that the copy fails — and
+there is nowhere to paste 5 MB of JSON on a phone anyway. Route exports to
+a file instead:
+
+```dart
+final dir = await getApplicationDocumentsDirectory(); // path_provider
+Jala.enableFileExport(dir.path);
+```
+
+Exports then land in `{dir}/jala_session-{timestamp}.json` (or `.har`),
+which a tester can pull off the device:
+
+```bash
+adb exec-out run-as com.example.app cat \
+  files/jala_session-2026-08-11T09-14-22-101.json > session.json
+```
+
+Plaintext, including whatever survived redaction — **internal builds
+only**, same posture as mock persistence. See [SECURITY.md](SECURITY.md).
+`Jala.disableFileExport()` restores the clipboard. On web, file export
+reports an error rather than silently doing nothing.
+
+Formats: session JSON (`JalaSessionCodec`), HAR 1.2 (the AppBar share
+icon), and cURL for a single call. All three import back through the
+overflow menu.
+
 Programmatic:
 
 ```dart
@@ -456,7 +490,7 @@ Full table and deep dives: **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)**.
 ```text
 Add Jala (in-app network inspector) for debug/QA.
 
-- jala + jala_dio ^0.8.0
+- jala + jala_dio ^0.8.1
 - installJala() in debug bootstrap; JalaOverlay at root
 - Attach primary Dio (and list any secondary clients)
 - Default enabled: kDebugMode (no-op in store release)

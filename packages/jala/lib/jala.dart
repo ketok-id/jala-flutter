@@ -13,6 +13,7 @@ library;
 export 'package:jala_core/jala_core.dart';
 export 'package:jala_ui/jala_ui.dart';
 
+export 'src/file_export_sink.dart';
 export 'src/file_jala_mock_store.dart';
 export 'src/jala.dart';
 export 'src/jala_overlay.dart';

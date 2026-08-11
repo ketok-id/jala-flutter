@@ -1,3 +1,26 @@
+## 0.8.1 — 2026-08-11
+
+### Fixed
+
+- **Exports and copies reported success even when they had failed.** Every
+  action awaited `Clipboard.setData` with no error handling and then showed
+  "Copied …" unconditionally. On Android the clipboard rides the Binder
+  transaction buffer (~1 MB, shared process-wide), so a session export or a
+  large response body silently delivered nothing while the UI claimed it had
+  worked — the reported "export doesn't do anything" symptom. Snackbars now
+  name the destination and size, and surface real failures.
+- **Long filter text overflowed the empty state.** "No calls match …"
+  echoes the filter verbatim and was unbounded, so pasting a session export
+  into the filter field overflowed the layout by hundreds of pixels. The
+  echo is now clamped, in both the call list and the WebSocket frame list.
+
+### Added
+
+- `JalaExportSink` / `JalaExportOutcome` / `JalaClipboardExportSink` — the
+  export destination is now swappable; `package:jala` ships a file-backed
+  implementation.
+- `jalaCopyToClipboard` / `jalaCopyMessage` helpers.
+
 ## 0.8.0 — 2026-08-03
 
 ### Fixed

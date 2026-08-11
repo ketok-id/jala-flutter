@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+
+import '../util/clipboard.dart';
 
 /// Renders a header map as stacked name/value pairs with search, collapse of
 /// common noise headers, and a collapsed "Sensitive" group (cookie / auth).
@@ -242,10 +243,12 @@ class _HeaderPair extends StatelessWidget {
   final Color onSurfaceVariant;
 
   Future<void> _copyValue(BuildContext context) async {
-    await Clipboard.setData(ClipboardData(text: value));
+    final bool ok = await jalaCopyToClipboard(value);
     if (!context.mounted) return;
     ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-      SnackBar(content: Text('Copied $name')),
+      SnackBar(
+        content: Text(jalaCopyMessage(ok: ok, label: name, text: value)),
+      ),
     );
   }
 
