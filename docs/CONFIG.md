@@ -89,6 +89,39 @@ prose around it is translated.
 
 ---
 
+## Socket-level throttling
+
+By default, throttling only reaches clients Jala was attached to. To cover
+**all `dart:io` traffic** — `Image.network`, unattached `Dio` instances, raw
+`HttpClient`s:
+
+```dart
+Jala.initialize(config: JalaConfig(enabled: kDebugMode));
+Jala.enableSocketThrottling();   // never wired from initialize
+```
+
+| API | Effect |
+|---|---|
+| `Jala.enableSocketThrottling()` | Installs `HttpOverrides.global`; returns false on web or when Jala is disabled |
+| `Jala.disableSocketThrottling()` | Restores the previous overrides |
+| `Jala.isSocketThrottlingEnabled` | Current state |
+
+**Opt-in on purpose.** `HttpOverrides.global` changes `HttpClient()`
+construction for the whole process, including code that never asked for
+Jala, so it is never wired from `initialize`. Existing overrides are chained
+rather than replaced.
+
+While active the adapters stand down and the socket layer owns all latency,
+drops and pacing — running both would charge every call twice.
+
+**Two caveats.** Setting a `connectionFactory` disables `HttpClient`'s own
+TLS setup, so Jala secures direct HTTPS itself; a custom `SecurityContext`
+or `badCertificateCallback` on the host's client is not visible to it and
+will not be applied. And on web there is no `dart:io`, so this is a no-op
+and the adapter path stays in charge.
+
+Details and limits: [THROTTLE.md](THROTTLE.md).
+
 ## Redaction model
 
 Redaction runs in **adapters before data enters `JalaStore`**. There is

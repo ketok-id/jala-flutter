@@ -44,6 +44,7 @@ class _JalaThrottleScreenState extends State<JalaThrottleScreen> {
   /// `null` = Off, a preset's [JalaThrottleProfile.id], or [_customId].
   String? _selection;
   double _dropPercent = 0;
+  double _midStreamDropPercent = 0;
 
   JalaThrottleRegistry get _registry => JalaBinding.instance.throttleRegistry;
 
@@ -80,6 +81,8 @@ class _JalaThrottleScreenState extends State<JalaThrottleScreen> {
           : '',
     );
     _dropPercent = seedFromCustom ? active.dropRate * 100 : 0;
+    _midStreamDropPercent =
+        seedFromCustom ? active.midStreamDropRate * 100 : 0;
   }
 
   @override
@@ -132,6 +135,7 @@ class _JalaThrottleScreenState extends State<JalaThrottleScreen> {
           ? null
           : uploadKBps * 1024,
       dropRate: (_dropPercent / 100).clamp(0.0, 1.0),
+      midStreamDropRate: (_midStreamDropPercent / 100).clamp(0.0, 1.0),
     );
     setState(() => _selection = _customId);
     _registry.setActive(custom, hostPattern: _hostPattern);
@@ -176,6 +180,15 @@ class _JalaThrottleScreenState extends State<JalaThrottleScreen> {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: <Widget>[
+              // States what the active mode actually covers. "I set Slow 3G
+              // and my images still load instantly" is the most common
+              // confusion about this feature, and it reads as a bug rather
+              // than a scope limit unless the screen says so (Track I, I3).
+              _ScopeNote(
+                socketMode: JalaBinding.instance.throttleRegistry
+                    .socketModeActive,
+              ),
+              const SizedBox(height: 8),
               RadioListTile<String?>(
                 value: null,
                 title: Text(l10n.throttleOff),
@@ -203,6 +216,9 @@ class _JalaThrottleScreenState extends State<JalaThrottleScreen> {
                   dropPercent: _dropPercent,
                   onDropPercentChanged: (double v) =>
                       setState(() => _dropPercent = v),
+                  midStreamDropPercent: _midStreamDropPercent,
+                  onMidStreamDropPercentChanged: (double v) =>
+                      setState(() => _midStreamDropPercent = v),
                   onApply: _applyCustom,
                 ),
               ],
@@ -231,6 +247,8 @@ class _CustomEditor extends StatelessWidget {
     required this.downloadController,
     required this.uploadController,
     required this.dropPercent,
+    required this.midStreamDropPercent,
+    required this.onMidStreamDropPercentChanged,
     required this.onDropPercentChanged,
     required this.onApply,
   });
@@ -240,6 +258,8 @@ class _CustomEditor extends StatelessWidget {
   final TextEditingController downloadController;
   final TextEditingController uploadController;
   final double dropPercent;
+  final double midStreamDropPercent;
+  final ValueChanged<double> onMidStreamDropPercentChanged;
   final ValueChanged<double> onDropPercentChanged;
   final VoidCallback onApply;
 
@@ -313,12 +333,75 @@ class _CustomEditor extends StatelessWidget {
               onChanged: onDropPercentChanged,
             ),
             const SizedBox(height: 8),
+            Text(
+              l10n.throttleMidStreamDropRate(midStreamDropPercent.round()),
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
+            Slider(
+              value: midStreamDropPercent,
+              max: 100,
+              divisions: 20,
+              label: '${midStreamDropPercent.round()}%',
+              onChanged: onMidStreamDropPercentChanged,
+            ),
+            Text(
+              l10n.throttleMidStreamDropHelp,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 8),
             FilledButton(
               onPressed: onApply,
               child:  Text(l10n.throttleApply),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Explains the reach of the active throttle mode.
+class _ScopeNote extends StatelessWidget {
+  const _ScopeNote({required this.socketMode});
+
+  final bool socketMode;
+
+  @override
+  Widget build(BuildContext context) {
+    final JalaLocalizations l10n = JalaLocalizations.of(context);
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final Color bg = socketMode
+        ? scheme.secondaryContainer
+        : scheme.surfaceContainerHighest;
+    final Color fg = socketMode
+        ? scheme.onSecondaryContainer
+        : scheme.onSurfaceVariant;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Icon(
+            socketMode ? Icons.lan_outlined : Icons.info_outline,
+            size: 18,
+            color: fg,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              socketMode ? l10n.throttleScopeSocket : l10n.throttleScopeAdapter,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: fg),
+            ),
+          ),
+        ],
       ),
     );
   }

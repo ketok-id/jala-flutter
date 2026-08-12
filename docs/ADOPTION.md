@@ -348,6 +348,12 @@ optional host glob (`*.example.com`).
 - gRPC: not throttled and never mocked — `ClientInterceptor` cannot
   fabricate or delay a response ([jala_grpc](../packages/jala_grpc)).
 
+**Wider reach:** `Jala.enableSocketThrottling()` moves pacing down to the
+socket so `Image.network`, unattached clients and raw `HttpClient`s obey the
+profile too, and adds `midStreamDropRate` for connections that die partway
+through a download. Opt-in, `dart:io` only — [CONFIG.md](CONFIG.md),
+[THROTTLE.md](THROTTLE.md).
+
 ### Session share (QA → eng)
 
 1. QA reproduces the bug with Jala open.  

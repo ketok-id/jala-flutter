@@ -36,6 +36,9 @@ Common “it doesn’t show up” cases. Architecture background:
 | Works in debug, empty in release QA | Default `enabled: kDebugMode` | Internal flavor: `JalaConfig(enabled: true)` + privacy review |
 | Download arrives all at once under Dio throttle | Buffered response types can't be delivered progressively | Expected: total time still honors the cap; use `ResponseType.stream` for per-chunk pacing |
 | Throttling has no effect at all | The traffic isn't going through an attached client, or a host pattern excludes it | [THROTTLE.md](THROTTLE.md) — scope table and troubleshooting |
+| `Image.network` ignores the throttle | Adapter-level throttling only reaches attached clients | `Jala.enableSocketThrottling()` — [CONFIG.md](CONFIG.md) |
+| HTTPS fails after enabling socket throttling | A custom `SecurityContext` / `badCertificateCallback` is not visible to the connection factory | Don't enable socket throttling in that app — [CONFIG.md](CONFIG.md) |
+| Throttle profile set but downloads still complete | `dropRate` only fires at connect | Use `midStreamDropRate` to kill established connections partway |
 | Export says it copied but the paste is empty | Payload exceeded the Android clipboard limit (~1 MB Binder buffer) | Jala now reports the failure; use `Jala.enableFileExport(dir)` to write exports to a file instead |
 | Replay greyed out with a "truncated" tooltip | Request body hit `maxBodyBytes`; only a prefix was kept | Use **Edit & resend** to supply the full body, or raise `maxBodyBytes` |
 | WebSocket not affected by Slow 3G | By design | Throttle is HTTP-only |

@@ -242,6 +242,20 @@ class JalaLocalizationsEn extends JalaLocalizations {
   @override
   String throttleDropRate(int percent) => 'Drop rate: $percent%';
   @override
+  String throttleMidStreamDropRate(int percent) =>
+      'Drop mid-download: $percent%';
+  @override
+  String get throttleMidStreamDropHelp =>
+      'Kills connections that already established, partway through the '
+      'response. Long transfers die; short ones complete.';
+  @override
+  String get throttleScopeAdapter =>
+      'Covers attached clients only — Image.network and unattached clients '
+      'are unaffected.';
+  @override
+  String get throttleScopeSocket =>
+      'Covers all dart:io traffic, including Image.network.';
+  @override
   String get bodyStreamOnly => 'Stream — metadata only, body not captured';
   @override
   String bodyBinaryOnly(String size) =>

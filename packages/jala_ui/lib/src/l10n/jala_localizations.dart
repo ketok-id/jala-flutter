@@ -237,6 +237,18 @@ abstract class JalaLocalizations {
   /// Drop-rate slider label; [percent] is 0-100.
   String throttleDropRate(int percent);
 
+  /// Mid-stream drop slider label; [percent] is 0-100.
+  String throttleMidStreamDropRate(int percent);
+
+  /// Explains what mid-stream drop does, under its slider.
+  String get throttleMidStreamDropHelp;
+
+  /// Banner: throttling only covers clients Jala was attached to.
+  String get throttleScopeAdapter;
+
+  /// Banner: throttling covers all `dart:io` traffic.
+  String get throttleScopeSocket;
+
   // Body view.
   String get bodyStreamOnly;
 
