@@ -76,19 +76,28 @@ class JalaThrottledSocket extends StreamView<Uint8List> implements Socket {
         registry.activeProfile?.downloadBytesPerSec,
       );
       if (delay > Duration.zero) await Future<void>.delayed(delay);
-      yield chunk;
-      seen += chunk.length;
 
-      // Bytes already delivered stay delivered — a connection dying
-      // mid-transfer does not un-send what arrived, and the app's partial
-      // handling is exactly what this is here to exercise.
-      if (failAt != null && seen >= failAt) {
+      // Cut the chunk at the failure point rather than delivering it whole
+      // and failing afterwards. Chunk sizes are a property of the OS and the
+      // link — on a fast loopback a 1 MiB response can arrive in one piece —
+      // so failing only on a chunk boundary would deliver the entire body
+      // before "dying mid-stream", which is not the failure being simulated.
+      // Bytes up to the cut stay delivered: a dying connection does not
+      // un-send what already arrived, and that partial state is the point.
+      if (failAt != null && seen + chunk.length >= failAt) {
+        final int remaining = failAt - seen;
+        if (remaining > 0) {
+          yield Uint8List.sublistView(chunk, 0, remaining);
+        }
         inner.destroy();
         throw SocketException(
           'Jala throttle: connection dropped mid-stream by profile '
-          '"${registry.activeProfile?.id ?? '?'}" after $seen bytes',
+          '"${registry.activeProfile?.id ?? '?'}" after $failAt bytes',
         );
       }
+
+      yield chunk;
+      seen += chunk.length;
     }
   }
 

@@ -411,6 +411,13 @@ void main() {
         reason: 'bytes delivered before the failure stay delivered — that '
             'partial state is what this feature exists to exercise',
       );
+      // Deterministic regardless of chunking: the stream is cut at the
+      // failure offset, which always lands inside the 8 KB..512 KB window.
+      // CI caught this — on Linux loopback the whole 1 MiB arrived as one
+      // chunk, so an implementation that only failed on chunk boundaries
+      // delivered everything before "failing".
+      expect(received, greaterThanOrEqualTo(8 * 1024));
+      expect(received, lessThan(512 * 1024));
       expect(received, lessThan(64 * 16 * 1024), reason: 'it did not finish');
       await registry.dispose();
     });
