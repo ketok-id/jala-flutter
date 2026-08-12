@@ -94,6 +94,29 @@ class JalaThrottleRegistry {
     return _random.nextDouble() < profile.dropRate;
   }
 
+  /// Byte offset at which an established connection should die, or null to
+  /// let it complete.
+  ///
+  /// Rolled **once per connection** rather than per chunk: a per-chunk roll
+  /// would compound, so a 10% rate across a hundred chunks would fail every
+  /// time. Rolled once, the rate means what it says.
+  ///
+  /// When it fires the offset lands in the first 512 KB, so long transfers
+  /// die partway while short ones finish — which is also how a real flaky
+  /// link behaves. Always null when off.
+  int? midStreamFailureAt() {
+    final JalaThrottleProfile? profile = activeProfile;
+    if (profile == null) return null;
+    final double rate = profile.midStreamDropRate;
+    if (rate <= 0) return null;
+    if (rate < 1 && _random.nextDouble() >= rate) return null;
+    return _minMidStreamFailureBytes +
+        _random.nextInt(_maxMidStreamFailureBytes - _minMidStreamFailureBytes);
+  }
+
+  static const int _minMidStreamFailureBytes = 8 * 1024;
+  static const int _maxMidStreamFailureBytes = 512 * 1024;
+
   /// The artificial latency to wait before a throttled call proceeds:
   /// `latencyMs` plus a random jitter within `±jitterMs`, clamped so the
   /// result is never negative. Zero when off.

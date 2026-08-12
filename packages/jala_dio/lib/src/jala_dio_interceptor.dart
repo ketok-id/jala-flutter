@@ -114,7 +114,11 @@ class JalaDioInterceptor extends Interceptor {
     try {
       final JalaThrottleRegistry throttle = binding.throttleRegistry;
       final JalaThrottleProfile? profile = throttle.activeProfile;
-      if (profile != null && throttle.hostMatches(options.uri.host)) {
+      // Socket mode replaces this path rather than coordinating with
+      // it — running both charges every call twice.
+      if (profile != null &&
+          !throttle.socketModeActive &&
+          throttle.hostMatches(options.uri.host)) {
         throttledBy = profile.id;
         options.extra[_throttleDownloadBpsExtraKey] = profile.downloadBytesPerSec;
         shouldDrop = throttle.shouldDrop();

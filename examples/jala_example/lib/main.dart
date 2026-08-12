@@ -52,6 +52,13 @@ Future<void> main() async {
   } on Object {
     // Web / unsupported platforms keep in-memory mocks and clipboard export.
   }
+  // Track I: socket-level throttling, so Image.network and unattached
+  // clients obey a profile too.  flutter run --dart-define=JALA_SOCKET=1
+  if (const bool.fromEnvironment('JALA_SOCKET')) {
+    final bool ok = Jala.enableSocketThrottling();
+    debugPrint('[jala] socket throttling installed: $ok');
+  }
+
   final Dio dio = Dio(
     BaseOptions(
       connectTimeout: const Duration(seconds: 15),

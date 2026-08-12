@@ -16,7 +16,7 @@ import 'dart:typed_data';
 // the web stub under analysis, so the real `dart:io` one comes from the
 // direct src import below.
 import 'package:jala_core/jala_core.dart' hide JalaSocketThrottle;
-import 'package:jala_core/src/throttle/jala_socket_throttle_io.dart';
+import 'package:jala_core/jala_socket_throttle_io.dart';
 import 'package:test/test.dart';
 
 /// Server that pushes [chunks] x [chunkSize] bytes then closes.
@@ -29,11 +29,18 @@ Future<ServerSocket> _pushServer({
     0,
   );
   server.listen((Socket socket) async {
-    for (int i = 0; i < chunks; i++) {
-      socket.add(Uint8List(chunkSize));
+    // A client that vanishes mid-transfer — which the mid-stream failure
+    // test does deliberately — makes these writes fail with a broken pipe.
+    // That is the scenario, not a defect, so the server absorbs it.
+    try {
+      for (int i = 0; i < chunks; i++) {
+        socket.add(Uint8List(chunkSize));
+      }
+      await socket.flush();
+      await socket.close();
+    } on Object {
+      socket.destroy();
     }
-    await socket.flush();
-    await socket.close();
   });
   return server;
 }
@@ -227,6 +234,230 @@ void main() {
         reason: 'a disabled binding must make every read a true no-op',
       );
       await off.dispose();
+    });
+  });
+
+  group('TLS (regression: connectionFactory disables HttpClient TLS)', () {
+    test('an https URL yields a secured socket, not a plain one', () async {
+      // Setting connectionFactory bypasses HttpClient's own
+      // SecureSocket.startConnect, so the factory must secure direct HTTPS
+      // itself. Returning a plain socket sent cleartext to a TLS port and the
+      // server reset the connection — seen on device as
+      // "HttpException: Connection reset by peer".
+      final JalaThrottleRegistry registry = JalaThrottleRegistry()
+        ..setActive(
+          const JalaThrottleProfile(id: 't', name: 't', latencyMs: 0),
+        );
+
+      final factory = JalaSocketThrottle.connectionFactory(registry);
+      final ConnectionTask<Socket> task = await factory(
+        Uri.parse('https://example.com/'),
+        null,
+        null,
+      );
+      final Socket socket = await task.socket;
+
+      expect(socket, isA<JalaThrottledSocket>());
+      expect(
+        (socket as JalaThrottledSocket).innerForTesting,
+        isA<SecureSocket>(),
+        reason: 'direct https must be TLS-secured by the factory',
+      );
+      socket.destroy();
+      await registry.dispose();
+    }, tags: <String>['network']);
+
+    test('an http URL stays a plain socket', () async {
+      final ServerSocket server = await _pushServer(chunks: 1, chunkSize: 8);
+      addTearDown(server.close);
+
+      final JalaThrottleRegistry registry = JalaThrottleRegistry()
+        ..setActive(
+          const JalaThrottleProfile(id: 't', name: 't', latencyMs: 0),
+        );
+
+      final factory = JalaSocketThrottle.connectionFactory(registry);
+      final ConnectionTask<Socket> task = await factory(
+        Uri.parse('http://${server.address.host}:${server.port}/'),
+        null,
+        null,
+      );
+      final Socket socket = await task.socket;
+
+      expect(
+        (socket as JalaThrottledSocket).innerForTesting,
+        isNot(isA<SecureSocket>()),
+      );
+      socket.destroy();
+      await registry.dispose();
+    });
+  });
+
+  test('an out-of-scope https host is still TLS-secured', () async {
+    // The factory is installed process-wide, so it must return a usable
+    // socket even for hosts it does not throttle. An earlier version
+    // short-circuited to a plain Socket here, which broke every https
+    // request in the app whenever socket mode was on.
+    final JalaThrottleRegistry registry = JalaThrottleRegistry()
+      ..setActive(
+        JalaThrottleProfile.slow3g,
+        hostPattern: 'nothing.matches.this',
+      );
+
+    final factory = JalaSocketThrottle.connectionFactory(registry);
+    final ConnectionTask<Socket> task = await factory(
+      Uri.parse('https://example.com/'),
+      null,
+      null,
+    );
+    final Socket socket = await task.socket;
+
+    expect(socket, isNot(isA<JalaThrottledSocket>()), reason: 'not decorated');
+    expect(socket, isA<SecureSocket>(), reason: 'but still secured');
+    socket.destroy();
+    await registry.dispose();
+  }, tags: <String>['network']);
+
+  test('applies real TCP backpressure, not just delay-after-arrival', () async {
+    // Proves the pacing is not cosmetic. A sender writing far more than the
+    // socket buffers can hold only finishes quickly if the reader is
+    // draining quickly; if the reader stalls, the receive window closes and
+    // the sender blocks. Measured at ~380ms for 8 MiB here, against ~4ms
+    // when the payload fits entirely in buffers.
+    // Must exceed the OS socket buffers, which on loopback are large — at
+    // 512 KB the sender finished in 4ms because everything fit.
+    const int total = 8 * 1024 * 1024;
+    final Completer<int> senderElapsed = Completer<int>();
+
+    final ServerSocket server = await ServerSocket.bind(
+      InternetAddress.loopbackIPv4,
+      0,
+    );
+    addTearDown(server.close);
+    server.listen((Socket socket) async {
+      final Stopwatch sw = Stopwatch()..start();
+      socket.add(Uint8List(total));
+      await socket.flush();
+      sw.stop();
+      senderElapsed.complete(sw.elapsedMilliseconds);
+      await socket.close();
+    });
+
+    final JalaThrottleRegistry registry = JalaThrottleRegistry()
+      ..setActive(
+        const JalaThrottleProfile(
+          id: 'bp',
+          name: 'bp',
+          latencyMs: 0,
+          // 8 MiB at 2 MiB/s ~= 4s of pacing.
+          downloadBytesPerSec: 2 * 1024 * 1024,
+        ),
+      );
+
+    final Socket raw = await Socket.connect(server.address, server.port);
+    final JalaThrottledSocket wrapped = JalaThrottledSocket(raw, registry);
+
+    final int received = await wrapped
+        .fold<int>(0, (int n, Uint8List d) => n + d.length);
+    final int senderMs = await senderElapsed.future;
+
+    expect(received, total, reason: 'every byte still arrives');
+    expect(
+      senderMs,
+      greaterThan(500),
+      reason: 'the SENDER must be slowed. Delay-after-arrival would let it '
+          'dump $total bytes into the buffer and finish near-instantly; '
+          'only pausing the subscription pushes back on the peer.',
+    );
+    await registry.dispose();
+  });
+
+  group('mid-stream failure', () {
+    test('dies partway through a long transfer, keeping bytes already sent',
+        () async {
+      final ServerSocket server = await _pushServer(
+        chunks: 64,
+        chunkSize: 16 * 1024, // 1 MiB total, well past the 512 KB fail window
+      );
+      addTearDown(server.close);
+
+      final JalaThrottleRegistry registry = JalaThrottleRegistry()
+        ..setActive(
+          const JalaThrottleProfile(
+            id: 'lossy',
+            name: 'lossy',
+            latencyMs: 0,
+            midStreamDropRate: 1, // always, for determinism
+          ),
+        );
+
+      final Socket raw = await Socket.connect(server.address, server.port);
+      final JalaThrottledSocket wrapped = JalaThrottledSocket(raw, registry);
+
+      int received = 0;
+      Object? error;
+      try {
+        await for (final Uint8List chunk in wrapped) {
+          received += chunk.length;
+        }
+      } on Object catch (e) {
+        error = e;
+      }
+
+      expect(error, isA<SocketException>(), reason: 'a real connection error');
+      expect(
+        received,
+        greaterThan(0),
+        reason: 'bytes delivered before the failure stay delivered — that '
+            'partial state is what this feature exists to exercise',
+      );
+      expect(received, lessThan(64 * 16 * 1024), reason: 'it did not finish');
+      await registry.dispose();
+    });
+
+    test('a short transfer completes even at rate 1', () async {
+      // The failure window starts at 8 KB, so small responses survive — which
+      // is also how a real flaky link behaves.
+      final ServerSocket server = await _pushServer(chunks: 1, chunkSize: 512);
+      addTearDown(server.close);
+
+      final JalaThrottleRegistry registry = JalaThrottleRegistry()
+        ..setActive(
+          const JalaThrottleProfile(
+            id: 'lossy',
+            name: 'lossy',
+            latencyMs: 0,
+            midStreamDropRate: 1,
+          ),
+        );
+
+      final Socket raw = await Socket.connect(server.address, server.port);
+      final JalaThrottledSocket wrapped = JalaThrottledSocket(raw, registry);
+
+      final int received =
+          await wrapped.fold<int>(0, (int n, Uint8List d) => n + d.length);
+      expect(received, 512);
+      await registry.dispose();
+    });
+
+    test('rate 0 never fires, and the roll is once per connection', () {
+      final JalaThrottleRegistry off = JalaThrottleRegistry()
+        ..setActive(JalaThrottleProfile.slow3g); // midStreamDropRate defaults 0
+      expect(off.midStreamFailureAt(), isNull);
+
+      final JalaThrottleRegistry on = JalaThrottleRegistry()
+        ..setActive(
+          const JalaThrottleProfile(
+            id: 'x',
+            name: 'x',
+            latencyMs: 0,
+            midStreamDropRate: 1,
+          ),
+        );
+      final int? at = on.midStreamFailureAt();
+      expect(at, isNotNull);
+      expect(at, greaterThanOrEqualTo(8 * 1024));
+      expect(at, lessThan(512 * 1024));
     });
   });
 }

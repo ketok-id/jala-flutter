@@ -105,7 +105,11 @@ class JalaHttpClient extends http.BaseClient {
     try {
       final JalaThrottleRegistry throttle = binding.throttleRegistry;
       final JalaThrottleProfile? profile = throttle.activeProfile;
-      if (profile != null && throttle.hostMatches(request.url.host)) {
+      // Socket mode replaces this path rather than coordinating with
+      // it — running both charges every call twice.
+      if (profile != null &&
+          !throttle.socketModeActive &&
+          throttle.hostMatches(request.url.host)) {
         throttledBy = profile.id;
         downloadBytesPerSec = profile.downloadBytesPerSec;
         uploadBytesPerSec = profile.uploadBytesPerSec;

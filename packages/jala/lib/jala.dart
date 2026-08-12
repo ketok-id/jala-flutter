@@ -17,3 +17,4 @@ export 'src/file_export_sink.dart';
 export 'src/file_jala_mock_store.dart';
 export 'src/jala.dart';
 export 'src/jala_overlay.dart';
+export 'src/socket_throttle.dart';
