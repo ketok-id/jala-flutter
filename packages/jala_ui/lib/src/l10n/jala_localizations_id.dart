@@ -255,6 +255,20 @@ class JalaLocalizationsId extends JalaLocalizations {
   @override
   String throttleDropRate(int percent) => 'Drop rate: $percent%';
   @override
+  String throttleMidStreamDropRate(int percent) =>
+      'Drop saat download: $percent%';
+  @override
+  String get throttleMidStreamDropHelp =>
+      'Memutus koneksi yang sudah tersambung, di tengah response. Transfer '
+      'panjang gagal; yang pendek tetap selesai.';
+  @override
+  String get throttleScopeAdapter =>
+      'Hanya mencakup client yang di-attach — Image.network dan client yang '
+      'tidak di-attach tidak terpengaruh.';
+  @override
+  String get throttleScopeSocket =>
+      'Mencakup semua traffic dart:io, termasuk Image.network.';
+  @override
   String get bodyStreamOnly => 'Stream — metadata saja, body tidak ditangkap';
   @override
   String bodyBinaryOnly(String size) =>

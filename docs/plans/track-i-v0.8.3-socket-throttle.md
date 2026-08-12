@@ -125,9 +125,12 @@ Follow the `jala`-package pattern (`file_jala_mock_store_io.dart` /
 - Must be idempotent and reversible (restore the previous overrides), and a
   no-op when the binding is disabled.
 - **Adapter-level pacing must switch off while socket throttling is active**,
-  or every call is charged twice. This is the sharpest correctness trap in
-  the track — one registry flag, checked in both places, with a test that
-  asserts total elapsed time matches a single application of the cap.
+  or every call is charged twice. Per Open question 3 this is resolved by
+  *replacement*, not coordination: when socket mode is on, the adapters skip
+  latency, drop and pacing entirely and the socket layer owns all of it.
+  One registry predicate (`JalaThrottleRegistry.socketModeActive`), consulted
+  by the adapters, with a test asserting total elapsed time matches a single
+  application of the cap.
 
 ## I3. UI + docs
 
@@ -209,9 +212,26 @@ The 0.8.0 audit is the template — measure, don't inspect:
    None of that is a reason not to start; all three are testable. **The
    decision this question was waiting on is therefore unblocked** — what
    remains is a scheduling call, not a feasibility one.
-2. `HttpOverrides.global` opt-in, or attempt automatic wiring from
-   `Jala.initialize`? Automatic is friendlier and considerably more
-   dangerous — it changes networking for code that never opted in.
-3. Should socket-level mode also replace the adapter-level path entirely for
-   `dart:io`, rather than running two mechanisms behind a flag? Simpler to
-   reason about; loses the web fallback.
+2. ~~`HttpOverrides.global` opt-in, or automatic wiring from
+   `Jala.initialize`?~~ **Not actually open — I2 already answers it:
+   "Never on by default: it is process-wide and affects code that never
+   asked for Jala."** Opt-in via `Jala.enableSocketThrottling()`, closed.
+
+3. ~~Replace the adapter-level path for `dart:io`, or run two mechanisms
+   behind a flag?~~ **Answered 2026-08-12: replace.**
+
+   The question mis-stated its own tradeoff. "Loses the web fallback" is
+   false — web has no `dart:io` at all, so `HttpOverrides` and
+   `connectionFactory` do not exist there. Scoping the replacement to
+   platforms that *have* `dart:io` leaves web on the adapter path
+   automatically. There is no fallback to lose.
+
+   With that corrected the choice is one-sided: replacing **deletes the
+   double-charge trap** that I2 calls "the sharpest correctness trap in the
+   track", before a line of it is written. Running both behind a flag buys
+   nothing and costs the bug most likely to ship.
+
+   Concretely: while socket throttling is active, the adapters must skip
+   their own latency/drop/pacing entirely rather than coordinating with it.
+   One registry predicate, consulted by the adapters, is the whole
+   mechanism.

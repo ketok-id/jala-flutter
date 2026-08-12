@@ -17,9 +17,14 @@ class JalaThrottleProfile {
     this.downloadBytesPerSec,
     this.uploadBytesPerSec,
     this.dropRate = 0,
+    this.midStreamDropRate = 0,
   }) : assert(
          dropRate >= 0 && dropRate <= 1,
          'dropRate must be within 0..1',
+       ),
+       assert(
+         midStreamDropRate >= 0 && midStreamDropRate <= 1,
+         'midStreamDropRate must be within 0..1',
        ),
        assert(latencyMs >= 0, 'latencyMs must not be negative');
 
@@ -47,6 +52,24 @@ class JalaThrottleProfile {
   /// Probability (`0..1`) that a throttled call is dropped outright
   /// (simulated connection failure) rather than allowed through.
   final double dropRate;
+
+  /// Probability (`0..1`) that a connection which *did* establish then dies
+  /// partway through the response.
+  ///
+  /// [dropRate] only ever fires at connect time, so it simulates "could not
+  /// connect" and never "the connection died at 60% of a download" — the
+  /// failure that actually breaks resume logic, partial-write handling and
+  /// retry code.
+  ///
+  /// **Socket-level throttling only.** The adapter path delays an
+  /// already-complete response and so has no mid-transfer moment to fail at;
+  /// it ignores this field.
+  ///
+  /// Real packet loss cannot be simulated at all from a `Socket` — TCP has
+  /// already retransmitted and reassembled everything before Jala sees a
+  /// byte. This is the observable *consequence* of a bad network, not the
+  /// mechanism. See docs/THROTTLE.md.
+  final double midStreamDropRate;
 
   /// `400ms ±100` latency, `50 KB/s` down / `25 KB/s` up, no drops —
   /// approximates a slow 3G connection.
@@ -105,7 +128,8 @@ class JalaThrottleProfile {
           other.jitterMs == jitterMs &&
           other.downloadBytesPerSec == downloadBytesPerSec &&
           other.uploadBytesPerSec == uploadBytesPerSec &&
-          other.dropRate == dropRate);
+          other.dropRate == dropRate &&
+          other.midStreamDropRate == midStreamDropRate);
 
   @override
   int get hashCode => Object.hash(
@@ -116,10 +140,12 @@ class JalaThrottleProfile {
     downloadBytesPerSec,
     uploadBytesPerSec,
     dropRate,
+    midStreamDropRate,
   );
 
   @override
   String toString() =>
       'JalaThrottleProfile(id: $id, name: $name, latencyMs: $latencyMs, '
-      'jitterMs: $jitterMs, dropRate: $dropRate)';
+      'jitterMs: $jitterMs, dropRate: $dropRate, '
+      'midStreamDropRate: $midStreamDropRate)';
 }

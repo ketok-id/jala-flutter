@@ -98,6 +98,48 @@ added around an already-established request. A cap of `50 KB/s` therefore
 models steady-state bandwidth, not the full cost of a cold connection on a
 bad network.
 
+## What Jala simulates — and what it doesn't
+
+**Jala simulates the *effects* of a bad network, not the network itself.**
+
+Socket-level throttling paces real bytes and applies real TCP backpressure —
+during each pause the socket isn't drained, the receive window closes, and
+the peer genuinely stops sending. Latency lands before the TCP connect, so it
+behaves like RTT. Connection failures are real `SocketException`s.
+
+**Packet loss is not simulated, and cannot be.** By the time a byte reaches
+Jala, TCP has already detected any lost segment, retransmitted it, and
+reassembled the stream in order — that is what TCP is for. Injecting loss
+requires operating below the socket: raw sockets (root only), or a VPN
+interface (native code on both platforms, an iOS Network Extension
+entitlement, store review, a consent prompt). That is a different product,
+and it is deliberately rejected.
+
+Also out of reach: jitter as a network property, reordering, duplication,
+corruption, and DNS delay. HTTP/2 is moot — `dart:io`'s client is HTTP/1.1
+only.
+
+**For genuine network emulation use the real tool**: Network Link Conditioner
+(iOS/macOS), the Android emulator's network profiles, `tc netem` (Linux), or
+a proxy.
+
+### What you can simulate instead
+
+| Failure | How |
+|---|---|
+| Can't connect | `dropRate` — fails at connect time |
+| **Connection dies mid-download** | `midStreamDropRate` — socket mode only |
+| Slow link | `downloadBytesPerSec` / `uploadBytesPerSec` |
+| High RTT | `latencyMs` + `jitterMs` |
+
+`midStreamDropRate` is the one worth knowing about: `dropRate` only ever
+fires *before* the connection is established, so it can never produce "the
+download died at 60%" — the failure that actually breaks resume logic,
+partial-write handling and retry code. The roll happens once per connection
+(a per-chunk roll would compound to near-certainty), and the failure point
+lands in the first 512 KB, so long transfers die partway while short requests
+complete — which is also how a real flaky link behaves.
+
 ## Safety
 
 Throttling only applies while Jala is enabled, and a disabled binding makes

@@ -8,6 +8,7 @@ import 'package:jala_ui/jala_ui.dart';
 
 import 'file_export_sink.dart';
 import 'file_jala_mock_store.dart';
+import 'socket_throttle.dart';
 
 /// Static facade for the Jala network inspector.
 ///
@@ -109,6 +110,37 @@ class Jala {
 
   /// Restores the default clipboard export destination.
   static void disableFileExport() => JalaExportSink.install(null);
+
+  /// Routes throttling down to the socket, covering **all** `dart:io`
+  /// traffic instead of only clients Jala was attached to.
+  ///
+  /// This is what makes `Image.network`, unattached `Dio` instances and raw
+  /// `HttpClient`s obey a throttle profile — the single most confusing gap
+  /// in adapter-level throttling, which reads as the feature being broken.
+  ///
+  /// **Opt-in on purpose, and never wired from [initialize].** It installs
+  /// `HttpOverrides.global`, which changes `HttpClient()` construction for
+  /// the entire process including code that never asked for Jala. Existing
+  /// overrides are chained, not replaced.
+  ///
+  /// While active, the adapters stand down and the socket layer owns all
+  /// latency, drops and pacing — running both would charge every call twice.
+  ///
+  /// Returns false when unsupported (web) or when Jala is disabled, leaving
+  /// the adapter-level path in charge.
+  static bool enableSocketThrottling() {
+    if (!isEnabled) return false;
+    return installSocketThrottling(JalaBinding.instance.throttleRegistry);
+  }
+
+  /// Restores the previous `HttpOverrides` and hands pacing back to the
+  /// adapters. Idempotent.
+  static void disableSocketThrottling() {
+    uninstallSocketThrottling(JalaBinding.instance.throttleRegistry);
+  }
+
+  /// Whether socket-level throttling is currently installed.
+  static bool get isSocketThrottlingEnabled => socketThrottlingInstalled;
 
   /// Whether Jala is initialized and enabled.
   static bool get isEnabled => JalaBinding.instance.isEnabled;

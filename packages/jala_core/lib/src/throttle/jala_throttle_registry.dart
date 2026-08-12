@@ -33,6 +33,7 @@ class JalaThrottleRegistry {
 
   JalaThrottleProfile? _activeProfile;
   String? _hostPattern;
+  bool _socketModeActive = false;
 
   final StreamController<JalaThrottleProfile?> _controller =
       StreamController<JalaThrottleProfile?>.broadcast();
@@ -93,6 +94,29 @@ class JalaThrottleRegistry {
     return _random.nextDouble() < profile.dropRate;
   }
 
+  /// Byte offset at which an established connection should die, or null to
+  /// let it complete.
+  ///
+  /// Rolled **once per connection** rather than per chunk: a per-chunk roll
+  /// would compound, so a 10% rate across a hundred chunks would fail every
+  /// time. Rolled once, the rate means what it says.
+  ///
+  /// When it fires the offset lands in the first 512 KB, so long transfers
+  /// die partway while short ones finish — which is also how a real flaky
+  /// link behaves. Always null when off.
+  int? midStreamFailureAt() {
+    final JalaThrottleProfile? profile = activeProfile;
+    if (profile == null) return null;
+    final double rate = profile.midStreamDropRate;
+    if (rate <= 0) return null;
+    if (rate < 1 && _random.nextDouble() >= rate) return null;
+    return _minMidStreamFailureBytes +
+        _random.nextInt(_maxMidStreamFailureBytes - _minMidStreamFailureBytes);
+  }
+
+  static const int _minMidStreamFailureBytes = 8 * 1024;
+  static const int _maxMidStreamFailureBytes = 512 * 1024;
+
   /// The artificial latency to wait before a throttled call proceeds:
   /// `latencyMs` plus a random jitter within `±jitterMs`, clamped so the
   /// result is never negative. Zero when off.
@@ -121,6 +145,29 @@ class JalaThrottleRegistry {
     if (perSec == null || perSec <= 0 || bytes <= 0) return Duration.zero;
     final int micros = (bytes * Duration.microsecondsPerSecond) ~/ perSec;
     return Duration(microseconds: micros);
+  }
+
+  /// Whether socket-level throttling has taken over pacing.
+  ///
+  /// **Adapters must consult this and skip their own latency, drop and
+  /// bandwidth pacing entirely when it is true.** Socket mode replaces the
+  /// adapter path rather than coordinating with it — running both charges
+  /// every call twice, which is the sharpest correctness trap in the design
+  /// (see docs/plans/track-i-v0.8.3-socket-throttle.md, Open question 3).
+  ///
+  /// Always false when the binding is disabled, and on platforms without
+  /// `dart:io` (web), where socket throttling cannot exist and the adapter
+  /// path therefore stays in charge.
+  bool get socketModeActive => _isEnabled() && _socketModeActive;
+
+  /// Marks socket-level throttling as active or inactive.
+  ///
+  /// Called by `Jala.enableSocketThrottling()` / `disableSocketThrottling()`;
+  /// not intended for host apps to call directly.
+  set socketModeActive(bool value) {
+    if (_socketModeActive == value) return;
+    _socketModeActive = value;
+    _emit();
   }
 
   /// Whether [host] is in scope for the active profile: always true when
